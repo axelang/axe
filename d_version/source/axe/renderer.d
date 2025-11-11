@@ -137,7 +137,7 @@ string generateAsm(ASTNode ast)
                 extern printf
                 global main
             main:
-                sub rsp, 40      ; 32 shadow space + 8 alignment
+                sub rsp, 40
         `;
         int msgCounter = 0;
         foreach (child; ast.children)
