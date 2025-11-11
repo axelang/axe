@@ -209,8 +209,6 @@ proc generateAsm*(ast: ASTNode): string =
                 pop ebp
                 ret
             """)
-    
-
     else:
         raise newException(ValueError, "Unsupported node type for ASM generation: " & ast.nodeType)
     
