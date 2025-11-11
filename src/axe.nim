@@ -11,7 +11,7 @@ else:
 
 when isMainModule:
     if paramCount() < 1:
-        echo "Usage: axe input.axe"
+        echo "usage: axe input.axe [-e = emit generated code]"
     else:
         try:
             var name = paramStr(1)
@@ -29,6 +29,10 @@ when isMainModule:
                 args = [name.replace(".axe", ".c"), "-o", name.replace(".axe", extension)],
                 options = {poStdErrToStdOut}
             )
+
+            if "-e" notin commandLineParams():
+                removeFile(name.replace(".axe", ".c"))
+
         except ValueError as e:
             echo "Compilation error: ", e.msg
         except OSError as e:
