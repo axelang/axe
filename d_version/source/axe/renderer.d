@@ -131,11 +131,13 @@ string generateAsm(ASTNode ast)
     case "Main":
         asmCode = `
             section .data
-                fmt db "%s", 10, 0
+                fmt db "%s", 0
+                nl db 10, 0
             section .text
                 extern printf
                 global main
             main:
+                sub rsp, 40      ; 32 shadow space + 8 alignment
         `;
         int msgCounter = 0;
         foreach (child; ast.children)
@@ -147,9 +149,9 @@ string generateAsm(ASTNode ast)
                     section .data
                         msg_` ~ msgCounter.to!string ~ ` db '` ~ child.value ~ `', 0
                     section .text
-                        mov rdi, fmt
-                        mov rsi, msg_` ~ msgCounter.to!string ~ `
-                        xor rax, rax
+                        mov rcx, msg_` ~ msgCounter.to!string ~ `
+                        call printf
+                        mov rcx, nl
                         call printf
                 `;
                 msgCounter++;
@@ -167,9 +169,9 @@ string generateAsm(ASTNode ast)
                             section .data
                                 msg_` ~ msgCounter.to!string ~ ` db '` ~ loopChild.value ~ `', 0
                             section .text
-                                mov rdi, fmt
-                                mov rsi, msg_` ~ msgCounter.to!string ~ `
-                                xor rax, rax
+                                mov rcx, msg_` ~ msgCounter.to!string ~ `
+                                call printf
+                                mov rcx, nl
                                 call printf
                         `;
                         msgCounter++;
@@ -185,6 +187,7 @@ string generateAsm(ASTNode ast)
             }
         }
         asmCode ~= `
+            add rsp, 40
             xor eax, eax
             ret
         `;

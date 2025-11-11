@@ -40,10 +40,10 @@ void main(string[] args)
             {
                 execute([
                     "nasm", "-f", "win64", replace(name, ".axe", ".asm"), "-o",
-                    replace(name, ".axe", ".o")
+                    replace(name, ".axe", ".o"), "-g"
                 ]);
                 execute([
-                    "gcc", replace(name, ".axe", ".o"), "-o",
+                    "gcc", "-g", replace(name, ".axe", ".o"), "-o",
                     replace(name, ".axe", ".exe"), "-mconsole"
                 ]);
             }
@@ -51,10 +51,10 @@ void main(string[] args)
             {
                 execute([
                     "nasm", "-f", "elf64", replace(name, ".axe", ".asm"), "-o",
-                    replace(name, ".axe", ".o")
+                    replace(name, ".axe", ".o"), "-g"
                 ]);
                 execute([
-                    "gcc", "-m64", replace(name, ".axe", ".o"), "-o",
+                    "gcc", "-g", "-m64", replace(name, ".axe", ".o"), "-o",
                     replace(name, ".axe", "")
                 ]);
             }
