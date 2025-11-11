@@ -12,6 +12,13 @@ proc lex*(source: string): seq[Token] =
 
     while pos < source.len:
         case source[pos]
+        of '*':
+            # Handle pointer types by combining with previous identifier
+            if tokens.len > 0 and tokens[^1].typ == Identifier:
+                tokens[^1].value.add("*")
+                inc(pos)
+            else:
+                raise newException(ValueError, "Unexpected '*'")
         of ' ', '\t', '\r':
             tokens.add(Token(typ: Whitespace, value: $source[pos]))
             inc(pos)

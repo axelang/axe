@@ -13,12 +13,19 @@ proc parse*(tokens: seq[Token]): ASTNode =
         while pos < tokens.len and current.typ == Whitespace: advance
         if pos >= tokens.len:
             raise newException(ValueError, "Expected type after ':'")
+        
+        var typeName = ""
         case current.typ
         of Identifier:
-            result = current.value
+            typeName = current.value
             advance
+            if pos < tokens.len and current.typ == Operator and current.value == "*":
+                typeName.add "*"
+                advance
         else:
             raise newException(ValueError, "Invalid type specification")
+        
+        return typeName
     
     proc parseArgs(): string =
         var args: seq[string]

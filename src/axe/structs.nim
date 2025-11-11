@@ -18,7 +18,8 @@ type
         RBracket,
         Comma,
         Dot,
-        Colon
+        Colon,
+        Operator
 
     Token* = object
         typ*: TokenType
