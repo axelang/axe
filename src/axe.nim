@@ -134,13 +134,13 @@ proc generateC(ast: ASTNode): string =
         for child in ast.children:
             case child.nodeType
             of "Println":
-                cCode.add(fmt"""    printf("%s\n", "{child.value}");\n""")
+                cCode.add(fmt"""    printf("%s\n", "{child.value}");""")
             of "Loop":
                 cCode.add("    while (1) {\n")
                 for loopChild in child.children:
                     case loopChild.nodeType
                     of "Println":
-                        cCode.add(fmt"""        printf("%s\n", "{loopChild.value}");\n""")
+                        cCode.add(fmt"""        printf("%s\n", "{loopChild.value}");""")
                     of "Break":
                         cCode.add("        break;\n")
                 cCode.add("    }\n")
@@ -157,7 +157,7 @@ when isMainModule:
             let ast = parse(tokens)
             let cCode = generateC(ast)
             writeFile("output.c", cCode)
-            discard execProcess("gcc output.c -o output", options={poStdErrToStdOut})
+            discard execProcess(command="gcc", args=["output.c", "-o", "output"], options={poStdErrToStdOut})
         except ValueError as e:
             echo "Error: ", e.msg
         except OSError as e:
