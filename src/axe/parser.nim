@@ -3,7 +3,7 @@ import structs
 proc parse*(tokens: seq[Token]): ASTNode =
     ## Syntax analysis and abstract syntax tree (AST) construction
     ## Includes main function parsing, loop and break statement parsing, and string handling
-    
+
     var pos = 0
     var ast: ASTNode
     while pos < tokens.len:
