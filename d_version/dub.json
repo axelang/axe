@@ -3,7 +3,7 @@
     "targetType": "executable",
     "sourcePaths": ["source"],
     "importPaths": ["source"],
-    "mainSourceFile": "source/axe/compiler.d",
+    "mainSourceFile": "source/axe/app.d",
     "dependencies": {
     }
 }
