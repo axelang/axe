@@ -1,12 +1,10 @@
 import
     structs,
     strformat,
-    strutils,
     sets
 
 proc generateC*(ast: ASTNode): string =
     ## Code generation from abstract syntax tree (AST)
-    ## Includes C code generation for main function, loop and break statements, and string handling
 
     var cCode = ""
     var includes = initHashSet[string]()
@@ -19,22 +17,27 @@ proc generateC*(ast: ASTNode): string =
         cCode.add("\n")
         for child in ast.children:
             cCode.add(generateC(child) & "\n")
-    of "Function":
-        cCode.add(fmt"void {ast.value}() {{")
-        for child in ast.children:
-            case child.nodeType
-            of "Println":
-                cCode.add("    printf(\"%s\\n\", \"" & child.value & "\");")
-
-        cCode.add("}\n")
-    of "FunctionCall":
-        let valToAdd = ast.value.replace("\n","")
-        cCode.add(fmt"    {valToAdd}();")
     of "Main":
         cCode.add("int main() {\n")
         for child in ast.children:
-            cCode.add(generateC(child))
-        cCode.add("    return 0;\n}\n")
+            case child.nodeType
+            of "Println":
+                cCode.add("    printf(\"%s\\n\", \"" & child.value & "\");\n")
+            of "Loop":
+                cCode.add("    while (1) {\n")
+                for loopChild in child.children:
+                    case loopChild.nodeType
+                    of "Println":
+                        cCode.add("        printf(\"%s\\n\", \"" & loopChild.value & "\");\n")
+                    of "Break":
+                        cCode.add("        break;\n")
+                cCode.add("    }\n")
+            of "Break":
+                cCode.add("    break;\n")
+        cCode.add("    return 0;\n}")
+    else:
+        raise newException(ValueError, "Unsupported node type for C generation: " & ast.nodeType)
+    
     return cCode
 
 proc generateAsm*(ast: ASTNode): string =
