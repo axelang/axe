@@ -23,6 +23,6 @@ when isMainModule:
         except ValueError as e:
             echo "Error: ", e.msg
         except OSError as e:
-            echo "LL Error: ", e.msg.replace("OS error:", "")
+            echo "LL Error (maybe no C toolchain is installed?): ", e.msg.replace("OS error:", "")
         except Exception as e:
             echo "Unknown Error: ", e.msg
