@@ -1,6 +1,6 @@
-import 
-    structs, 
-    strformat, 
+import
+    structs,
+    strformat,
     strutils
 
 proc lex*(source: string): seq[Token] =
@@ -77,11 +77,14 @@ proc lex*(source: string): seq[Token] =
                 pos += 3
             elif source[pos].isAlphaAscii():
                 let start = pos
-                while pos < source.len and (source[pos].isAlphaNumeric() or source[pos] == '_'):
+                while pos < source.len and (source[pos].isAlphaNumeric() or
+                        source[pos] == '_'):
                     inc(pos)
                 tokens.add(Token(typ: Identifier, value: source[start..<pos]))
             else:
                 let charAtPos = if pos < source.len: source[pos] else: '.'
-                raise newException(ValueError,
-                        &"Unexpected character at position {pos}: '{charAtPos}'")
+                raise newException(
+                    ValueError,
+                    &"Unexpected character at position {pos}: '{charAtPos}'"
+                )
     return tokens
