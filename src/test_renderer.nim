@@ -1,6 +1,7 @@
-import ast, renderer
+import 
+    ast, 
+    renderer
 
-# Manually construct AST matching hello.axe
 let program = Node(kind: nkProgram, stmts: @[
   Node(kind: nkFuncDecl, name: "main", params: @[], body: @[
     Node(kind: nkCall, fnName: "println", args: @[
