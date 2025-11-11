@@ -6,7 +6,14 @@ import
 
 type
     TokenType = enum
-        Main, Println, Loop, Break, String, Semicolon, LBrace, RBrace
+        Main, 
+        Println, 
+        Loop, 
+        Break, 
+        String, 
+        Semicolon, 
+        LBrace, 
+        RBrace
 
     Token = object
         typ: TokenType
