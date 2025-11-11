@@ -1,7 +1,6 @@
-when isMainModule:
-  echo("Hello, World!")
-
-import strutils, tables, sequtils
+import 
+  strutils, 
+  sets
 
 type
   TokenKind* = enum
