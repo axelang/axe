@@ -1,8 +1,8 @@
 module axe.renderer;
 
+import axe.structs;
 import std.string;
 import std.array;
-import axe.structs;
 import std.exception;
 import std.algorithm;
 import std.file;
@@ -258,6 +258,20 @@ import std.conv;
 string generateAsm(ASTNode ast)
 {
     string asmCode;
+    string dataSection;
+    string[string] variables;
+    string[] currentFunctionParams;
+
+    void declareVariable(string name)
+    {
+        if (!(name in variables))
+        {
+            variables[name] = name;
+            dataSection ~= "    " ~ name ~ " dd 0\n";
+        }
+    }
+
+    bool isParameter(string name) => currentFunctionParams.canFind(name);
 
     final switch (ast.nodeType)
     {
@@ -283,6 +297,8 @@ string generateAsm(ASTNode ast)
             section .data
                 fmt db "%s", 0
                 nl db 10, 0
+            `
+            ~ dataSection ~ `
             section .text
                 extern printf
                 global main
@@ -373,6 +389,12 @@ string generateAsm(ASTNode ast)
                         string dest = parts[0].strip();
                         string src = parts[1].strip();
 
+                        // Declare the variable if it's not a parameter
+                        if (!isParameter(dest))
+                        {
+                            declareVariable(dest);
+                        }
+
                         if (src.canFind(" - "))
                         {
                             auto exprParts = src.split(" - ");
@@ -401,6 +423,12 @@ string generateAsm(ASTNode ast)
                 auto parts = child.value.split(" = ");
                 string dest = parts[0].strip();
                 string src = parts[1].strip();
+
+                // Declare the variable if it's not a parameter
+                if (!isParameter(dest))
+                {
+                    declareVariable(dest);
+                }
 
                 if (src.canFind(" - "))
                 {
@@ -504,6 +532,12 @@ string generateAsm(ASTNode ast)
                 string dest = parts[0].strip();
                 string src = parts[1].strip();
 
+                // Declare the variable if it's not a parameter
+                if (!isParameter(dest))
+                {
+                    declareVariable(dest);
+                }
+
                 if (src.canFind(" - "))
                 {
                     auto exprParts = src.split(" - ");
@@ -533,6 +567,24 @@ string generateAsm(ASTNode ast)
                     asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
                     asmCode ~= "    cmp eax, ebx\n";
                     asmCode ~= "    jne " ~ endIfLabel ~ "\n";
+                }
+                else if (condition.canFind("!="))
+                {
+                    auto parts = condition.split("!=");
+                    string left = parts[0].strip();
+                    string right = parts[1].strip();
+
+                    asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
+                    asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
+                    asmCode ~= "    cmp eax, ebx\n";
+                    asmCode ~= "    je " ~ endIfLabel ~ "\n";
+                }
+                else
+                {
+                    // Handle simple variable checks (like just "times")
+                    asmCode ~= "    mov eax, " ~ operand(condition, paramMap) ~ "\n";
+                    asmCode ~= "    test eax, eax\n";
+                    asmCode ~= "    jz " ~ endIfLabel ~ "\n";
                 }
 
                 foreach (ifChild; child.children)
@@ -589,6 +641,24 @@ string generateAsm(ASTNode ast)
                             asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
                             asmCode ~= "    cmp eax, ebx\n";
                             asmCode ~= "    jne " ~ endIfLabel ~ "\n";
+                        }
+                        else if (condition.canFind("!="))
+                        {
+                            auto parts = condition.split("!=");
+                            string left = parts[0].strip();
+                            string right = parts[1].strip();
+
+                            asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
+                            asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
+                            asmCode ~= "    cmp eax, ebx\n";
+                            asmCode ~= "    je " ~ endIfLabel ~ "\n";
+                        }
+                        else
+                        {
+                            // Handle simple variable checks (like just "times")
+                            asmCode ~= "    mov eax, " ~ operand(condition, paramMap) ~ "\n";
+                            asmCode ~= "    test eax, eax\n";
+                            asmCode ~= "    jz " ~ endIfLabel ~ "\n";
                         }
 
                         foreach (ifChild; loopChild.children)
@@ -675,6 +745,12 @@ string generateAsm(ASTNode ast)
                 string dest = parts[0].strip();
                 string src = parts[1].strip();
 
+                // Declare the variable if it's not a parameter
+                if (!isParameter(dest))
+                {
+                    declareVariable(dest);
+                }
+
                 if (src.canFind(" - "))
                 {
                     auto exprParts = src.split(" - ");
@@ -704,6 +780,12 @@ string generateAsm(ASTNode ast)
         string dest = parts[0].strip();
         string src = parts[1].strip();
 
+        // Declare the variable if it's not a parameter
+        if (!isParameter(dest))
+        {
+            declareVariable(dest);
+        }
+
         if (src.canFind(" - "))
         {
             auto exprParts = src.split(" - ");
@@ -721,6 +803,12 @@ string generateAsm(ASTNode ast)
 
     }
 
+    // Add .data section if we have variables
+    if (dataSection.length > 0)
+    {
+        asmCode = "section .data\n" ~ dataSection ~ "\n" ~ asmCode;
+    }
+
     return asmCode;
 }
 
@@ -735,7 +823,7 @@ string compileAndRunAsm(string asmCode)
     string exeFile = buildPath(tempDir(), "temp.exe");
 
     std.file.write(asmFile, asmCode);
-    
+
     auto nasmResult = execute(["nasm", "-f", "win64", "-o", objFile, asmFile]);
 
     if (nasmResult.status != 0)
