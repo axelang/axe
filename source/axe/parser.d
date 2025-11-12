@@ -525,3 +525,56 @@ ASTNode parse(Token[] tokens)
 
     return ast;
 }
+
+unittest
+{
+    // Test if statement parsing in loop
+    auto loopIfTokens = [
+        Token(TokenType.DEF, "def"),
+        Token(TokenType.IDENTIFIER, "test"),
+        Token(TokenType.LPAREN, "("),
+        Token(TokenType.RPAREN, ")"),
+        Token(TokenType.LBRACE, "{"),
+        Token(TokenType.LOOP, "loop"),
+        Token(TokenType.LBRACE, "{"),
+        Token(TokenType.IF, "if"),
+        Token(TokenType.IDENTIFIER, "x"),
+        Token(TokenType.OPERATOR, "=="),
+        Token(TokenType.IDENTIFIER, "0"),
+        Token(TokenType.LBRACE, "{"),
+        Token(TokenType.BREAK, "break"),
+        Token(TokenType.SEMICOLON, ";"),
+        Token(TokenType.RBRACE, "}"),
+        Token(TokenType.RBRACE, "}"),
+        Token(TokenType.RBRACE, "}")
+    ];
+    
+    auto loopAst = parse(loopIfTokens);
+    assert(loopAst.children[0].nodeType == "Function");
+    assert(loopAst.children[0].children[0].nodeType == "Loop");
+    assert(loopAst.children[0].children[0].children[0].nodeType == "If");
+    assert(loopAst.children[0].children[0].children[0].value == "x == 0");
+    
+    // Test if statement parsing in function body
+    auto funcIfTokens = [
+        Token(TokenType.DEF, "def"),
+        Token(TokenType.IDENTIFIER, "test"),
+        Token(TokenType.LPAREN, "("),
+        Token(TokenType.RPAREN, ")"),
+        Token(TokenType.LBRACE, "{"),
+        Token(TokenType.IF, "if"),
+        Token(TokenType.IDENTIFIER, "y"),
+        Token(TokenType.OPERATOR, "=="),
+        Token(TokenType.IDENTIFIER, "1"),
+        Token(TokenType.LBRACE, "{"),
+        Token(TokenType.BREAK, "break"),
+        Token(TokenType.SEMICOLON, ";"),
+        Token(TokenType.RBRACE, "}"),
+        Token(TokenType.RBRACE, "}")
+    ];
+    
+    auto funcAst = parse(funcIfTokens);
+    assert(funcAst.children[0].nodeType == "Function");
+    assert(funcAst.children[0].children[0].nodeType == "If");
+    assert(funcAst.children[0].children[0].value == "y == 1");
+}

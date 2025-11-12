@@ -63,8 +63,16 @@ Token[] lex(string source)
             break;
 
         case '=':
-            tokens ~= Token(TokenType.OPERATOR, "=");
-            pos++;
+            if (pos + 1 < source.length && source[pos + 1] == '=')
+            {
+                tokens ~= Token(TokenType.OPERATOR, "==");
+                pos += 2;
+            }
+            else
+            {
+                tokens ~= Token(TokenType.OPERATOR, "=");
+                pos++;
+            }
             break;
 
         case '-':
@@ -153,4 +161,27 @@ Token[] lex(string source)
     }
 
     return tokens;
+}
+
+unittest
+{
+    import std.array;
+    import std.stdio;
+
+    auto tokens = lex("if x == 0 { break; }");
+    auto filtered = tokens.filter!(t => t.type != TokenType.WHITESPACE).array;
+
+    writeln(filtered.length);
+    writeln(filtered);
+
+    assert(filtered.length == 8);
+    assert(filtered[0].type == TokenType.IF);
+    assert(filtered[0].value == "if");
+    assert(filtered[1].type == TokenType.IDENTIFIER);
+    assert(filtered[1].value == "x");
+    assert(filtered[2].type == TokenType.OPERATOR);
+    assert(filtered[2].value == "==");
+    assert(filtered[3].type == TokenType.IDENTIFIER);
+    assert(filtered[3].value == "0");
+    assert(filtered[4].type == TokenType.LBRACE);
 }
