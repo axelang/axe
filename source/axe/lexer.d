@@ -130,7 +130,9 @@ Token[] lex(string source)
             }
             else
             {
-                enforce(false, "Unexpected character: " ~ source[pos .. pos + 1]);
+                import std.conv;
+                
+                enforce(false, "Unexpected character at position " ~ pos.to!string ~ ": " ~ source[pos .. pos + 1]);
             }
         }
     }
