@@ -62,6 +62,11 @@ Token[] lex(string source)
             pos++;
             break;
 
+        case '=':
+            tokens ~= Token(TokenType.OPERATOR, "=");
+            pos++;
+            break;
+
         case '"':
             size_t ending = source.indexOf('"', pos + 1);
             enforce(ending != -1, "Unterminated string");

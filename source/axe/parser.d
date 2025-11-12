@@ -183,6 +183,52 @@ ASTNode parse(Token[] tokens)
                             loopNode.children ~= ASTNode("Break", [], "");
                             break;
 
+                        case TokenType.IDENTIFIER:
+                            string varName = tokens[pos].value;
+                            pos++;
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+
+                            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+                            {
+                                pos++;
+                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                    pos++;
+
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER, "Expected expression after =");
+                                string expr = tokens[pos].value;
+                                pos++;
+                                
+                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                    pos++;
+                                
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON, "Expected ';' after assignment");
+                                pos++;
+                                loopNode.children ~= ASTNode("Assignment", [], varName ~ " = " ~ expr);
+                                break;
+                            }
+                            else
+                            {
+                                string funcName = tokens[pos-1].value;
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
+                                    "Expected '(' after function name");
+                                pos++;
+                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                    pos++;
+
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                                    "Expected ')' after function arguments");
+                                pos++;
+                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                    pos++;
+
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after function call");
+                                pos++;
+                                loopNode.children ~= ASTNode("FunctionCall", [], funcName);
+                                break;
+                            }
+
                         default:
                             enforce(false, "Unexpected token in loop body");
                         }

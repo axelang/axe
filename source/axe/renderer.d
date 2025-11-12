@@ -61,6 +61,10 @@ string generateC(ASTNode ast)
                     case "Break":
                         cCode ~= "break;\n";
                         break;
+                    case "Assignment":
+                        auto parts = loopChild.value.split(" = ");
+                        cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+                        break;
                     }
                 }
                 cCode ~= "}\n";
@@ -74,6 +78,10 @@ string generateC(ASTNode ast)
                 string args = funcDecl.length > 1 ?
                     funcDecl[1].strip(")") : "";
                 cCode ~= funcName ~ "(" ~ args ~ ");\n";
+                break;
+            case "Assignment":
+                auto parts = child.value.split(" = ");
+                cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
                 break;
             }
         }
@@ -101,6 +109,10 @@ string generateC(ASTNode ast)
                     callDecl[1].strip(")") : "";
                 cCode ~= callName ~ "(" ~ callArgs ~ ");\n";
                 break;
+            case "Assignment":
+                auto parts = child.value.split(" = ");
+                cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+                break;
             }
         }
         cCode ~= "}";
@@ -112,6 +124,11 @@ string generateC(ASTNode ast)
         string args = funcDecl.length > 1 ?
             funcDecl[1].strip(")") : "";
         cCode ~= funcName ~ "(" ~ args ~ ");\n";
+        break;
+
+    case "Assignment":
+        auto parts = ast.value.split(" = ");
+        cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
         break;
 
     default:
@@ -213,6 +230,11 @@ string generateAsm(ASTNode ast)
                     case "Break":
                         asmCode ~= "    jmp loop_" ~ loopId.to!string ~ "_end\n";
                         break;
+                    case "Assignment":
+                        auto parts = loopChild.value.split(" = ");
+                        asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                            ~ "    mov " ~ parts[0] ~ ", eax\n";
+                        break;
                     }
                 }
                 asmCode ~= "    jmp loop_" ~ loopId.to!string ~ "_start\n";
@@ -221,6 +243,11 @@ string generateAsm(ASTNode ast)
 
             case "Break":
                 asmCode ~= "    jmp loop_0_end\n";
+                break;
+            case "Assignment":
+                auto parts = child.value.split(" = ");
+                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                    ~ "    mov " ~ parts[0] ~ ", eax\n";
                 break;
             }
         }
@@ -265,6 +292,11 @@ string generateAsm(ASTNode ast)
                     callDecl[1].strip(")") : "";
                 asmCode ~= "    call " ~ callName ~ "\n";
                 break;
+            case "Assignment":
+                auto parts = child.value.split(" = ");
+                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                    ~ "    mov " ~ parts[0] ~ ", eax\n";
+                break;
             }
         }
         asmCode ~= "    add rsp, 40\n"
@@ -300,6 +332,11 @@ string generateAsm(ASTNode ast)
             case "Break":
                 asmCode ~= "    jmp loop_" ~ loopId.to!string ~ "_end\n";
                 break;
+            case "Assignment":
+                auto parts = child.value.split(" = ");
+                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                    ~ "    mov " ~ parts[0] ~ ", eax\n";
+                break;
             }
         }
         asmCode ~= "    jmp loop_" ~ loopId.to!string ~ "_start\n";
@@ -308,6 +345,12 @@ string generateAsm(ASTNode ast)
 
     case "Break":
         asmCode ~= "    jmp end\n";
+        break;
+
+    case "Assignment":
+        auto parts = ast.value.split(" = ");
+        asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+            ~ "    mov " ~ parts[0] ~ ", eax\n";
         break;
 
     }
