@@ -101,6 +101,21 @@ Token[] lex(string source)
             pos++;
             break;
 
+        // Handle break keyword
+        case 'b':
+            if (pos + 4 < source.length && source[pos .. pos + 5] == "break") {
+                tokens ~= Token(TokenType.BREAK, "break");
+                pos += 5;
+            } else {
+                // Handle as identifier
+                size_t start = pos;
+                while (pos < source.length && (source[pos].isAlphaNum || source[pos] == '_')) {
+                    pos++;
+                }
+                tokens ~= Token(TokenType.IDENTIFIER, source[start .. pos]);
+            }
+            break;
+
         case ']':
             tokens ~= Token(TokenType.RBRACKET, "]");
             pos++;

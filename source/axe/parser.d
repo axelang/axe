@@ -89,7 +89,8 @@ ASTNode parse(Token[] tokens)
                         args ~= "int " ~ argName;
                     }
                 }
-                else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER)
+                else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
+                    .IDENTIFIER)
                 {
                     args ~= tokens[pos].value;
                     pos++;
@@ -243,8 +244,16 @@ ASTNode parse(Token[] tokens)
                                     pos++;
                                     ifNode.children ~= ASTNode("Break", [], "");
                                     break;
+                                case TokenType.WHITESPACE, TokenType.NEWLINE:
+                                    pos++;
+                                    break;
                                 default:
-                                    enforce(false, "Unexpected token in if body");
+                                    import std.stdio;
+
+                                    writeln("Token type: ", tokens[pos].type);
+
+                                    enforce(false, "Unexpected token in if body: " ~ tokens[pos]
+                                            .value);
                                 }
                             }
 
@@ -318,16 +327,19 @@ ASTNode parse(Token[] tokens)
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
                                     "Expected '(' after function name");
                                 pos++;
-                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                while (pos < tokens.length && tokens[pos].type == TokenType
+                                    .WHITESPACE)
                                     pos++;
 
                                 while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
                                 {
-                                    if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.COMMA)
+                                    if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
+                                        .COMMA)
                                     {
                                         pos++;
                                     }
-                                    else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER)
+                                    else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
+                                        .IDENTIFIER)
                                     {
                                         pos++;
                                     }
@@ -340,7 +352,8 @@ ASTNode parse(Token[] tokens)
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
                                     "Expected ')' after function arguments");
                                 pos++;
-                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                while (pos < tokens.length && tokens[pos].type == TokenType
+                                    .WHITESPACE)
                                     pos++;
 
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
@@ -378,24 +391,28 @@ ASTNode parse(Token[] tokens)
                         pos++;
 
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
-                        format("Expected '(' after function name '%s' at position %s", funcName, pos.to!string));
+                        format("Expected '(' after function name '%s' at position %s", funcName, pos
+                            .to!string));
                     pos++;
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                         pos++;
 
                     while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
                     {
-                        if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.COMMA)
+                        if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
+                            .COMMA)
                         {
                             pos++;
                         }
-                        else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER)
+                        else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
+                            .IDENTIFIER)
                         {
                             pos++;
                         }
                         else
                         {
-                            enforce(false, format("Unexpected argument in function call: %s", tokens[pos].value));
+                            enforce(false, format("Unexpected argument in function call: %s", tokens[pos]
+                                    .value));
                         }
                     }
 
@@ -512,8 +529,15 @@ ASTNode parse(Token[] tokens)
                             pos++;
                             ifNode.children ~= ASTNode("Break", [], "");
                             break;
+                        case TokenType.WHITESPACE, TokenType.NEWLINE:
+                            pos++;
+                            break;
                         default:
-                            enforce(false, "Unexpected token in if body");
+                            import std.stdio;
+
+                            writeln("Token type: ", tokens[pos].type);
+                            enforce(false, "Unexpected token in if body: " ~ tokens[pos].value);
+
                         }
                     }
 
@@ -542,11 +566,13 @@ ASTNode parse(Token[] tokens)
 
                     while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
                     {
-                        if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.COMMA)
+                        if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
+                            .COMMA)
                         {
                             pos++;
                         }
-                        else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER)
+                        else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
+                            .IDENTIFIER)
                         {
                             pos++;
                         }
@@ -669,8 +695,16 @@ ASTNode parse(Token[] tokens)
                                     pos++;
                                     ifNode.children ~= ASTNode("Break", [], "");
                                     break;
+                                case TokenType.WHITESPACE, TokenType.NEWLINE:
+                                    pos++;
+                                    break;
                                 default:
-                                    enforce(false, "Unexpected token in if body");
+                                    import std.stdio;
+
+                                    writeln("Token type: ", tokens[pos].type);
+
+                                    enforce(false, "Unexpected token in if body: " ~ tokens[pos]
+                                            .value);
                                 }
                             }
 

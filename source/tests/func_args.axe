@@ -1,6 +1,9 @@
 def greet(name: char*, times: int) {
     loop {
         println "name";
+        if times == 1 {
+            break;
+        }
     }
 }
 
