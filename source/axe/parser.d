@@ -172,7 +172,7 @@ ASTNode parse(Token[] tokens)
                             pos++;
                             break;
 
-                        case TokenType.BREAK_:
+                        case TokenType.BREAK:
                             pos++;
                             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                                 pos++;
@@ -194,7 +194,7 @@ ASTNode parse(Token[] tokens)
                     mainNode.children ~= loopNode;
                     break;
 
-                case TokenType.BREAK_:
+                case TokenType.BREAK:
                     pos++;
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                         pos++;

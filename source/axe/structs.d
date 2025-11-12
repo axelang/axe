@@ -5,7 +5,7 @@ enum TokenType
     MAIN,
     PRINTLN,
     LOOP,
-    BREAK_,
+    BREAK,
     STR,
     SEMICOLON,
     LBRACE,

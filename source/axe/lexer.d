@@ -111,7 +111,7 @@ Token[] lex(string source)
             }
             else if (pos + 5 <= source.length && source[pos .. pos + 5] == "break")
             {
-                tokens ~= Token(TokenType.BREAK_, "break");
+                tokens ~= Token(TokenType.BREAK, "break");
                 pos += 5;
             }
             else if (pos + 3 <= source.length && source[pos .. pos + 3] == "def")
