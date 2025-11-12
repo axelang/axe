@@ -8,5 +8,5 @@ def greet(name: char*, times: int) {
 }
 
 main {
-    greet("world", 3);
+    greet("world", 1);
 }

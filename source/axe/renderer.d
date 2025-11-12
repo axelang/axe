@@ -529,11 +529,8 @@ string generateAsm(ASTNode ast)
                 string dest = parts[0].strip();
                 string src = parts[1].strip();
 
-                // Declare the variable if it's not a parameter
                 if (!isParameter(dest))
-                {
                     declareVariable(dest);
-                }
 
                 if (src.canFind(" - "))
                 {
@@ -560,30 +557,22 @@ string generateAsm(ASTNode ast)
                     string left = parts[0].strip();
                     string right = parts[1].strip();
 
-                    asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
-                    asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
+                    // Force parameter access via stack location
+                    if (paramMap !is null && left in paramMap)
+                        asmCode ~= "    mov eax, " ~ paramMap[left] ~ "\n";
+                    else
+                        asmCode ~= "    mov eax, " ~ operand(left) ~ "\n";
+                        
+                    asmCode ~= "    mov ebx, " ~ (right[0].isDigit() ? right : operand(right, paramMap)) ~ "\n";
                     asmCode ~= "    cmp eax, ebx\n";
                     asmCode ~= "    jne " ~ endIfLabel ~ "\n";
                 }
-                else if (condition.canFind("!="))
+                else if (paramMap !is null && condition in paramMap)
                 {
-                    auto parts = condition.split("!=");
-                    string left = parts[0].strip();
-                    string right = parts[1].strip();
-
-                    asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
-                    asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
-                    asmCode ~= "    cmp eax, ebx\n";
-                    asmCode ~= "    je " ~ endIfLabel ~ "\n";
+                    // Direct parameter check using stack location
+                    asmCode ~= "    cmp " ~ paramMap[condition] ~ ", 1\n";
+                    asmCode ~= "    jne " ~ endIfLabel ~ "\n";
                 }
-                else
-                {
-                    // Handle simple variable checks (like just "times")
-                    asmCode ~= "    mov eax, " ~ operand(condition, paramMap) ~ "\n";
-                    asmCode ~= "    test eax, eax\n";
-                    asmCode ~= "    jz " ~ endIfLabel ~ "\n";
-                }
-
                 foreach (ifChild; child.children)
                 {
                     if (ifChild.nodeType == "Break")
@@ -634,30 +623,19 @@ string generateAsm(ASTNode ast)
                             string left = parts[0].strip();
                             string right = parts[1].strip();
 
+                            // Handle parameter vs literal comparisons
                             asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
-                            asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
+                            asmCode ~= "    mov ebx, " ~ (right[0].isDigit() ? right : operand(right, paramMap)) ~ "\n";
                             asmCode ~= "    cmp eax, ebx\n";
                             asmCode ~= "    jne " ~ endIfLabel ~ "\n";
                         }
-                        else if (condition.canFind("!="))
+                        else 
                         {
-                            auto parts = condition.split("!=");
-                            string left = parts[0].strip();
-                            string right = parts[1].strip();
-
-                            asmCode ~= "    mov eax, " ~ operand(left, paramMap) ~ "\n";
-                            asmCode ~= "    mov ebx, " ~ operand(right, paramMap) ~ "\n";
-                            asmCode ~= "    cmp eax, ebx\n";
-                            asmCode ~= "    je " ~ endIfLabel ~ "\n";
-                        }
-                        else
-                        {
-                            // Handle simple variable checks (like just "times")
+                            // Direct parameter check
                             asmCode ~= "    mov eax, " ~ operand(condition, paramMap) ~ "\n";
-                            asmCode ~= "    test eax, eax\n";
-                            asmCode ~= "    jz " ~ endIfLabel ~ "\n";
+                            asmCode ~= "    cmp eax, 1\n";
+                            asmCode ~= "    jne " ~ endIfLabel ~ "\n";
                         }
-
                         foreach (ifChild; loopChild.children)
                         {
                             if (ifChild.nodeType == "Break")
