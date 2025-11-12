@@ -198,10 +198,32 @@ ASTNode parse(Token[] tokens)
                                     .WHITESPACE)
                                     pos++;
 
-                                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
-                                    "Expected expression after =");
-                                string expr = tokens[pos].value;
-                                pos++;
+                                string expr;
+                                if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
+                                {
+                                    expr = tokens[pos].value;
+                                    pos++;
+
+                                    while (pos < tokens.length && tokens[pos].type == TokenType
+                                        .WHITESPACE)
+                                        pos++;
+
+                                    if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR
+                                        && tokens[pos].value == "-")
+                                    {
+                                        pos++;
+                                        while (pos < tokens.length && tokens[pos].type == TokenType
+                                            .WHITESPACE)
+                                            pos++;
+
+                                        if (pos < tokens.length && tokens[pos].type == TokenType
+                                            .IDENTIFIER)
+                                        {
+                                            expr ~= " - " ~ tokens[pos].value;
+                                            pos++;
+                                        }
+                                    }
+                                }
 
                                 while (pos < tokens.length && tokens[pos].type == TokenType
                                     .WHITESPACE)
@@ -360,7 +382,7 @@ ASTNode parse(Token[] tokens)
                     break;
 
                 default:
-                    enforce(false, "Unexpected token in function body");
+                    enforce(false, "Unexpected token in function body at position " ~ to!string(pos));
                 }
             }
 

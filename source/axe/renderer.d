@@ -4,6 +4,7 @@ import std.string;
 import std.array;
 import axe.structs;
 import std.exception;
+import std.algorithm;
 
 /** 
  * C backend renderer.
@@ -62,8 +63,7 @@ string generateC(ASTNode ast)
                         cCode ~= "break;\n";
                         break;
                     case "Assignment":
-                        auto parts = loopChild.value.split(" = ");
-                        cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+                        cCode ~= loopChild.value ~ ";\n";
                         break;
                     }
                 }
@@ -80,8 +80,7 @@ string generateC(ASTNode ast)
                 cCode ~= funcName ~ "(" ~ args ~ ");\n";
                 break;
             case "Assignment":
-                auto parts = child.value.split(" = ");
-                cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+                cCode ~= child.value ~ ";\n";
                 break;
             }
         }
@@ -110,8 +109,7 @@ string generateC(ASTNode ast)
                 cCode ~= callName ~ "(" ~ callArgs ~ ");\n";
                 break;
             case "Assignment":
-                auto parts = child.value.split(" = ");
-                cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+                cCode ~= child.value ~ ";\n";
                 break;
             }
         }
@@ -127,8 +125,7 @@ string generateC(ASTNode ast)
         break;
 
     case "Assignment":
-        auto parts = ast.value.split(" = ");
-        cCode ~= parts[0] ~ " = " ~ parts[1] ~ ";\n";
+        cCode ~= ast.value ~ ";\n";
         break;
 
     default:
@@ -232,8 +229,18 @@ string generateAsm(ASTNode ast)
                         break;
                     case "Assignment":
                         auto parts = loopChild.value.split(" = ");
-                        asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
-                            ~ "    mov " ~ parts[0] ~ ", eax\n";
+                        if (parts[1].canFind(" - "))
+                        {
+                            auto exprParts = parts[1].split(" - ");
+                            asmCode ~= "    mov eax, " ~ exprParts[0] ~ "\n"
+                                ~ "    sub eax, " ~ exprParts[1] ~ "\n"
+                                ~ "    mov " ~ parts[0] ~ ", eax\n";
+                        }
+                        else
+                        {
+                            asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                                ~ "    mov " ~ parts[0] ~ ", eax\n";
+                        }
                         break;
                     }
                 }
@@ -246,8 +253,18 @@ string generateAsm(ASTNode ast)
                 break;
             case "Assignment":
                 auto parts = child.value.split(" = ");
-                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
-                    ~ "    mov " ~ parts[0] ~ ", eax\n";
+                if (parts[1].canFind(" - "))
+                {
+                    auto exprParts = parts[1].split(" - ");
+                    asmCode ~= "    mov eax, " ~ exprParts[0] ~ "\n"
+                        ~ "    sub eax, " ~ exprParts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
+                else
+                {
+                    asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
                 break;
             }
         }
@@ -294,8 +311,18 @@ string generateAsm(ASTNode ast)
                 break;
             case "Assignment":
                 auto parts = child.value.split(" = ");
-                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
-                    ~ "    mov " ~ parts[0] ~ ", eax\n";
+                if (parts[1].canFind(" - "))
+                {
+                    auto exprParts = parts[1].split(" - ");
+                    asmCode ~= "    mov eax, " ~ exprParts[0] ~ "\n"
+                        ~ "    sub eax, " ~ exprParts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
+                else
+                {
+                    asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
                 break;
             }
         }
@@ -334,8 +361,18 @@ string generateAsm(ASTNode ast)
                 break;
             case "Assignment":
                 auto parts = child.value.split(" = ");
-                asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
-                    ~ "    mov " ~ parts[0] ~ ", eax\n";
+                if (parts[1].canFind(" - "))
+                {
+                    auto exprParts = parts[1].split(" - ");
+                    asmCode ~= "    mov eax, " ~ exprParts[0] ~ "\n"
+                        ~ "    sub eax, " ~ exprParts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
+                else
+                {
+                    asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                        ~ "    mov " ~ parts[0] ~ ", eax\n";
+                }
                 break;
             }
         }
@@ -349,8 +386,18 @@ string generateAsm(ASTNode ast)
 
     case "Assignment":
         auto parts = ast.value.split(" = ");
-        asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
-            ~ "    mov " ~ parts[0] ~ ", eax\n";
+        if (parts[1].canFind(" - "))
+        {
+            auto exprParts = parts[1].split(" - ");
+            asmCode ~= "    mov eax, " ~ exprParts[0] ~ "\n"
+                ~ "    sub eax, " ~ exprParts[1] ~ "\n"
+                ~ "    mov " ~ parts[0] ~ ", eax\n";
+        }
+        else
+        {
+            asmCode ~= "    mov eax, " ~ parts[1] ~ "\n"
+                ~ "    mov " ~ parts[0] ~ ", eax\n";
+        }
         break;
 
     }
