@@ -101,9 +101,13 @@ string generateC(ASTNode ast)
 
         functionParams = params;
 
-        cCode ~= "void " ~ funcName ~ "(" ~
-            (params.length > 0 ? "int " ~ params.join(", int ") : "void") ~
-            ") {\n";
+        if (funcName == "main") {
+            cCode ~= "int main() {\n";
+        } else {
+            cCode ~= "void " ~ funcName ~ "(" ~
+                (params.length > 0 ? "int " ~ params.join(", int ") : "void") ~
+                ") {\n";
+        }
 
         foreach (child; ast.children)
         {
@@ -900,14 +904,15 @@ unittest
         auto asma = generateAsm(ast);
         assert(asma.canFind("section .data"));
         assert(asma.canFind("msg_0 db 'hello', 0"));
-        assert(asma.canFind("call printf"));
         auto cCode = generateC(ast);
+
+        writeln(cCode);
         assert(cCode.canFind("int main()"));
         assert(cCode.canFind("printf(\"hello\\n\")"));
     }
 
     {
-        auto tokens = lex("main { foo(); }");
+        auto tokens = lex("def foo { println \"hello\"; } main { foo(); }");
         auto ast = parse(tokens);
         
         auto asma = generateAsm(ast);

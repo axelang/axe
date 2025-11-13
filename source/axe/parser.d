@@ -151,6 +151,43 @@ ASTNode parse(Token[] tokens)
                     pos++; // Skip ';'
                     break;
                     
+                case TokenType.IDENTIFIER:
+                    string funcName = tokens[pos].value;
+                    pos++; // Skip function name
+                    
+                    string args = "";
+                    if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN) {
+                        pos++; // Skip '('
+                        
+                        while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN) {
+                            if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.COMMA) {
+                                pos++;
+                            }
+                            else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER) {
+                                args ~= tokens[pos].value;
+                                pos++;
+                                if (pos < tokens.length && tokens[pos].type == TokenType.COMMA) {
+                                    args ~= ", ";
+                                    pos++;
+                                }
+                            }
+                            else {
+                                enforce(false, "Unexpected token in function call arguments");
+                            }
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                            "Expected ')' after function arguments");
+                        pos++; // Skip ')'
+                    }
+                    
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                        "Expected ';' after function call");
+                    pos++; // Skip ';'
+                    
+                    mainNode.children ~= new FunctionCallNode(funcName, args);
+                    break;
+                    
                 default:
                     enforce(false, "Unexpected statement in main block: " ~ tokens[pos].value);
                 }
@@ -206,6 +243,43 @@ ASTNode parse(Token[] tokens)
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                             "Expected ';' after println");
                         pos++; // Skip ';'
+                        break;
+                        
+                    case TokenType.IDENTIFIER:
+                        string funcName = tokens[pos].value;
+                        pos++; // Skip function name
+                        
+                        string args = "";
+                        if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN) {
+                            pos++; // Skip '('
+                            
+                            while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN) {
+                                if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.COMMA) {
+                                    pos++;
+                                }
+                                else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType.IDENTIFIER) {
+                                    args ~= tokens[pos].value;
+                                    pos++;
+                                    if (pos < tokens.length && tokens[pos].type == TokenType.COMMA) {
+                                        args ~= ", ";
+                                        pos++;
+                                    }
+                                }
+                                else {
+                                    enforce(false, "Unexpected token in function call arguments");
+                                }
+                            }
+                            
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                                "Expected ')' after function arguments");
+                            pos++; // Skip ')'
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after function call");
+                        pos++; // Skip ';'
+                        
+                        mainNode.children ~= new FunctionCallNode(funcName, args);
                         break;
                         
                     default:
@@ -304,8 +378,7 @@ ASTNode parse(Token[] tokens)
                     {
                         cond = tokens[pos].value;
                         pos++;
-                        while (pos < tokens.length && tokens[pos].type == TokenType
-                            .WHITESPACE)
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                             pos++;
 
                         if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR &&
@@ -314,12 +387,10 @@ ASTNode parse(Token[] tokens)
                         {
                             cond ~= " " ~ tokens[pos].value ~ " ";  // Preserve operator with spaces
                             pos++;
-                            while (pos < tokens.length && tokens[pos].type == TokenType
-                                .WHITESPACE)
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                                 pos++;
 
-                            if (pos < tokens.length && tokens[pos].type == TokenType
-                                .IDENTIFIER)
+                            if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
                             {
                                 cond ~= tokens[pos].value;
                                 pos++;
