@@ -1,0 +1,7 @@
+use adder (
+    add
+);
+
+main {
+    println add(1, 2);
+}
