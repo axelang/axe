@@ -61,7 +61,10 @@ void main(string[] args)
             ]);
             if (e[0] != 0)
             {
-                stderr.writeln("Fallthrough error, report the bug at https://github.com/navid-m/axe/issues:\nTrace:\n", e[1]);
+                stderr.writeln(
+                    "Fallthrough error, report the bug at https://github.com/navid-m/axe/issues:\nTrace:\n",
+                    e[1]
+                );
                 return;
             }
             if (!args.canFind("-e"))
