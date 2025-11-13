@@ -88,7 +88,7 @@ string generateC(ASTNode ast)
         }
         else
         {
-            cCode ~= "void " ~ funcName ~ "(" ~
+            cCode ~= funcNode.returnType ~ " " ~ funcName ~ "(" ~
                 (params.length > 0 ? "int " ~ params.join(", int ") : "") ~
                 ") {\n";
         }
@@ -188,6 +188,12 @@ string generateC(ASTNode ast)
 
     case "Break":
         cCode ~= "break;\n";
+        break;
+
+    case "Return":
+        auto returnNode = cast(ReturnNode) ast;
+        string processedExpr = processExpression(returnNode.expression);
+        cCode ~= "return " ~ processedExpr ~ ";\n";
         break;
 
     default:
@@ -935,7 +941,8 @@ unittest
     }
 
     {
-        auto tokens = lex("def add(a: int, b: int): int { return a + b; } main { x = add(1, 2); }");
+        auto tokens = lex(
+            "def add(a: int, b: int): int { return a + b; } main { val x = add(1, 2); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);

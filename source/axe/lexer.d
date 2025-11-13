@@ -230,6 +230,11 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.IF, "if");
                 pos += 2;
             }
+            else if (pos + 6 <= source.length && source[pos .. pos + 6] == "return")
+            {
+                tokens ~= Token(TokenType.RETURN, "return");
+                pos += 6;
+            }
             else if (source[pos].isAlphaNum())
             {
                 size_t start = pos;

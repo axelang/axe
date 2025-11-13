@@ -17,6 +17,7 @@ enum TokenType
     RBRACE,
     DEF,
     IDENTIFIER,
+    RETURN,
     WHITESPACE,
     NEWLINE,
     LPAREN,
@@ -84,12 +85,14 @@ class FunctionNode : ASTNode
 {
     string name;
     string[] params;
+    string returnType;
     
-    this(string name, string[] params)
+    this(string name, string[] params, string returnType = "void")
     {
         super("Function");
         this.name = name;
         this.params = params;
+        this.returnType = returnType;
     }
 }
 
@@ -162,5 +165,16 @@ class LoopNode : ASTNode
     this()
     {
         super("Loop");
+    }
+}
+
+class ReturnNode : ASTNode
+{
+    string expression;
+    
+    this(string expression)
+    {
+        super("Return");
+        this.expression = expression;
     }
 }
