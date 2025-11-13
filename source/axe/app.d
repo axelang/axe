@@ -56,7 +56,7 @@ void main(string[] args)
             string cCode = generateC(ast);
             std.file.write(replace(name, ".axe", ".c"), cCode);
             auto e = execute([
-                "clang", replace(name, ".axe", ".c"), "-Wno-everything", "-o",
+                "clang", replace(name, ".axe", ".c"), "-Wno-everything", "-Os", "-o",
                 replace(name, ".axe", ".exe")
             ]);
             if (e[0] != 0)
