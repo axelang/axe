@@ -319,6 +319,12 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.RETURN, "return");
                 pos += 6;
             }
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "ref" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
+            {
+                tokens ~= Token(TokenType.REF, "ref");
+                pos += 3;
+            }
             else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw")
             {
                 tokens ~= Token(TokenType.RAW, "raw");

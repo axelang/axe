@@ -57,6 +57,7 @@ enum TokenType
     CONTINUE,
     IN,
     EXTERNAL,
+    REF,
 }
 
 /** 
@@ -89,14 +90,16 @@ class DeclarationNode : ASTNode
     bool isMutable;
     string initializer;
     string typeName;
+    int refDepth;  // Number of 'ref' modifiers (0 = not a reference, 1 = ref, 2 = ref ref, etc.)
 
-    this(string name, bool isMutable, string initializer = "", string typeName = "")
+    this(string name, bool isMutable, string initializer = "", string typeName = "", int refDepth = 0)
     {
         super("Declaration");
         this.name = name;
         this.isMutable = isMutable;
         this.initializer = initializer;
         this.typeName = typeName;
+        this.refDepth = refDepth;
     }
 }
 

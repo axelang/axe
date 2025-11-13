@@ -48,6 +48,7 @@ string generateC(ASTNode ast)
 {
     string cCode;
     string[string] variables;
+    int[string] refDepths;  // Track reference depth for each variable
     string currentFunction = "";
     string[] functionParams;
     int loopLevel = 0;
@@ -190,8 +191,21 @@ string generateC(ASTNode ast)
     case "Declaration":
         auto declNode = cast(DeclarationNode) ast;
         
+        // Track reference depth for this variable
+        if (declNode.refDepth > 0)
+        {
+            refDepths[declNode.name] = declNode.refDepth;
+        }
+        
         // Use explicit type annotation if provided, otherwise default to int
         string baseType = declNode.typeName.length > 0 ? declNode.typeName : "int";
+        
+        // Add pointer stars for ref types
+        for (int i = 0; i < declNode.refDepth; i++)
+        {
+            baseType ~= "*";
+        }
+        
         string type = declNode.isMutable ? baseType : "const " ~ baseType;
         string decl = type ~ " " ~ declNode.name;
 
@@ -464,6 +478,24 @@ string generateC(ASTNode ast)
 string processExpression(string expr)
 {
     expr = expr.strip();
+
+    // Handle ref_of() built-in function
+    if (expr.canFind("ref_of(") && expr.endsWith(")"))
+    {
+        auto startIdx = expr.indexOf("ref_of(") + 7;
+        auto endIdx = expr.lastIndexOf(")");
+        string varName = expr[startIdx .. endIdx].strip();
+        return "&" ~ varName;
+    }
+
+    // Handle addr_of() built-in function
+    if (expr.canFind("addr_of(") && expr.endsWith(")"))
+    {
+        auto startIdx = expr.indexOf("addr_of(") + 8;
+        auto endIdx = expr.lastIndexOf(")");
+        string varName = expr[startIdx .. endIdx].strip();
+        return "(long)&" ~ varName;
+    }
 
     // Handle .len property for arrays
     if (expr.canFind(".len"))
@@ -1825,5 +1857,29 @@ unittest
         assert(cCode.canFind("#include <raylib.h>"), "Should have external include directive");
         assert(cCode.canFind("#include <stdio.h>"), "Should have standard includes");
         assert(cCode.canFind("int main()"), "Should have main function");
+    }
+
+    {
+        auto tokens = lex("main { val x: int = 10; val y: ref int = ref_of(x); }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Reference type test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int x = 10;"), "Should have x declaration");
+        assert(cCode.canFind("int* y = &x;"), "Should have y as pointer with address-of");
+    }
+
+    {
+        auto tokens = lex("main { val x: int = 10; val addr: long = addr_of(x); }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("addr_of test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int x = 10;"), "Should have x declaration");
+        assert(cCode.canFind("long addr = (long)&x;"), "Should convert address to long");
     }
 }

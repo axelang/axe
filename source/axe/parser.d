@@ -41,6 +41,32 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
      * Returns: 
      *   string = Type name (e.g., "int", "char", "int*")
      */
+    /** 
+     * Parses ref modifiers and returns the depth
+     * e.g., "ref int" returns 1, "ref ref int" returns 2
+     */
+    int parseRefDepth()
+    {
+        int refDepth = 0;
+        while (pos < tokens.length)
+        {
+            // Skip whitespace
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+            
+            if (pos < tokens.length && tokens[pos].type == TokenType.REF)
+            {
+                refDepth++;
+                pos++;
+            }
+            else
+            {
+                break;
+            }
+        }
+        return refDepth;
+    }
+
     string parseType()
     {
         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
@@ -1377,10 +1403,14 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                         string typeName = "";
                         bool isArray = false;
                         string arraySize = "";
+                        int refDepth = 0;
 
                         if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
                         {
                             pos++; // Skip ':'
+
+                            // Check for ref modifiers
+                            refDepth = parseRefDepth();
 
                             // Check if this is an array type
                             size_t savedPos = pos;
@@ -1533,7 +1563,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     mainNode.children ~= new ArrayDeclarationNode(varName, isMutable,
                                         typeName, arraySize, []);
                                 else
-                                    mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName);
+                                    mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName, refDepth);
                             }
                         }
                         else
@@ -1548,7 +1578,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 mainNode.children ~= new ArrayDeclarationNode(varName, isMutable, typeName, arraySize, [
                                     ]);
                             else
-                                mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName);
+                                mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName, refDepth);
                         }
                     }
                     break;
