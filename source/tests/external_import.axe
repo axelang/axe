@@ -1,0 +1,5 @@
+use external("raylib.h");
+
+main {
+    InitWindow("Hello, Raylib.");
+}
