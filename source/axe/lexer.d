@@ -113,8 +113,21 @@ Token[] lex(string source)
             break;
 
         case '/':
-            tokens ~= Token(TokenType.SLASH, "/");
-            pos++;
+            if (pos + 1 < source.length && source[pos + 1] == '/')
+            {
+                // Comment - skip until end of line
+                size_t start = pos;
+                while (pos < source.length && source[pos] != '\n')
+                {
+                    pos++;
+                }
+                tokens ~= Token(TokenType.COMMENT, source[start .. pos]);
+            }
+            else
+            {
+                tokens ~= Token(TokenType.SLASH, "/");
+                pos++;
+            }
             break;
 
         case '"':
@@ -235,6 +248,11 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.RETURN, "return");
                 pos += 6;
             }
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw")
+            {
+                tokens ~= Token(TokenType.RAW, "raw");
+                pos += 3;
+            }
             else if (source[pos].isAlphaNum())
             {
                 size_t start = pos;
@@ -255,7 +273,9 @@ Token[] lex(string source)
 
     import std.array;
 
-    return tokens.filter!(t => t.type != TokenType.WHITESPACE && t.type != TokenType.NEWLINE).array;
+    return tokens.filter!(t => t.type != TokenType.WHITESPACE 
+        && t.type != TokenType.NEWLINE 
+        && t.type != TokenType.COMMENT).array;
 }
 
 unittest

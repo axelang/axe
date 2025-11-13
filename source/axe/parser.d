@@ -11,10 +11,11 @@ import axe.structs;
  * 
  * Params:
  *   tokens = Array of tokens to parse
+ *   isAxec = Whether the source file is .axec
  * Returns: 
  *   ASTNode = Abstract syntax tree representing the parsed tokens
  */
-ASTNode parse(Token[] tokens)
+ASTNode parse(Token[] tokens, bool isAxec = false)
 {
     import std.stdio;
     import std.exception : enforce;
@@ -32,8 +33,6 @@ ASTNode parse(Token[] tokens)
     size_t pos = 0;
     auto ast = new ProgramNode();
     Scope currentScope;
-
-    // Initialize scope
     currentScope = new Scope();
 
     /** 
@@ -163,14 +162,10 @@ ASTNode parse(Token[] tokens)
                     string identName = tokens[pos].value;
                     pos++;
 
-                    // Check if this is an assignment
                     if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                     {
-                        // Variable assignment
                         if (!currentScope.isDeclared(identName))
-                        {
                             enforce(false, "Undeclared variable: " ~ identName);
-                        }
                         pos++;
 
                         string expr = "";
@@ -188,7 +183,6 @@ ASTNode parse(Token[] tokens)
                     }
                     else if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
                     {
-                        // Function call
                         string args = "";
                         pos++;
 
@@ -354,6 +348,41 @@ ASTNode parse(Token[] tokens)
                         currentScope.addVariable(varName, isMutable);
                         mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
                     }
+                    break;
+
+                case TokenType.RAW:
+                    enforce(isAxec, "Raw C blocks are only allowed in .axec files");
+                    pos++; // Skip 'raw'
+                    
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                        "Expected '{' after 'raw'");
+                    pos++; // Skip '{'
+                    
+                    string rawCode = "";
+                    int braceDepth = 1;
+                    while (pos < tokens.length && braceDepth > 0)
+                    {
+                        if (tokens[pos].type == TokenType.LBRACE)
+                            braceDepth++;
+                        else if (tokens[pos].type == TokenType.RBRACE)
+                        {
+                            braceDepth--;
+                            if (braceDepth == 0)
+                                break;
+                        }
+                        // Preserve quotes for string literals in raw blocks
+                        if (tokens[pos].type == TokenType.STR)
+                            rawCode ~= "\"" ~ tokens[pos].value ~ "\"";
+                        else
+                            rawCode ~= tokens[pos].value;
+                        pos++;
+                    }
+                    
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                        "Expected '}' after raw block");
+                    pos++; // Skip '}'
+                    
+                    mainNode.children ~= new RawCNode(rawCode);
                     break;
 
                 default:
@@ -611,6 +640,41 @@ ASTNode parse(Token[] tokens)
                             currentScope.addVariable(varName, isMutable);
                             mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
                         }
+                        break;
+
+                    case TokenType.RAW:
+                        enforce(isAxec, "Raw C blocks are only allowed in .axec files");
+                        pos++; // Skip 'raw'
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                            "Expected '{' after 'raw'");
+                        pos++; // Skip '{'
+                        
+                        string rawCode = "";
+                        int braceDepth = 1;
+                        while (pos < tokens.length && braceDepth > 0)
+                        {
+                            if (tokens[pos].type == TokenType.LBRACE)
+                                braceDepth++;
+                            else if (tokens[pos].type == TokenType.RBRACE)
+                            {
+                                braceDepth--;
+                                if (braceDepth == 0)
+                                    break;
+                            }
+                            // Preserve quotes for string literals in raw blocks
+                            if (tokens[pos].type == TokenType.STR)
+                                rawCode ~= "\"" ~ tokens[pos].value ~ "\"";
+                            else
+                                rawCode ~= tokens[pos].value;
+                            pos++;
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                            "Expected '}' after raw block");
+                        pos++; // Skip '}'
+                        
+                        mainNode.children ~= new RawCNode(rawCode);
                         break;
 
                     default:

@@ -40,6 +40,8 @@ enum TokenType
     AMPERSAND,
     PIPE,
     TILDE,
+    RAW,
+    COMMENT,
 }
 
 /** 
@@ -176,6 +178,17 @@ class ReturnNode : ASTNode
     {
         super("Return");
         this.expression = expression;
+    }
+}
+
+class RawCNode : ASTNode
+{
+    string code;
+
+    this(string code)
+    {
+        super("RawC");
+        this.code = code;
     }
 }
 

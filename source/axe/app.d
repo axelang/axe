@@ -22,7 +22,8 @@ void main(string[] args)
     try
     {
         string name = args[1];
-        if (!name.endsWith(".axe"))
+        bool isAxec = name.endsWith(".axec");
+        if (!name.endsWith(".axe") && !isAxec)
         {
             name ~= ".axe";
         }
@@ -33,7 +34,7 @@ void main(string[] args)
         if (args.canFind("-tokens"))
             writeln(tokens);
 
-        auto ast = parse(tokens);
+        auto ast = parse(tokens, isAxec);
 
         if (args.canFind("-ast"))
             writeln(ast);
@@ -54,10 +55,11 @@ void main(string[] args)
         else
         {
             string cCode = generateC(ast);
-            std.file.write(replace(name, ".axe", ".c"), cCode);
+            string ext = isAxec ? ".axec" : ".axe";
+            std.file.write(replace(name, ext, ".c"), cCode);
             auto e = execute([
-                "clang", replace(name, ".axe", ".c"), "-Wno-everything", "-Os", "-o",
-                replace(name, ".axe", ".exe")
+                "clang", replace(name, ext, ".c"), "-Wno-everything", "-Os", "-o",
+                replace(name, ext, ".exe")
             ]);
             if (e[0] != 0)
             {
@@ -69,7 +71,7 @@ void main(string[] args)
             }
             if (!args.canFind("-e"))
             {
-                remove(replace(name, ".axe", ".c"));
+                remove(replace(name, ext, ".c"));
             }
         }
     }

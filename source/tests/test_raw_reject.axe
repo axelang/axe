@@ -1,0 +1,6 @@
+// This should fail - raw blocks not allowed in .axe files
+main {
+    raw {
+        printf("test\n");
+    }
+}

@@ -1,0 +1,5 @@
+// This is a comment
+main {
+    // Another comment
+    println "Hello"; // inline comment
+}

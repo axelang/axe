@@ -193,6 +193,11 @@ string generateC(ASTNode ast)
         cCode ~= "break;\n";
         break;
 
+    case "RawC":
+        auto rawNode = cast(RawCNode) ast;
+        cCode ~= rawNode.code ~ "\n";
+        break;
+
     case "Return":
         auto returnNode = cast(ReturnNode) ast;
         string processedExpr = processExpression(returnNode.expression);
