@@ -236,8 +236,10 @@ Token[] lex(string source)
             }
         }
     }
+    
+    import std.array;
 
-    return tokens;
+    return tokens.filter!(t => t.type != TokenType.WHITESPACE).array;
 }
 
 unittest
@@ -263,10 +265,9 @@ unittest
         auto tokens = lex("println \"hello\";");
         assert(tokens.length == 4);
         assert(tokens[0].type == TokenType.PRINTLN);
-        assert(tokens[1].type == TokenType.WHITESPACE);
-        assert(tokens[2].type == TokenType.STR);
-        assert(tokens[2].value == "hello");
-        assert(tokens[3].type == TokenType.SEMICOLON);
+        assert(tokens[1].type == TokenType.STR);
+        assert(tokens[1].value == "hello");
+        assert(tokens[2].type == TokenType.SEMICOLON);
     }
     {
         import axe.parser;
@@ -277,6 +278,6 @@ unittest
         assert(ast.children.length == 1);
         assert(ast.children[0].nodeType == "Main");
         assert(ast.children[0].children[0].nodeType == "Println");
-        assert((cast(PrintlnNode)ast.children[0].children[0]).message == "test");
+        assert((cast(PrintlnNode) ast.children[0].children[0]).message == "test");
     }
 }
