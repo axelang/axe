@@ -315,6 +315,34 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             enforce(false, "Member read not yet supported in this context");
                         }
                     }
+                    else if (pos < tokens.length && tokens[pos].type == TokenType.INCREMENT)
+                    {
+                        if (!currentScope.isDeclared(identName))
+                            enforce(false, "Undeclared variable: " ~ identName);
+                        if (!currentScope.isMutable(identName))
+                            enforce(false, "Cannot increment immutable variable: " ~ identName);
+                        pos++; // Skip '++'
+
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after increment");
+                        pos++;
+
+                        mainNode.children ~= new IncrementDecrementNode(identName, true);
+                    }
+                    else if (pos < tokens.length && tokens[pos].type == TokenType.DECREMENT)
+                    {
+                        if (!currentScope.isDeclared(identName))
+                            enforce(false, "Undeclared variable: " ~ identName);
+                        if (!currentScope.isMutable(identName))
+                            enforce(false, "Cannot decrement immutable variable: " ~ identName);
+                        pos++; // Skip '--'
+
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after decrement");
+                        pos++;
+
+                        mainNode.children ~= new IncrementDecrementNode(identName, false);
+                    }
                     else if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                     {
                         if (!currentScope.isDeclared(identName))
@@ -408,8 +436,107 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             loopNode.children ~= new BreakNode();
                             break;
 
+                        case TokenType.IDENTIFIER:
+                            string loopIdentName = tokens[pos].value;
+                            pos++;
+                            
+                            if (pos < tokens.length && tokens[pos].type == TokenType.INCREMENT)
+                            {
+                                if (!currentScope.isDeclared(loopIdentName))
+                                    enforce(false, "Undeclared variable: " ~ loopIdentName);
+                                if (!currentScope.isMutable(loopIdentName))
+                                    enforce(false, "Cannot increment immutable variable: " ~ loopIdentName);
+                                pos++;
+                                
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after increment");
+                                pos++;
+                                
+                                loopNode.children ~= new IncrementDecrementNode(loopIdentName, true);
+                            }
+                            else if (pos < tokens.length && tokens[pos].type == TokenType.DECREMENT)
+                            {
+                                if (!currentScope.isDeclared(loopIdentName))
+                                    enforce(false, "Undeclared variable: " ~ loopIdentName);
+                                if (!currentScope.isMutable(loopIdentName))
+                                    enforce(false, "Cannot decrement immutable variable: " ~ loopIdentName);
+                                pos++;
+                                
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after decrement");
+                                pos++;
+                                
+                                loopNode.children ~= new IncrementDecrementNode(loopIdentName, false);
+                            }
+                            else
+                            {
+                                enforce(false, "Unexpected token after identifier in loop body");
+                            }
+                            break;
+
+                        case TokenType.IF:
+                            // Handle if statements in loops
+                            pos++;
+                            
+                            string loopCondition;
+                            bool hasParens = false;
+                            
+                            // Check if condition has parentheses
+                            if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                            {
+                                hasParens = true;
+                                pos++; // Skip '('
+                                
+                                while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                                {
+                                    loopCondition ~= tokens[pos].value;
+                                    pos++;
+                                }
+                                
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                                    "Expected ')' after if condition");
+                                pos++; // Skip ')'
+                            }
+                            else
+                            {
+                                // Parse condition without parentheses until '{'
+                                while (pos < tokens.length && tokens[pos].type != TokenType.LBRACE)
+                                {
+                                    loopCondition ~= tokens[pos].value;
+                                    pos++;
+                                }
+                            }
+
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                                "Expected '{' after if condition");
+                            pos++;
+
+                            auto loopIfNode = new IfNode(loopCondition);
+                            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+                            {
+                                if (tokens[pos].type == TokenType.BREAK)
+                                {
+                                    pos++;
+                                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                        "Expected ';' after 'break'");
+                                    pos++;
+                                    loopIfNode.children ~= new BreakNode();
+                                }
+                                else
+                                {
+                                    enforce(false, "Unexpected token in if body within loop");
+                                }
+                            }
+
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                                "Expected '}' after if body");
+                            pos++;
+
+                            loopNode.children ~= loopIfNode;
+                            break;
+
                         default:
-                            enforce(false, "Unexpected token in loop body");
+                            enforce(false, "Unexpected token in loop body: " ~ tokens[pos].value);
                         }
                     }
 
@@ -422,20 +549,33 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                 case TokenType.IF:
                     pos++;
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
-                        "Expected '(' after 'if'");
-                    pos++;
-
+                    
                     string condition;
-                    while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                    
+                    // Check if condition has parentheses
+                    if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
                     {
-                        condition ~= tokens[pos].value;
-                        pos++;
+                        pos++; // Skip '('
+                        
+                        while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                        {
+                            condition ~= tokens[pos].value;
+                            pos++;
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                            "Expected ')' after if condition");
+                        pos++; // Skip ')'
                     }
-
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
-                        "Expected ')' after if condition");
-                    pos++;
+                    else
+                    {
+                        // Parse condition without parentheses until '{'
+                        while (pos < tokens.length && tokens[pos].type != TokenType.LBRACE)
+                        {
+                            condition ~= tokens[pos].value;
+                            pos++;
+                        }
+                    }
 
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
                         "Expected '{' after if condition");

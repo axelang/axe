@@ -49,6 +49,8 @@ enum TokenType
     SWITCH,
     CASE,
     DEFAULT,
+    INCREMENT,
+    DECREMENT,
 }
 
 /** 
@@ -288,6 +290,19 @@ class CaseNode : ASTNode
         super("Case");
         this.value = value;
         this.isDefault = isDefault;
+    }
+}
+
+class IncrementDecrementNode : ASTNode
+{
+    string variable;
+    bool isIncrement; // true for ++, false for --
+
+    this(string variable, bool isIncrement)
+    {
+        super("IncrementDecrement");
+        this.variable = variable;
+        this.isIncrement = isIncrement;
     }
 }
 

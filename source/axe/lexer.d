@@ -77,13 +77,29 @@ Token[] lex(string source)
             break;
 
         case '-':
-            tokens ~= Token(TokenType.MINUS, "-");
-            pos++;
+            if (pos + 1 < source.length && source[pos + 1] == '-')
+            {
+                tokens ~= Token(TokenType.DECREMENT, "--");
+                pos += 2;
+            }
+            else
+            {
+                tokens ~= Token(TokenType.MINUS, "-");
+                pos++;
+            }
             break;
 
         case '+':
-            tokens ~= Token(TokenType.PLUS, "+");
-            pos++;
+            if (pos + 1 < source.length && source[pos + 1] == '+')
+            {
+                tokens ~= Token(TokenType.INCREMENT, "++");
+                pos += 2;
+            }
+            else
+            {
+                tokens ~= Token(TokenType.PLUS, "+");
+                pos++;
+            }
             break;
 
         case '>':

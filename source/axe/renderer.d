@@ -311,6 +311,16 @@ string generateC(ASTNode ast)
         loopLevel--;
         break;
 
+    case "IncrementDecrement":
+        auto incDecNode = cast(IncrementDecrementNode) ast;
+        string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
+        
+        if (incDecNode.isIncrement)
+            cCode ~= indent ~ incDecNode.variable ~ "++;\n";
+        else
+            cCode ~= indent ~ incDecNode.variable ~ "--;\n";
+        break;
+
     default:
         enforce(false, "Unsupported node type for C generation: " ~ ast.nodeType);
     }
@@ -1321,5 +1331,79 @@ unittest
         assert(cCode.canFind("const int a = 5;"), "Should declare a with int type");
         assert(cCode.canFind("const int b = 10;"), "Should declare b with int type");
         assert(cCode.canFind("const int c = (a+b);"), "Should declare c with int type");
+    }
+
+    {
+        auto tokens = lex("main { mut val x: int = 0; x++; x--; }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Increment/decrement operators test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int x = 0;"), "Should declare mutable x");
+        assert(cCode.canFind("x++;"), "Should have increment operator");
+        assert(cCode.canFind("x--;"), "Should have decrement operator");
+    }
+
+    {
+        auto tokens = lex("main { mut val counter: int = 0; loop { counter++; if counter == 5 { break; } } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Increment in loop test (if without parens):");
+        writeln(cCode);
+
+        assert(cCode.canFind("int counter = 0;"), "Should declare counter");
+        assert(cCode.canFind("while (1) {"), "Should have loop");
+        assert(cCode.canFind("counter++;"), "Should increment in loop");
+        assert(cCode.canFind("if ((counter==5))"), "Should have condition");
+    }
+
+    {
+        auto tokens = lex("main { mut val x: int = 10; if (x > 5) { println \"big\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If with parentheses test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int x = 10;"), "Should declare x");
+        assert(cCode.canFind("if ((x>5))"), "Should have if with condition");
+        assert(cCode.canFind("printf(\"big\\n\");"), "Should have println");
+    }
+
+    {
+        auto tokens = lex("main { mut val y: int = 3; if y < 10 { println \"small\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If without parentheses test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int y = 3;"), "Should declare y");
+        assert(cCode.canFind("if ((y<10))"), "Should have if with condition");
+        assert(cCode.canFind("printf(\"small\\n\");"), "Should have println");
+    }
+
+    {
+        bool caught = false;
+        try
+        {
+            auto tokens = lex("main { val x: int = 0; x++; }");
+            auto ast = parse(tokens);
+            generateC(ast);
+        }
+        catch (Exception e)
+        {
+            writeln("ERROR: ", e.msg);
+            assert(e.msg.canFind("Cannot increment immutable variable"), 
+                "Should prevent increment of immutable variable");
+            caught = true;
+        }
+        if (!caught)
+        {
+            assert(0, "Should have caught immutable increment error");
+        }
     }
 }
