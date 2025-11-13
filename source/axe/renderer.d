@@ -312,7 +312,20 @@ private string processExpression(string expr)
     return expr;
 }
 
-private string processCondition(string condition) => processExpression(condition);
+private string processCondition(string condition)
+{
+    foreach (op; ["==", "!=", ">", "<", ">=", "<="]) {
+        if (condition.canFind(op)) {
+            auto parts = condition.split(op);
+            if (parts.length == 2) {
+                string result = "(" ~ processExpression(parts[0]) ~ op ~ processExpression(parts[1]) ~ ")";
+                return result;
+            }
+        }
+    }
+    string result = processExpression(condition);
+    return result;
+}
 
 import std.conv;
 
@@ -931,7 +944,7 @@ unittest
         import std.stdio;
         writeln(cCode);
 
-        assert(cCode.canFind("if (x > 5)"));
+        assert(cCode.canFind("(x>5)"));
         assert(cCode.canFind("printf(\"greater\\n\")"));
     }
 
@@ -940,6 +953,8 @@ unittest
         auto ast = parse(tokens);
         
         auto cCode = generateC(ast);
+        import std.stdio;
+        writeln(cCode);
         assert(cCode.canFind("int x = (5 + 3)"));
         assert(cCode.canFind("y = (x - 2)"));
     }

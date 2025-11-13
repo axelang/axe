@@ -221,6 +221,7 @@ ASTNode parse(Token[] tokens)
                                         tokens[pos].value == ">=" || tokens[pos].value == "<=" || tokens[pos].value ==
                                         "!="))
                                 {
+                                    cond ~= " " ~ tokens[pos].value ~ " ";  // Preserve operator with spaces
                                     pos++;
                                     while (pos < tokens.length && tokens[pos].type == TokenType
                                         .WHITESPACE)
@@ -229,8 +230,7 @@ ASTNode parse(Token[] tokens)
                                     if (pos < tokens.length && tokens[pos].type == TokenType
                                         .IDENTIFIER)
                                     {
-                                        cond ~= " " ~ tokens[pos - 1].value ~ " " ~ tokens[pos]
-                                            .value;
+                                        cond ~= tokens[pos].value;
                                         pos++;
                                     }
                                 }
@@ -418,6 +418,8 @@ ASTNode parse(Token[] tokens)
                         default:
                             import std.stdio;
 
+                            writeln("Token type: ", tokens[pos].type);
+
                             writeln("Unexpected token at position ", pos, ": ", tokens[pos].type, " ('", tokens[pos]
                                     .value, "')");
                             writeln("Previous tokens:");
@@ -522,13 +524,14 @@ ASTNode parse(Token[] tokens)
                             (tokens[pos].value == "==" || tokens[pos].value == ">" || tokens[pos].value == "<" ||
                                 tokens[pos].value == ">=" || tokens[pos].value == "<=" || tokens[pos].value == "!="))
                         {
+                            cond ~= " " ~ tokens[pos].value ~ " ";  // Preserve operator with spaces
                             pos++;
                             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                                 pos++;
 
                             if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
                             {
-                                cond ~= " " ~ tokens[pos - 1].value ~ " " ~ tokens[pos].value;
+                                cond ~= tokens[pos].value;
                                 pos++;
                             }
                         }
@@ -685,13 +688,16 @@ ASTNode parse(Token[] tokens)
                             (tokens[pos].value == "==" || tokens[pos].value == ">" || tokens[pos].value == "<" ||
                                 tokens[pos].value == ">=" || tokens[pos].value == "<=" || tokens[pos].value == "!="))
                         {
+                            cond ~= " " ~ tokens[pos].value ~ " ";  // Preserve operator with spaces
                             pos++;
-                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                            while (pos < tokens.length && tokens[pos].type == TokenType
+                                .WHITESPACE)
                                 pos++;
 
-                            if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
+                            if (pos < tokens.length && tokens[pos].type == TokenType
+                                .IDENTIFIER)
                             {
-                                cond ~= " " ~ tokens[pos - 1].value ~ " " ~ tokens[pos].value;
+                                cond ~= tokens[pos].value;
                                 pos++;
                             }
                         }
@@ -891,6 +897,7 @@ ASTNode parse(Token[] tokens)
                                         tokens[pos].value == ">=" || tokens[pos].value == "<=" || tokens[pos].value ==
                                         "!="))
                                 {
+                                    cond ~= " " ~ tokens[pos].value ~ " ";  // Preserve operator with spaces
                                     pos++;
                                     while (pos < tokens.length && tokens[pos].type == TokenType
                                         .WHITESPACE)
@@ -899,8 +906,7 @@ ASTNode parse(Token[] tokens)
                                     if (pos < tokens.length && tokens[pos].type == TokenType
                                         .IDENTIFIER)
                                     {
-                                        cond ~= " " ~ tokens[pos - 1].value ~ " " ~ tokens[pos]
-                                            .value;
+                                        cond ~= tokens[pos].value;
                                         pos++;
                                     }
                                 }
