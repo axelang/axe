@@ -17,6 +17,11 @@ import axe.structs;
 ASTNode parse(Token[] tokens)
 {
     import std.stdio;
+    import std.exception : enforce;
+    import std.conv;
+    import std.string;
+    import std.algorithm;
+    import axe.structs : Scope;
 
     writeln("Starting parse with tokens:");
     foreach (i, token; tokens)
@@ -26,6 +31,10 @@ ASTNode parse(Token[] tokens)
 
     size_t pos = 0;
     auto ast = new ProgramNode();
+    Scope currentScope;
+
+    // Initialize scope
+    currentScope = new Scope();
 
     /** 
      * Parses a type from the current position in the token stream.
@@ -111,7 +120,7 @@ ASTNode parse(Token[] tokens)
         return args;
     }
 
-    ASTNode currentScope = ast;
+    ASTNode currentScopeNode = ast;
 
     while (pos < tokens.length)
     {
@@ -185,12 +194,12 @@ ASTNode parse(Token[] tokens)
 
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
                             "Expected ')' after function arguments");
-                        pos++;
+                        pos++; // Skip ')'
                     }
 
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                         "Expected ';' after function call");
-                    pos++;
+                    pos++; // Skip ';'
 
                     mainNode.children ~= new FunctionCallNode(funcName, args);
                     break;
@@ -300,6 +309,7 @@ ASTNode parse(Token[] tokens)
                             "Expected ';' after val declaration");
                         pos++;
 
+                        currentScope.addVariable(varName, isMutable);
                         mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
                     }
                     break;
@@ -370,6 +380,7 @@ ASTNode parse(Token[] tokens)
                         if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
                         {
                             pos++;
+
                             while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
                             {
                                 if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
@@ -513,6 +524,7 @@ ASTNode parse(Token[] tokens)
                                 "Expected ';' after val declaration");
                             pos++;
 
+                            currentScope.addVariable(varName, isMutable);
                             mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
                         }
                         break;
@@ -526,7 +538,8 @@ ASTNode parse(Token[] tokens)
                 }
 
                 writeln("Exited main block at pos ", pos);
-                writeln("Current token: ", pos < tokens.length ? to!string(tokens[pos].type) : "EOF", " ('",
+                writeln("Current token: ", pos < tokens.length ? to!string(
+                    tokens[pos].type) : "EOF", " ('",
                     pos < tokens.length ? tokens[pos].value : "", "')");
                 while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                     pos++;
@@ -573,7 +586,6 @@ ASTNode parse(Token[] tokens)
                 "Expected '{' after function declaration");
             pos++;
 
-            currentScope = funcNode;
             writeln("Entering function body at pos ", pos);
             size_t startPos = pos;
             while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
@@ -661,7 +673,7 @@ ASTNode parse(Token[] tokens)
                     pos++;
 
                     ASTNode ifNode = new IfNode(cond);
-                    currentScope = ifNode;
+                    currentScopeNode = ifNode;
                     while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
                     {
                         switch (tokens[pos].type)
@@ -696,6 +708,14 @@ ASTNode parse(Token[] tokens)
                                 "Expected ';' after println");
                             pos++;
                             break;
+                        case TokenType.IDENTIFIER:
+                            string varName = tokens[pos].value;
+                            if (!currentScope.isDeclared(varName))
+                            {
+                                enforce(false, "Undeclared variable: " ~ varName);
+                            }
+                            pos++;
+                            break;
                         default:
                             import std.stdio;
 
@@ -708,11 +728,12 @@ ASTNode parse(Token[] tokens)
                     }
 
                     writeln("Exited if body at pos ", pos);
-                    writeln("Current token: ", pos < tokens.length ? to!string(tokens[pos].type) : "EOF", " ('",
+                    writeln("Current token: ", pos < tokens.length ? to!string(
+                            tokens[pos].type) : "EOF", " ('",
                         pos < tokens.length ? tokens[pos].value : "", "')");
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE, "Expected '}' after if body");
                     pos++;
-                    currentScope = funcNode;
+                    currentScopeNode = funcNode;
                     funcNode.children ~= ifNode;
                     break;
 
@@ -775,7 +796,7 @@ ASTNode parse(Token[] tokens)
                     pos++;
 
                     ASTNode loopNode = new LoopNode();
-                    currentScope = loopNode;
+                    currentScopeNode = loopNode;
                     writeln("Entering loop body at pos ", pos);
                     while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
                     {
@@ -880,7 +901,7 @@ ASTNode parse(Token[] tokens)
                             pos++;
 
                             ASTNode ifNode = new IfNode(cond);
-                            currentScope = ifNode;
+                            currentScopeNode = ifNode;
                             while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
                             {
                                 switch (tokens[pos].type)
@@ -918,6 +939,14 @@ ASTNode parse(Token[] tokens)
                                         "Expected ';' after println");
                                     pos++;
                                     break;
+                                case TokenType.IDENTIFIER:
+                                    string varName = tokens[pos].value;
+                                    if (!currentScope.isDeclared(varName))
+                                    {
+                                        enforce(false, "Undeclared variable: " ~ varName);
+                                    }
+                                    pos++;
+                                    break;
                                 default:
                                     import std.stdio;
 
@@ -935,12 +964,16 @@ ASTNode parse(Token[] tokens)
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
                                 "Expected '}' after if body");
                             pos++;
-                            currentScope = loopNode;
+                            currentScopeNode = loopNode;
                             loopNode.children ~= ifNode;
                             break;
 
                         case TokenType.IDENTIFIER:
                             string varName = tokens[pos].value;
+                            if (!currentScope.isDeclared(varName))
+                            {
+                                enforce(false, "Undeclared variable: " ~ varName);
+                            }
                             pos++;
                             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                                 pos++;
@@ -1069,7 +1102,7 @@ ASTNode parse(Token[] tokens)
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
                         "Expected '}' after loop body");
                     pos++;
-                    currentScope = funcNode;
+                    currentScopeNode = funcNode;
                     funcNode.children ~= loopNode;
                     break;
 

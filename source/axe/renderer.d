@@ -154,7 +154,6 @@ string generateC(ASTNode ast)
         }
 
         cCode ~= decl ~ ";\n";
-        variables[declNode.name] = type;
         break;
 
     case "Println":
