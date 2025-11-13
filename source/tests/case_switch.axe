@@ -1,14 +1,14 @@
 main {
     val x: int = 1;
 
-    match x {
-        case 1 {
+    switch x {
+        case 1 -> {
             println "one";
         }
-        case 2 {
+        case 2 -> {
             println "two";
         }
-        default {
+        default -> {
             println "other";
         }
     }

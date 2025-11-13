@@ -56,13 +56,13 @@ string generateC(ASTNode ast)
     {
     case "Program":
         cCode = "#include <stdio.h>\n#include <stdbool.h>\n#include <stdlib.h>\n#include <string.h>\n\n";
-        
+
         foreach (child; ast.children)
         {
             if (child.nodeType == "Model")
                 cCode ~= generateC(child) ~ "\n";
         }
-        
+
         foreach (child; ast.children)
         {
             if (child.nodeType != "Model")
@@ -235,11 +235,11 @@ string generateC(ASTNode ast)
     case "ModelInstantiation":
         auto instNode = cast(ModelInstantiationNode) ast;
         string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
-        
+
         // Generate struct initialization using compound literal (const for val, mutable for mut val)
         string constQualifier = instNode.isMutable ? "" : "const ";
         cCode ~= indent ~ constQualifier ~ instNode.modelName ~ " " ~ instNode.variableName ~ " = {";
-        
+
         // Add field initializers
         bool first = true;
         foreach (fieldName, fieldValue; instNode.fieldValues)
@@ -249,14 +249,14 @@ string generateC(ASTNode ast)
             cCode ~= "." ~ fieldName ~ " = " ~ fieldValue;
             first = false;
         }
-        
+
         cCode ~= "};\n";
         break;
 
     case "MemberAccess":
         auto memberNode = cast(MemberAccessNode) ast;
         string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
-        
+
         if (memberNode.value.length > 0)
         {
             // Member write
@@ -1064,7 +1064,8 @@ unittest
     }
 
     {
-        auto tokens = lex("def greet(name: char*, t: int) { println \"hello\"; } main { greet(\"world\", 1); }");
+        auto tokens = lex(
+            "def greet(name: char*, t: int) { println \"hello\"; } main { greet(\"world\", 1); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -1116,10 +1117,121 @@ unittest
 
     {
         import std.exception : assertThrown;
+
         auto tokens = lex("main { raw { test(); } }");
-        
+
         writeln("Raw C block rejection test (.axe):");
         assertThrown(parse(tokens, false), "Should reject raw blocks in .axe files");
         writeln("Correctly rejected raw block in .axe file");
+    }
+
+    {
+        auto tokens = lex("model Cat { name: char*, age: int } main { }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Model definition test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("typedef struct {"), "Should have struct definition");
+        assert(cCode.canFind("char* name;"), "Should have name field");
+        assert(cCode.canFind("int age;"), "Should have age field");
+        assert(cCode.canFind("} Cat;"), "Should have Cat typedef");
+    }
+
+    {
+        auto tokens = lex("model Cat { name: char*, health: int } " ~
+                "main { val cat = new Cat(name: \"Garfield\", health: 100); }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Model instantiation test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("typedef struct {"), "Should have struct definition");
+        assert(cCode.canFind("const Cat cat = {"), "Should have const struct initialization");
+        assert(cCode.canFind(".name = \"Garfield\""), "Should initialize name field");
+        assert(cCode.canFind(".health = 100"), "Should initialize health field");
+    }
+
+    {
+        auto tokens = lex(
+            "model Cat { health: int } main { mut val cat = new Cat(health: 100); cat.health = 90; }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Mutable model and member assignment test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("Cat cat = {"), "Should have mutable struct (no const)");
+        assert(!cCode.canFind("const Cat cat"), "Should not have const for mut val");
+        assert(cCode.canFind("cat.health = 90;"), "Should have member assignment");
+    }
+
+    {
+        auto tokens = lex(
+            "model Cat { health: int } main { mut val cat = new Cat(health: 100); println cat.health; }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Member access in println test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("Cat cat = {"), "Should have struct initialization");
+        assert(cCode.canFind("printf(\"%d\\n\", cat.health);"), "Should print member access");
+    }
+
+    {
+        auto tokens = lex("model Person { name: char*, age: int, height: int } main"
+                ~ " { val p = new Person(name: \"Alice\", age: 30, height: 170); }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Multi-field model test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("char* name;"), "Should have name field");
+        assert(cCode.canFind("int age;"), "Should have age field");
+        assert(cCode.canFind("int height;"), "Should have height field");
+        assert(cCode.canFind(".name = \"Alice\""), "Should initialize name");
+        assert(cCode.canFind(".age = 30"), "Should initialize age");
+        assert(cCode.canFind(".height = 170"), "Should initialize height");
+    }
+
+    {
+        bool caught = false;
+        try
+        {
+            auto tokens = lex(
+                "model Cat { health: int } main { val cat = new Cat(health: 100); cat.health = 90; }");
+            auto ast = parse(tokens);
+            generateC(ast);
+        }
+        catch (Exception e)
+        {
+            writeln("ERROR: ", e.msg);
+            assert(e.msg.canFind("Cannot assign to member") || e.msg.canFind("immutable"),
+                "Should prevent assignment to immutable struct member");
+            caught = true;
+        }
+        if (!caught)
+        {
+            assert(0, "Should have caught immutable member assignment error");
+        }
+    }
+
+    {
+        auto tokens = lex(
+            "model Point { x: int, y: int } model Line { start: Point*, end: Point* } main { }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Nested model types test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("} Point;"), "Should define Point struct");
+        assert(cCode.canFind("} Line;"), "Should define Line struct");
+        assert(cCode.canFind("Point* start;"), "Should have Point* field in Line");
+        assert(cCode.canFind("Point* end;"), "Should have Point* field in Line");
     }
 }
