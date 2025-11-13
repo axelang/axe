@@ -160,12 +160,36 @@ ASTNode parse(Token[] tokens)
                     break;
 
                 case TokenType.IDENTIFIER:
-                    string funcName = tokens[pos].value;
+                    string identName = tokens[pos].value;
                     pos++;
 
-                    string args = "";
-                    if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                    // Check if this is an assignment
+                    if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                     {
+                        // Variable assignment
+                        if (!currentScope.isDeclared(identName))
+                        {
+                            enforce(false, "Undeclared variable: " ~ identName);
+                        }
+                        pos++;
+                        
+                        string expr = "";
+                        while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                        {
+                            expr ~= tokens[pos].value;
+                            pos++;
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after assignment");
+                        pos++;
+                        
+                        mainNode.children ~= new AssignmentNode(identName, expr);
+                    }
+                    else if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                    {
+                        // Function call
+                        string args = "";
                         pos++;
 
                         while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
@@ -195,13 +219,17 @@ ASTNode parse(Token[] tokens)
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
                             "Expected ')' after function arguments");
                         pos++; // Skip ')'
+
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after function call");
+                        pos++; // Skip ';'
+
+                        mainNode.children ~= new FunctionCallNode(identName, args);
                     }
-
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                        "Expected ';' after function call");
-                    pos++; // Skip ';'
-
-                    mainNode.children ~= new FunctionCallNode(funcName, args);
+                    else
+                    {
+                        enforce(false, "Expected '=' or '(' after identifier");
+                    }
                     break;
 
                 case TokenType.LOOP:
@@ -373,12 +401,36 @@ ASTNode parse(Token[] tokens)
                         break;
 
                     case TokenType.IDENTIFIER:
-                        string funcName = tokens[pos].value;
+                        string identName = tokens[pos].value;
                         pos++;
 
-                        string args = "";
-                        if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                        // Check if this is an assignment
+                        if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                         {
+                            // Variable assignment
+                            if (!currentScope.isDeclared(identName))
+                            {
+                                enforce(false, "Undeclared variable: " ~ identName);
+                            }
+                            pos++;
+                            
+                            string expr = "";
+                            while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                            {
+                                expr ~= tokens[pos].value;
+                                pos++;
+                            }
+                            
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after assignment");
+                            pos++;
+                            
+                            mainNode.children ~= new AssignmentNode(identName, expr);
+                        }
+                        else if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                        {
+                            // Function call
+                            string args = "";
                             pos++;
 
                             while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
@@ -408,13 +460,17 @@ ASTNode parse(Token[] tokens)
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
                                 "Expected ')' after function arguments");
                             pos++; // Skip ')'
+
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after function call");
+                            pos++; // Skip ';'
+
+                            mainNode.children ~= new FunctionCallNode(identName, args);
                         }
-
-                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                            "Expected ';' after function call");
-                        pos++; // Skip ';'
-
-                        mainNode.children ~= new FunctionCallNode(funcName, args);
+                        else
+                        {
+                            enforce(false, "Expected '=' or '(' after identifier");
+                        }
                         break;
 
                     case TokenType.LOOP:
@@ -715,6 +771,33 @@ ASTNode parse(Token[] tokens)
                                 enforce(false, "Undeclared variable: " ~ varName);
                             }
                             pos++;
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+                            
+                            // Check if this is an assignment
+                            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+                            {
+                                pos++;
+                                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                    pos++;
+                                
+                                string expr = "";
+                                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                                {
+                                    expr ~= tokens[pos].value;
+                                    pos++;
+                                }
+                                
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after assignment");
+                                pos++;
+                                
+                                ifNode.children ~= new AssignmentNode(varName, expr);
+                            }
+                            else
+                            {
+                                enforce(false, "Expected '=' after identifier in if block");
+                            }
                             break;
                         default:
                             import std.stdio;
@@ -738,52 +821,83 @@ ASTNode parse(Token[] tokens)
                     break;
 
                 case TokenType.IDENTIFIER:
-                    string callName = tokens[pos].value;
+                    string identName = tokens[pos].value;
                     pos++;
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                         pos++;
 
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
-                        "Expected '(' after function name");
-                    pos++;
-                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                        pos++;
-
-                    string functionArgs;
-                    while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                    // Check if this is an assignment
+                    if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                     {
-                        if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
-                            .COMMA)
+                        // Variable assignment
+                        if (!currentScope.isDeclared(identName))
                         {
+                            enforce(false, "Undeclared variable: " ~ identName);
+                        }
+                        pos++;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                            pos++;
+                        
+                        string expr = "";
+                        while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                        {
+                            expr ~= tokens[pos].value;
                             pos++;
                         }
-                        else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
-                            .IDENTIFIER)
-                        {
-                            functionArgs ~= tokens[pos].value;
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after assignment");
+                        pos++;
+                        
+                        funcNode.children ~= new AssignmentNode(identName, expr);
+                    }
+                    else if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                    {
+                        // Function call
+                        pos++;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                             pos++;
-                            if (pos < tokens.length && tokens[pos].type == TokenType.COMMA)
+
+                        string functionArgs;
+                        while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                        {
+                            if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
+                                .COMMA)
                             {
-                                functionArgs ~= ", ";
                                 pos++;
                             }
+                            else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
+                                .IDENTIFIER)
+                            {
+                                functionArgs ~= tokens[pos].value;
+                                pos++;
+                                if (pos < tokens.length && tokens[pos].type == TokenType.COMMA)
+                                {
+                                    functionArgs ~= ", ";
+                                    pos++;
+                                }
+                            }
+                            else
+                            {
+                                enforce(false, "Unexpected token in function call arguments");
+                            }
                         }
-                        else
-                        {
-                            enforce(false, "Unexpected token in function call arguments");
-                        }
-                    }
 
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
-                        "Expected ')' after function arguments");
-                    pos++;
-                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                            "Expected ')' after function arguments");
                         pos++;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                            pos++;
 
-                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                        "Expected ';' after function call");
-                    pos++;
-                    funcNode.children ~= new FunctionCallNode(callName, functionArgs);
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after function call");
+                        pos++;
+                        funcNode.children ~= new FunctionCallNode(identName, functionArgs);
+                    }
+                    else
+                    {
+                        enforce(false, "Expected '=' or '(' after identifier");
+                    }
                     break;
 
                 case TokenType.LOOP:
@@ -946,6 +1060,34 @@ ASTNode parse(Token[] tokens)
                                         enforce(false, "Undeclared variable: " ~ varName);
                                     }
                                     pos++;
+                                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                        pos++;
+                                    
+                                    // Check if this is an assignment
+                                    if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR
+                                        && tokens[pos].value == "=")
+                                    {
+                                        pos++;
+                                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                            pos++;
+                                        
+                                        string expr = "";
+                                        while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                                        {
+                                            expr ~= tokens[pos].value;
+                                            pos++;
+                                        }
+                                        
+                                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                            "Expected ';' after assignment");
+                                        pos++;
+                                        
+                                        ifNode.children ~= new AssignmentNode(varName, expr);
+                                    }
+                                    else
+                                    {
+                                        enforce(false, "Expected '=' after identifier in if block");
+                                    }
                                     break;
                                 default:
                                     import std.stdio;
