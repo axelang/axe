@@ -28,7 +28,8 @@ Token[] lex(string source)
             }
             else
             {
-                enforce(false, "Unexpected '*'");
+                tokens ~= Token(TokenType.STAR, "*");
+                pos++;
             }
             break;
 
@@ -76,7 +77,12 @@ Token[] lex(string source)
             break;
 
         case '-':
-            tokens ~= Token(TokenType.OPERATOR, "-");
+            tokens ~= Token(TokenType.MINUS, "-");
+            pos++;
+            break;
+
+        case '+':
+            tokens ~= Token(TokenType.PLUS, "+");
             pos++;
             break;
 
@@ -104,6 +110,11 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.OPERATOR, "<");
                 pos++;
             }
+            break;
+
+        case '/':
+            tokens ~= Token(TokenType.SLASH, "/");
+            pos++;
             break;
 
         case '"':

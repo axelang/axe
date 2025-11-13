@@ -29,7 +29,16 @@ enum TokenType
     OPERATOR,
     IF,
     VAL,
-    MUT
+    MUT,
+    PLUS,    // +
+    MINUS,   // -
+    STAR,    // *
+    SLASH,   // /
+    PERCENT, // %
+    CARET,   // ^
+    AMPERSAND, // &
+    PIPE,    // |
+    TILDE,   // ~
 }
 
 /** 

@@ -269,6 +269,31 @@ ASTNode parse(Token[] tokens)
                     mainNode.children ~= ifNode;
                     break;
 
+                case TokenType.VAL:
+                    bool isMutable = false;
+                    pos++; // Skip 'val'
+                    
+                    if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER) {
+                        string varName = tokens[pos].value;
+                        pos++; // Skip identifier
+                        
+                        string initializer = "";
+                        if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=") {
+                            pos++; // Skip '='
+                            while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON) {
+                                initializer ~= tokens[pos].value;
+                                pos++;
+                            }
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after val declaration");
+                        pos++; // Skip ';'
+                        
+                        mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
+                    }
+                    break;
+
                 default:
                     enforce(false, "Unexpected statement in main block: " ~ tokens[pos].value);
                 }
@@ -452,6 +477,31 @@ ASTNode parse(Token[] tokens)
                         pos++; // Skip '}'
 
                         mainNode.children ~= ifNode;
+                        break;
+
+                    case TokenType.VAL:
+                        bool isMutable = false;
+                        pos++; // Skip 'val'
+                        
+                        if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER) {
+                            string varName = tokens[pos].value;
+                            pos++; // Skip identifier
+                            
+                            string initializer = "";
+                            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=") {
+                                pos++; // Skip '='
+                                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON) {
+                                    initializer ~= tokens[pos].value;
+                                    pos++;
+                                }
+                            }
+                            
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after val declaration");
+                            pos++; // Skip ';'
+                            
+                            mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
+                        }
                         break;
 
                     default:
