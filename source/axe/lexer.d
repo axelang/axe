@@ -278,6 +278,16 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.DEF, "def");
                 pos += 3;
             }
+            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "elif")
+            {
+                tokens ~= Token(TokenType.ELIF, "elif");
+                pos += 4;
+            }
+            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "else")
+            {
+                tokens ~= Token(TokenType.ELSE, "else");
+                pos += 4;
+            }
             else if (pos + 2 <= source.length && source[pos .. pos + 2] == "if")
             {
                 tokens ~= Token(TokenType.IF, "if");

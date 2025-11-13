@@ -193,7 +193,40 @@ string generateC(ASTNode ast)
         }
 
         loopLevel--;
-        cCode ~= "}\n";
+        cCode ~= "}";
+        
+        // Handle elif branches
+        foreach (elifBranch; ifNode.elifBranches)
+        {
+            auto elifNode = cast(IfNode) elifBranch;
+            cCode ~= " else if (" ~ processCondition(elifNode.condition) ~ ") {\n";
+            loopLevel++;
+            
+            foreach (child; elifNode.children)
+            {
+                cCode ~= generateC(child);
+            }
+            
+            loopLevel--;
+            cCode ~= "}";
+        }
+        
+        // Handle else block
+        if (ifNode.elseBody.length > 0)
+        {
+            cCode ~= " else {\n";
+            loopLevel++;
+            
+            foreach (child; ifNode.elseBody)
+            {
+                cCode ~= generateC(child);
+            }
+            
+            loopLevel--;
+            cCode ~= "}";
+        }
+        
+        cCode ~= "\n";
         break;
 
     case "Loop":
@@ -1379,5 +1412,80 @@ unittest
         {
             assert(0, "Should have caught immutable increment error");
         }
+    }
+
+    {
+        auto tokens = lex("main { val x: int = 5; if x > 10 { println \"big\"; } else { println \"small\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If-else test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("if ((x>10))"), "Should have if condition");
+        assert(cCode.canFind("printf(\"big\\n\");"), "Should have println in if");
+        assert(cCode.canFind("} else {"), "Should have else block");
+        assert(cCode.canFind("printf(\"small\\n\");"), "Should have println in else");
+    }
+
+    {
+        auto tokens = lex("main { val score: int = 75; if score >= 90 { println \"A\"; } elif score >= 80 { println \"B\"; } elif score >= 70 { println \"C\"; } else { println \"F\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If-elif-else test (without parens):");
+        writeln(cCode);
+
+        assert(cCode.canFind("if ((score>=90))"), "Should have if condition");
+        assert(cCode.canFind("printf(\"A\\n\");"), "Should have println A");
+        assert(cCode.canFind("} else if ((score>=80)) {"), "Should have first elif");
+        assert(cCode.canFind("printf(\"B\\n\");"), "Should have println B");
+        assert(cCode.canFind("} else if ((score>=70)) {"), "Should have second elif");
+        assert(cCode.canFind("printf(\"C\\n\");"), "Should have println C");
+        assert(cCode.canFind("} else {"), "Should have else");
+        assert(cCode.canFind("printf(\"F\\n\");"), "Should have println F");
+    }
+
+    {
+        auto tokens = lex("main { val n: int = 15; if (n < 10) { println \"less\"; } elif (n == 15) { println \"equal\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If-elif test (with parens):");
+        writeln(cCode);
+
+        assert(cCode.canFind("if ((n<10))"), "Should have if condition");
+        assert(cCode.canFind("printf(\"less\\n\");"), "Should have println in if");
+        assert(cCode.canFind("} else if ((n==15)) {"), "Should have elif with parens");
+        assert(cCode.canFind("printf(\"equal\\n\");"), "Should have println in elif");
+        assert(!cCode.canFind("} else {"), "Should not have else block");
+    }
+
+    {
+        auto tokens = lex("main { val temp: int = 20; if temp < 0 { println \"freezing\"; } else { println \"ok\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Simple if-else test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("if ((temp<0))"), "Should have if condition");
+        assert(cCode.canFind("printf(\"freezing\\n\");"), "Should have println in if");
+        assert(cCode.canFind("} else {"), "Should have else");
+        assert(cCode.canFind("printf(\"ok\\n\");"), "Should have println in else");
+    }
+
+    {
+        auto tokens = lex("main { val age: int = 25; if (age >= 18) { println \"adult\"; } else { println \"minor\"; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("If-else with parens test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("if ((age>=18))"), "Should have if with parens");
+        assert(cCode.canFind("printf(\"adult\\n\");"), "Should have println in if");
+        assert(cCode.canFind("} else {"), "Should have else");
+        assert(cCode.canFind("printf(\"minor\\n\");"), "Should have println in else");
     }
 }

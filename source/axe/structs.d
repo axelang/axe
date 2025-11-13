@@ -51,6 +51,8 @@ enum TokenType
     DEFAULT,
     INCREMENT,
     DECREMENT,
+    ELSE,
+    ELIF,
 }
 
 /** 
@@ -112,6 +114,8 @@ class FunctionNode : ASTNode
 class IfNode : ASTNode
 {
     string condition;
+    ASTNode[] elifBranches;  // Array of IfNode for elif branches
+    ASTNode[] elseBody;      // Statements in else block
 
     this(string condition)
     {

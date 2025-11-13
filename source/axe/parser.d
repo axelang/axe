@@ -602,6 +602,96 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                         "Expected '}' after if body");
                     pos++;
 
+                    // Check for elif and else
+                    while (pos < tokens.length && tokens[pos].type == TokenType.ELIF)
+                    {
+                        pos++; // Skip 'elif'
+                        
+                        string elifCondition;
+                        
+                        // Check if condition has parentheses
+                        if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
+                        {
+                            pos++; // Skip '('
+                            
+                            while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                            {
+                                elifCondition ~= tokens[pos].value;
+                                pos++;
+                            }
+                            
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                                "Expected ')' after elif condition");
+                            pos++; // Skip ')'
+                        }
+                        else
+                        {
+                            // Parse condition without parentheses until '{'
+                            while (pos < tokens.length && tokens[pos].type != TokenType.LBRACE)
+                            {
+                                elifCondition ~= tokens[pos].value;
+                                pos++;
+                            }
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                            "Expected '{' after elif condition");
+                        pos++;
+                        
+                        auto elifNode = new IfNode(elifCondition);
+                        while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+                        {
+                            switch (tokens[pos].type)
+                            {
+                            case TokenType.PRINTLN:
+                                elifNode.children ~= parsePrintln();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after println");
+                                pos++;
+                                break;
+                                
+                            default:
+                                enforce(false, "Unexpected token in elif body");
+                            }
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                            "Expected '}' after elif body");
+                        pos++;
+                        
+                        ifNode.elifBranches ~= elifNode;
+                    }
+                    
+                    // Check for else
+                    if (pos < tokens.length && tokens[pos].type == TokenType.ELSE)
+                    {
+                        pos++; // Skip 'else'
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                            "Expected '{' after else");
+                        pos++;
+                        
+                        while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+                        {
+                            switch (tokens[pos].type)
+                            {
+                            case TokenType.PRINTLN:
+                                ifNode.elseBody ~= parsePrintln();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after println");
+                                pos++;
+                                break;
+                                
+                            default:
+                                enforce(false, "Unexpected token in else body");
+                            }
+                        }
+                        
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                            "Expected '}' after else body");
+                        pos++;
+                    }
+
                     mainNode.children ~= ifNode;
                     break;
 
