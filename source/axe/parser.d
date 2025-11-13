@@ -127,6 +127,47 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
         switch (tokens[pos].type)
         {
+        case TokenType.USE:
+            pos++; // Skip 'use'
+            
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                "Expected module name after 'use'");
+            string moduleName = tokens[pos].value;
+            pos++;
+            
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
+                "Expected '(' after module name");
+            pos++; // Skip '('
+            
+            string[] imports;
+            while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+            {
+                if (tokens[pos].type == TokenType.IDENTIFIER)
+                {
+                    imports ~= tokens[pos].value;
+                    pos++;
+                }
+                else if (tokens[pos].type == TokenType.COMMA)
+                {
+                    pos++;
+                }
+                else
+                {
+                    enforce(false, "Unexpected token in use statement");
+                }
+            }
+            
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                "Expected ')' after imports");
+            pos++; // Skip ')'
+            
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                "Expected ';' after use statement");
+            pos++; // Skip ';'
+            
+            ast.children ~= new UseNode(moduleName, imports);
+            continue;
+
         case TokenType.MAIN:
             writeln("Entering main block at pos ", pos);
             pos++;

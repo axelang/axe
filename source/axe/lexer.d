@@ -252,6 +252,11 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.RAW, "raw");
                 pos += 3;
             }
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "use")
+            {
+                tokens ~= Token(TokenType.USE, "use");
+                pos += 3;
+            }
             else if (source[pos].isAlphaNum())
             {
                 size_t start = pos;

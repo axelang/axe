@@ -42,6 +42,7 @@ enum TokenType
     TILDE,
     RAW,
     COMMENT,
+    USE,
 }
 
 /** 
@@ -189,6 +190,19 @@ class RawCNode : ASTNode
     {
         super("RawC");
         this.code = code;
+    }
+}
+
+class UseNode : ASTNode
+{
+    string moduleName;
+    string[] imports;
+
+    this(string moduleName, string[] imports)
+    {
+        super("Use");
+        this.moduleName = moduleName;
+        this.imports = imports;
     }
 }
 
