@@ -83,10 +83,8 @@ ASTNode parse(Token[] tokens)
                 {
                     string paramName = tokens[pos].value;
                     pos++;
-                    
-                    // Handle type annotation if present
                     if (pos < tokens.length && tokens[pos].type == TokenType.COLON) {
-                        pos++; // Skip colon
+                        pos++;
                         string typeName = parseType();
                         args ~= typeName ~ " " ~ paramName;
                     }
@@ -320,27 +318,26 @@ ASTNode parse(Token[] tokens)
 
             enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
                 "Expected '}' after main body");
-            pos++; // Skip '}'
+            pos++;
 
-            // Skip any trailing whitespace
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
 
             assert(pos > startPos, "Parser must advance position");
             startPos = pos;
             ast.children ~= mainNode;
-            continue; // Continue to next token
+            continue;
 
         case TokenType.IDENTIFIER:
             if (tokens[pos].value == "main")
             {
-                pos++; // Skip 'main'
+                pos++;
                 while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                     pos++;
 
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
                     "Expected '{' after 'main'");
-                pos++; // Skip '{'
+                pos++;
 
                 auto mainNode = new FunctionNode("main", []);
                 writeln("Entering main block at pos ", pos);
@@ -352,26 +349,25 @@ ASTNode parse(Token[] tokens)
                     switch (tokens[pos].type)
                     {
                     case TokenType.PRINTLN:
-                        pos++; // Skip 'println'
+                        pos++;
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.STR,
                             "Expected string after println");
                         mainNode.children ~= new PrintlnNode(tokens[pos].value);
-                        pos++; // Skip string
+                        pos++;
 
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                             "Expected ';' after println");
-                        pos++; // Skip ';'
+                        pos++;
                         break;
 
                     case TokenType.IDENTIFIER:
                         string funcName = tokens[pos].value;
-                        pos++; // Skip function name
+                        pos++;
 
                         string args = "";
                         if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
                         {
-                            pos++; // Skip '('
-
+                            pos++;
                             while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
                             {
                                 if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
