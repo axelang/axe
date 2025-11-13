@@ -484,17 +484,18 @@ ASTNode parse(Token[] tokens)
 
                     case TokenType.VAL:
                         bool isMutable = false;
-                        pos++; // Skip 'val'
+                        pos++;
 
                         if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
                         {
                             string varName = tokens[pos].value;
-                            pos++; // Skip identifier
+                            pos++;
 
                             string initializer = "";
-                            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+                            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR
+                                && tokens[pos].value == "=")
                             {
-                                pos++; // Skip '='
+                                pos++;
                                 while (pos < tokens.length && tokens[pos].type != TokenType
                                     .SEMICOLON)
                                 {
@@ -505,7 +506,7 @@ ASTNode parse(Token[] tokens)
 
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                 "Expected ';' after val declaration");
-                            pos++; // Skip ';'
+                            pos++;
 
                             mainNode.children ~= new DeclarationNode(varName, isMutable, initializer);
                         }
