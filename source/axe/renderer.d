@@ -65,10 +65,12 @@ string generateC(ASTNode ast)
         cCode ~= "#include <stdbool.h>\n";
         cCode ~= "#include <stdlib.h>\n";
         cCode ~= "#include <string.h>\n";
-        version(Windows)
+
+        version (Windows)
         {
             cCode ~= "#include <windows.h>\n";
         }
+
         cCode ~= "\n";
 
         foreach (child; ast.children)
@@ -122,7 +124,8 @@ string generateC(ASTNode ast)
         if (funcNode.name == "main")
         {
             cCode ~= "int main() {\n";
-            version (Windows) {
+            version (Windows)
+            {
                 cCode ~= "SetConsoleOutputCP(CP_UTF8);\n";
             }
         }
@@ -133,34 +136,37 @@ string generateC(ASTNode ast)
             {
                 import std.stdio : writeln;
                 import std.string : split, strip, indexOf, lastIndexOf;
-                
+
                 string[] processedParams;
-                
+
                 foreach (param; params)
                 {
                     writeln("DEBUG: Processing param: '", param, "'");
-                    
+
                     // Find the last space to separate type from name
                     auto lastSpace = param.lastIndexOf(' ');
-                    
+
                     // Check if the space is inside array brackets
                     while (lastSpace > 0)
                     {
                         int openBrackets = 0;
                         for (size_t i = 0; i < lastSpace; i++)
                         {
-                            if (param[i] == '[') openBrackets++;
-                            if (param[i] == ']') openBrackets--;
+                            if (param[i] == '[')
+                                openBrackets++;
+                            if (param[i] == ']')
+                                openBrackets--;
                         }
-                        if (openBrackets == 0) break;
+                        if (openBrackets == 0)
+                            break;
                         lastSpace = param[0 .. lastSpace].lastIndexOf(' ');
                     }
-                    
+
                     if (lastSpace > 0)
                     {
                         string paramType = param[0 .. lastSpace].strip();
                         string paramName = param[lastSpace + 1 .. $].strip();
-                        
+
                         // Check if this is an array type
                         auto bracketPos = paramType.indexOf('[');
                         if (bracketPos >= 0)
@@ -168,7 +174,7 @@ string generateC(ASTNode ast)
                             // Flatten arrays to pointers: int[][] -> int*, int[] -> int*
                             paramType = paramType[0 .. bracketPos].strip() ~ "*";
                         }
-                        
+
                         processedParams ~= paramType ~ " " ~ paramName;
                     }
                     else
@@ -176,7 +182,7 @@ string generateC(ASTNode ast)
                         processedParams ~= param;
                     }
                 }
-                
+
                 cCode ~= processedParams.join(", ");
             }
             cCode ~= ") {\n";
@@ -207,13 +213,15 @@ string generateC(ASTNode ast)
     case "Assignment":
         auto assignNode = cast(AssignmentNode) ast;
         import std.stdio : writeln;
+
         writeln("DEBUG Assignment: variable='", assignNode.variable, "'");
-        string dest = processExpression(assignNode.variable.strip());  // Transform array access in dest too
+        string dest = processExpression(assignNode.variable.strip()); // Transform array access in dest too
         writeln("DEBUG Assignment: dest after processExpression='", dest, "'");
         string expr = assignNode.expression.strip();
-        
+
         // Extract base variable name for lookups (e.g., "arr[i]" -> "arr")
         import std.string : indexOf;
+
         string baseVarName = dest;
         auto bracketPos = dest.indexOf('[');
         if (bracketPos > 0)
@@ -316,21 +324,23 @@ string generateC(ASTNode ast)
 
         string baseType = declNode.typeName.length > 0 ? declNode.typeName : "int";
         string arrayPart = "";
-        
+
         // Extract array dimensions from type (e.g., "int[5]" -> "int" and "[5]")
         import std.string : indexOf, count;
         import std.conv : to;
+
         auto bracketPos = baseType.indexOf('[');
         if (bracketPos >= 0)
         {
             arrayPart = baseType[bracketPos .. $];
             baseType = baseType[0 .. bracketPos];
-            
+
             // Flatten 2D arrays: int[10][10] -> int[100]
             if (arrayPart.count('[') == 2)
             {
                 // Extract dimensions
                 import std.regex : matchAll, regex;
+
                 auto dimPattern = regex(r"\[(\d+)\]");
                 auto matches = matchAll(arrayPart, dimPattern);
                 if (!matches.empty)
@@ -358,24 +368,24 @@ string generateC(ASTNode ast)
         if (declNode.initializer.length > 0)
         {
             string processedExpr = processExpression(declNode.initializer);
-            
+
             // Convert array initializer syntax: [1,2,3] -> {1,2,3}
             if (arrayPart.length > 0 && processedExpr.length > 0 && processedExpr[0] == '[')
             {
                 import std.string : replace, split;
-                
+
                 // If array size not specified (e.g., int[]), calculate from initializer
                 if (arrayPart == "[]")
                 {
                     // Count elements in initializer
-                    auto elements = processedExpr[1..$-1].split(",");
+                    auto elements = processedExpr[1 .. $ - 1].split(",");
                     arrayPart = "[" ~ elements.length.to!string ~ "]";
                     decl = type ~ " " ~ declNode.name ~ arrayPart;
                 }
-                
+
                 processedExpr = processedExpr.replace("[", "{").replace("]", "}");
             }
-            
+
             decl ~= " = " ~ processedExpr;
         }
 
@@ -437,11 +447,11 @@ string generateC(ASTNode ast)
 
             loopLevel--;
             cCode ~= "}";
-            
+
             // Move to the next node in the chain
             currentNode = elifNode;
         }
-        
+
         // Handle final else block (if not another elif)
         if (currentNode.elseBody.length > 0)
         {
@@ -674,25 +684,25 @@ string generateC(ASTNode ast)
 string processExpression(string expr)
 {
     expr = expr.strip();
-    
+
     import std.regex : regex, matchFirst;
     import std.array : replace;
-    
+
     // FIRST: Replace Axe operators with C equivalents before any other processing
     expr = expr.replace(" mod ", " % ");
     expr = expr.replace(" and ", " && ");
     expr = expr.replace(" or ", " || ");
     expr = expr.replace(" xor ", " ^ ");
-    
+
     // Second, transform 2D array accesses before any other processing
     // This must happen early to avoid the expression being wrapped in parens first
     string widthVar = "width"; // Default assumption for 2D arrays
-    
+
     // Keep replacing until no more 2D accesses found
     bool foundMatch = true;
     int maxIterations = 10; // Prevent infinite loops
     int iterations = 0;
-    
+
     bool hadArrayTransform = false;
     while (foundMatch && iterations < maxIterations)
     {
@@ -705,7 +715,7 @@ string processExpression(string expr)
             string arrayName = match[1];
             string index1 = match[2].strip();
             string index2 = match[3].strip();
-            
+
             // Replace with flattened access - wrap the index calculation in parens
             // to prevent operator precedence issues
             string flattened = arrayName ~ "[(" ~ index1 ~ ") * " ~ widthVar ~ " + (" ~ index2 ~ ")]";
@@ -717,7 +727,7 @@ string processExpression(string expr)
             foundMatch = false;
         }
     }
-    
+
     // If we transformed array accesses, return immediately to avoid
     // the operator-splitting logic below from breaking our syntax
     if (hadArrayTransform)
@@ -773,9 +783,11 @@ string processExpression(string expr)
     {
         return expr;
     }
-    
+
     // Check for operators, but be careful not to split on dots (member access)
-    foreach (op; ["+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||"])
+    foreach (op; [
+            "+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||"
+        ])
     {
         if (expr.canFind(op) && op != "")
         {
@@ -816,14 +828,14 @@ private string processCondition(string condition)
 {
     import std.array : replace, split;
     import std.stdio : writeln;
-    
+
     writeln("DEBUG processCondition input: '", condition, "'");
 
     condition = condition.replace(" mod ", " % ");
     condition = condition.replace(" and ", " && ");
     condition = condition.replace(" or ", " || ");
     condition = condition.replace(" xor ", " ^ ");
-    
+
     writeln("DEBUG processCondition after replace: '", condition, "'");
 
     foreach (op; ["&&", "||"])
@@ -833,12 +845,13 @@ private string processCondition(string condition)
             auto parts = condition.split(op);
             if (parts.length == 2)
             {
-                string result = "(" ~ processCondition(parts[0].strip()) ~ " " ~ op ~ " " ~ processCondition(parts[1].strip()) ~ ")";
+                string result = "(" ~ processCondition(parts[0].strip()) ~ " " ~ op ~ " " ~ processCondition(
+                    parts[1].strip()) ~ ")";
                 return result;
             }
         }
     }
-    
+
     // Then handle comparison operators
     foreach (op; ["==", "!=", ">=", "<=", ">", "<"])
     {
