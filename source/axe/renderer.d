@@ -121,7 +121,112 @@ string generateC(ASTNode ast)
             cCode ~= funcNode.returnType ~ " " ~ funcName ~ "(";
             if (params.length > 0)
             {
-                cCode ~= params.join(", ");
+                import std.stdio : writeln;
+                import std.string : split, strip, indexOf, lastIndexOf;
+                
+                // First pass: parse all parameters
+                struct ParsedParam
+                {
+                    string type;
+                    string name;
+                    string arrayPart;
+                    bool isArray;
+                }
+                
+                ParsedParam[] parsedParams;
+                
+                foreach (param; params)
+                {
+                    writeln("DEBUG: Processing param: '", param, "'");
+                    
+                    // Find the last space to separate type from name
+                    auto lastSpace = param.lastIndexOf(' ');
+                    
+                    // Check if the space is inside array brackets
+                    while (lastSpace > 0)
+                    {
+                        int openBrackets = 0;
+                        for (size_t i = 0; i < lastSpace; i++)
+                        {
+                            if (param[i] == '[') openBrackets++;
+                            if (param[i] == ']') openBrackets--;
+                        }
+                        if (openBrackets == 0) break;
+                        lastSpace = param[0 .. lastSpace].lastIndexOf(' ');
+                    }
+                    
+                    if (lastSpace > 0)
+                    {
+                        string paramType = param[0 .. lastSpace].strip();
+                        string paramName = param[lastSpace + 1 .. $].strip();
+                        string arrayPart = "";
+                        bool isArray = false;
+                        
+                        // Extract all array brackets from type
+                        auto bracketPos = paramType.indexOf('[');
+                        if (bracketPos >= 0)
+                        {
+                            arrayPart = paramType[bracketPos .. $];
+                            paramType = paramType[0 .. bracketPos].strip();
+                            isArray = true;
+                        }
+                        
+                        parsedParams ~= ParsedParam(paramType, paramName, arrayPart, isArray);
+                    }
+                    else
+                    {
+                        parsedParams ~= ParsedParam("", param, "", false);
+                    }
+                }
+                
+                // Second pass: reorder for VLAs - non-array params first, then array params
+                string[] orderedParams;
+                string[] dimensionNames;
+                
+                // Add non-array parameters first (these are likely dimensions)
+                foreach (p; parsedParams)
+                {
+                    if (!p.isArray && p.type.length > 0)
+                    {
+                        orderedParams ~= p.type ~ " " ~ p.name;
+                        dimensionNames ~= p.name;
+                    }
+                }
+                
+                // Then add array parameters with VLA syntax
+                foreach (p; parsedParams)
+                {
+                    if (p.isArray)
+                    {
+                        string arrayPart = p.arrayPart;
+                        
+                        // Replace empty brackets with dimension names for VLA
+                        // For [][] we need [dim1][dim2], for [] we need [dim1]
+                        if (arrayPart == "[][]" && dimensionNames.length >= 2)
+                        {
+                            // Use last two dimensions (typically height, width)
+                            arrayPart = "[" ~ dimensionNames[$-2] ~ "][" ~ dimensionNames[$-1] ~ "]";
+                        }
+                        else if (arrayPart == "[]" && dimensionNames.length >= 1)
+                        {
+                            // Use last dimension
+                            arrayPart = "[" ~ dimensionNames[$-1] ~ "]";
+                        }
+                        
+                        orderedParams ~= p.type ~ " " ~ p.name ~ arrayPart;
+                    }
+                }
+                
+                // Add any remaining parameters (shouldn't happen, but be safe)
+                foreach (p; parsedParams)
+                {
+                    if (p.type.length == 0)
+                    {
+                        orderedParams ~= p.name;
+                    }
+                }
+                
+                cCode ~= orderedParams.join(", ");
             }
             cCode ~= ") {\n";
         }

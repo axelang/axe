@@ -98,11 +98,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             string elementType;
             string size;
             string size2;
+            bool hasSecondDimension;
         }
 
         string elementType = parseType();
         string size = "";
         string size2 = "";
+        bool hasSecondDimension = false;
 
         if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
         {
@@ -117,16 +119,29 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
                 "Expected ']' after array size");
             pos++; // Skip ']'
+            
+            if (pos < tokens.length)
+                writeln("DEBUG parseArrayType: After first ], pos=", pos, " token=", tokens[pos].type, " value='", tokens[pos].value, "'");
+            else
+                writeln("DEBUG parseArrayType: After first ], pos=", pos, " END OF TOKENS");
 
             if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
             {
+                writeln("DEBUG parseArrayType: Found second [");
+                hasSecondDimension = true;
                 pos++; // Skip '['
+                
+                if (pos < tokens.length)
+                    writeln("DEBUG parseArrayType: After second [, token=", tokens[pos].type, " value='", tokens[pos].value, "'");
 
                 while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
                 {
+                    writeln("DEBUG parseArrayType: Adding to size2: '", tokens[pos].value, "'");
                     size2 ~= tokens[pos].value;
                     pos++;
                 }
+                
+                writeln("DEBUG parseArrayType: size2='", size2, "' hasSecondDimension=", hasSecondDimension);
 
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
                     "Expected ']' after second array size");
@@ -134,7 +149,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             }
         }
 
-        return ArrayTypeInfo(elementType, size, size2);
+        return ArrayTypeInfo(elementType, size, size2, hasSecondDimension);
     }
 
     /** 
@@ -274,25 +289,22 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             // Array parameter - parse full array type
                             pos = savedPos;
                             auto arrayInfo = parseArrayType();
+                            writeln("DEBUG parseArgs: elementType='", arrayInfo.elementType, "' size='", arrayInfo.size, "' size2='", arrayInfo.size2, "' hasSecondDimension=", arrayInfo.hasSecondDimension);
                             string fullType = arrayInfo.elementType;
                             if (arrayInfo.size.length > 0)
                                 fullType ~= "[" ~ arrayInfo.size ~ "]";
                             else
                                 fullType ~= "[]";
 
-                            if (arrayInfo.size2.length > 0)
-                                fullType ~= "[" ~ arrayInfo.size2 ~ "]";
-                            else if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+                            if (arrayInfo.hasSecondDimension)
                             {
-                                // Handle second [] for 2D arrays
-                                pos++; // Skip '['
-                                if (pos < tokens.length && tokens[pos].type == TokenType.RBRACKET)
-                                {
+                                if (arrayInfo.size2.length > 0)
+                                    fullType ~= "[" ~ arrayInfo.size2 ~ "]";
+                                else
                                     fullType ~= "[]";
-                                    pos++; // Skip ']'
-                                }
                             }
-
+                            
+                            writeln("DEBUG parseArgs: fullType='", fullType, "' paramName='", paramName, "'");
                             args ~= fullType ~ " " ~ paramName;
                         }
                         else
