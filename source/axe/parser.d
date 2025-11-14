@@ -844,7 +844,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             }
                             else
                             {
-                                enforce(false, "Unexpected token after identifier in loop body");
+                                enforce(false, "Unexpected token after identifier in loop body: " ~ tokens[pos].value);
                             }
                             break;
 
@@ -1892,11 +1892,21 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                 auto mainNode = new FunctionNode("main", []);
                 writeln("Entering main block at pos ", pos);
-                size_t startPos = pos;
+                
+                auto previousScope = currentScopeNode;
+                currentScopeNode = mainNode;
+                
                 while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
                 {
-                    writeln("Main block pos ", pos, ": ", tokens[pos].type, " ('", tokens[pos].value, "')");
-
+                    auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode);
+                    if (stmt !is null)
+                        mainNode.children ~= stmt;
+                }
+                
+                currentScopeNode = previousScope;
+                
+                // OLD CODE - keeping structure for reference
+                if (false) {
                     switch (tokens[pos].type)
                     {
                     case TokenType.PRINTLN:
@@ -2229,11 +2239,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     default:
                         enforce(false, "Unexpected statement in main block: " ~ tokens[pos].value);
                     }
-
-                    assert(pos > startPos, "Parser must advance position");
-                    startPos = pos;
                 }
-
+                
                 writeln("Exited main block at pos ", pos);
                 writeln("Current token: ", pos < tokens.length ? to!string(
                         tokens[pos].type) : "EOF", " ('",
@@ -2248,8 +2255,6 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                     pos++;
 
-                assert(pos > startPos, "Parser must advance position");
-                startPos = pos;
                 ast.children ~= mainNode;
                 continue;
             }
