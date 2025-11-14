@@ -104,10 +104,12 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
         {
             string elementType;
             string size;
+            string size2;
         }
 
         string elementType = parseType();
         string size = "";
+        string size2 = "";
 
         if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
         {
@@ -123,9 +125,26 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
                 "Expected ']' after array size");
             pos++; // Skip ']'
+
+            // Check for second dimension
+            if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+            {
+                pos++; // Skip '['
+
+                // Parse second array size
+                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                {
+                    size2 ~= tokens[pos].value;
+                    pos++;
+                }
+
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
+                    "Expected ']' after second array size");
+                pos++; // Skip ']'
+            }
         }
 
-        return ArrayTypeInfo(elementType, size);
+        return ArrayTypeInfo(elementType, size, size2);
     }
 
     /** 
@@ -158,6 +177,39 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 pos++;
             }
             return new PrintlnNode(expr.strip(), true);
+        }
+    }
+
+    /** 
+     * Parses print argument (string literal or expression)
+     * 
+     * Returns: 
+     *   PrintNode = Node with message and isExpression flag
+     */
+    PrintNode parsePrint()
+    {
+        pos++;
+
+        if (pos < tokens.length && tokens[pos].type == TokenType.STR)
+        {
+            string msg = tokens[pos].value;
+            pos++;
+            return new PrintNode(msg, false);
+        }
+        else
+        {
+            string expr = "";
+            while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+            {
+                if (tokens[pos].type == TokenType.STR)
+                    expr ~= "\"" ~ tokens[pos].value ~ "\"";
+                else if (tokens[pos].type == TokenType.DOT)
+                    expr ~= ".";
+                else
+                    expr ~= tokens[pos].value;
+                pos++;
+            }
+            return new PrintNode(expr.strip(), true);
         }
     }
 
@@ -392,6 +444,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++;
                     break;
 
+                case TokenType.PRINT:
+                    mainNode.children ~= parsePrint();
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                        "Expected ';' after print");
+                    pos++;
+                    break;
+
                 case TokenType.IDENTIFIER:
                     string identName = tokens[pos].value;
                     pos++;
@@ -416,6 +475,23 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             "Expected ']' after array index");
                         pos++; // Skip ']'
 
+                        // Check for second dimension (2D array)
+                        string index2 = "";
+                        if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+                        {
+                            pos++; // Skip '['
+
+                            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                            {
+                                index2 ~= tokens[pos].value;
+                                pos++;
+                            }
+
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
+                                "Expected ']' after second array index");
+                            pos++; // Skip ']'
+                        }
+
                         // Skip whitespace
                         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                             pos++;
@@ -439,7 +515,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 "Expected ';' after array assignment");
                             pos++;
 
-                            mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip());
+                            mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2.strip());
                         }
                         else
                         {
@@ -600,6 +676,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             loopNode.children ~= parsePrintln();
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                 "Expected ';' after println");
+                            pos++;
+                            break;
+
+                        case TokenType.PRINT:
+                            loopNode.children ~= parsePrint();
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after print");
                             pos++;
                             break;
 
@@ -845,6 +928,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 pos++;
                                 break;
 
+                            case TokenType.PRINT:
+                                forInNode.children ~= parsePrint();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after print");
+                                pos++;
+                                break;
+
                             case TokenType.BREAK:
                                 pos++;
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
@@ -963,6 +1053,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             forNode.children ~= parsePrintln();
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                 "Expected ';' after println");
+                            pos++;
+                            break;
+
+                        case TokenType.PRINT:
+                            forNode.children ~= parsePrint();
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after print");
                             pos++;
                             break;
 
@@ -1209,6 +1306,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             pos++;
                             break;
 
+                        case TokenType.PRINT:
+                            ifNode.children ~= parsePrint();
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after print");
+                            pos++;
+                            break;
+
                         default:
                             enforce(false, "Unexpected token in if body");
                         }
@@ -1266,6 +1370,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 pos++;
                                 break;
 
+                            case TokenType.PRINT:
+                                elifNode.children ~= parsePrint();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after print");
+                                pos++;
+                                break;
+
                             default:
                                 enforce(false, "Unexpected token in elif body");
                             }
@@ -1295,6 +1406,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 ifNode.elseBody ~= parsePrintln();
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                     "Expected ';' after println");
+                                pos++;
+                                break;
+
+                            case TokenType.PRINT:
+                                ifNode.elseBody ~= parsePrint();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after print");
                                 pos++;
                                 break;
 
@@ -1360,6 +1478,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     pos++;
                                     break;
 
+                                case TokenType.PRINT:
+                                    caseNode.children ~= parsePrint();
+                                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                        "Expected ';' after print");
+                                    pos++;
+                                    break;
+
                                 default:
                                     enforce(false, "Unexpected token in case body: " ~ tokens[pos]
                                             .value);
@@ -1391,6 +1516,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     defaultNode.children ~= parsePrintln();
                                     enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                         "Expected ';' after println");
+                                    pos++;
+                                    break;
+
+                                case TokenType.PRINT:
+                                    defaultNode.children ~= parsePrint();
+                                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                        "Expected ';' after print");
                                     pos++;
                                     break;
 
@@ -1440,6 +1572,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                         string typeName = "";
                         bool isArray = false;
                         string arraySize = "";
+                        string arraySize2 = "";
                         int refDepth = 0;
 
                         if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
@@ -1460,6 +1593,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 auto arrayInfo = parseArrayType();
                                 typeName = arrayInfo.elementType;
                                 arraySize = arrayInfo.size;
+                                arraySize2 = arrayInfo.size2;
                             }
                             else
                             {
@@ -1575,7 +1709,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                                 currentScope.addVariable(varName, isMutable);
                                 mainNode.children ~= new ArrayDeclarationNode(varName, isMutable, typeName, arraySize,
-                                    arrayElements);
+                                    arrayElements, arraySize2);
                             }
                             else
                             {
@@ -1598,7 +1732,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                                 if (isArray)
                                     mainNode.children ~= new ArrayDeclarationNode(varName, isMutable,
-                                        typeName, arraySize, []);
+                                        typeName, arraySize, [], arraySize2);
                                 else
                                     mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName, refDepth);
                             }
@@ -1613,7 +1747,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                             if (isArray)
                                 mainNode.children ~= new ArrayDeclarationNode(varName, isMutable, typeName, arraySize, [
-                                    ]);
+                                    ], arraySize2);
                             else
                                 mainNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName, refDepth);
                         }
@@ -1715,6 +1849,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                         pos++;
                         break;
 
+                    case TokenType.PRINT:
+                        mainNode.children ~= parsePrint();
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                            "Expected ';' after print");
+                        pos++;
+                        break;
+
                     case TokenType.IDENTIFIER:
                         string identName = tokens[pos].value;
                         pos++;
@@ -1739,6 +1880,23 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 "Expected ']' after array index");
                             pos++; // Skip ']'
 
+                            // Check for second dimension (2D array)
+                            string index2 = "";
+                            if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+                            {
+                                pos++; // Skip '['
+
+                                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                                {
+                                    index2 ~= tokens[pos].value;
+                                    pos++;
+                                }
+
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
+                                    "Expected ']' after second array index");
+                                pos++; // Skip ']'
+                            }
+
                             // Check if this is array element assignment
                             if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR &&
                                 tokens[pos].value == "=")
@@ -1760,7 +1918,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     "Expected ';' after array assignment");
                                 pos++;
 
-                                mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip());
+                                mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2.strip());
                             }
                             else
                             {
@@ -1857,6 +2015,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 pos++;
                                 break;
 
+                            case TokenType.PRINT:
+                                loopNode.children ~= parsePrint();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after print");
+                                pos++;
+                                break;
+
                             case TokenType.BREAK:
                                 pos++; // Skip 'break'
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
@@ -1907,6 +2072,13 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 ifNode.children ~= parsePrintln();
                                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                     "Expected ';' after println");
+                                pos++; // Skip ';'
+                                break;
+
+                            case TokenType.PRINT:
+                                ifNode.children ~= parsePrint();
+                                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                    "Expected ';' after print");
                                 pos++; // Skip ';'
                                 break;
 
@@ -2074,6 +2246,16 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++;
                     break;
 
+                case TokenType.PRINT:
+                    funcNode.children ~= parsePrint();
+
+                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                        pos++;
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                        "Expected ';' after print");
+                    pos++;
+                    break;
+
                 case TokenType.IF:
                     pos++;
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
@@ -2154,6 +2336,15 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 pos++;
                             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                 "Expected ';' after println");
+                            pos++;
+                            break;
+                        case TokenType.PRINT:
+                            ifNode.children ~= parsePrint();
+
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after print");
                             pos++;
                             break;
                         case TokenType.IDENTIFIER:
@@ -2329,6 +2520,16 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             pos++;
                             break;
 
+                        case TokenType.PRINT:
+                            loopNode.children ~= parsePrint();
+
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+                            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                "Expected ';' after print");
+                            pos++;
+                            break;
+
                         case TokenType.BREAK:
                             pos++;
                             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
@@ -2429,6 +2630,16 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                         pos++;
                                     enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                                         "Expected ';' after println");
+                                    pos++;
+                                    break;
+                                case TokenType.PRINT:
+                                    ifNode.children ~= parsePrint();
+
+                                    while (pos < tokens.length && tokens[pos].type == TokenType
+                                        .WHITESPACE)
+                                        pos++;
+                                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                                        "Expected ';' after print");
                                     pos++;
                                     break;
                                 case TokenType.IDENTIFIER:

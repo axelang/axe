@@ -252,6 +252,12 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.PRINTLN, "println");
                 pos += 7;
             }
+            else if (pos + 5 <= source.length && source[pos .. pos + 5] == "print" &&
+                (pos + 5 >= source.length || !(source[pos + 5].isAlphaNum || source[pos + 5] == '_')))
+            {
+                tokens ~= Token(TokenType.PRINT, "print");
+                pos += 5;
+            }
             else if (pos + 4 <= source.length && source[pos .. pos + 4] == "loop")
             {
                 tokens ~= Token(TokenType.LOOP, "loop");

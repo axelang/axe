@@ -193,7 +193,16 @@ string generateC(ASTNode ast)
         string arrayType = arrayNode.isMutable ? arrayNode.elementType
             : "const " ~ arrayNode.elementType;
 
-        cCode ~= arrayType ~ " " ~ arrayNode.name ~ "[" ~ arrayNode.size ~ "]";
+        if (arrayNode.size2.length > 0)
+        {
+            // 2D array
+            cCode ~= arrayType ~ " " ~ arrayNode.name ~ "[" ~ arrayNode.size ~ "][" ~ arrayNode.size2 ~ "]";
+        }
+        else
+        {
+            // 1D array
+            cCode ~= arrayType ~ " " ~ arrayNode.name ~ "[" ~ arrayNode.size ~ "]";
+        }
 
         if (arrayNode.initializer.length > 0)
         {
@@ -205,14 +214,33 @@ string generateC(ASTNode ast)
 
     case "ArrayAccess":
         auto accessNode = cast(ArrayAccessNode) ast;
-        cCode ~= accessNode.arrayName ~ "[" ~ processExpression(accessNode.index) ~ "]";
+        if (accessNode.index2.length > 0)
+        {
+            // 2D array access
+            cCode ~= accessNode.arrayName ~ "[" ~ processExpression(accessNode.index) ~ "][" ~ processExpression(accessNode.index2) ~ "]";
+        }
+        else
+        {
+            // 1D array access
+            cCode ~= accessNode.arrayName ~ "[" ~ processExpression(accessNode.index) ~ "]";
+        }
         break;
 
     case "ArrayAssignment":
         auto arrayAssignNode = cast(ArrayAssignmentNode) ast;
         string processedIndex = processExpression(arrayAssignNode.index);
         string processedValue = processExpression(arrayAssignNode.value);
-        cCode ~= arrayAssignNode.arrayName ~ "[" ~ processedIndex ~ "] = " ~ processedValue ~ ";\n";
+        if (arrayAssignNode.index2.length > 0)
+        {
+            // 2D array assignment
+            string processedIndex2 = processExpression(arrayAssignNode.index2);
+            cCode ~= arrayAssignNode.arrayName ~ "[" ~ processedIndex ~ "][" ~ processedIndex2 ~ "] = " ~ processedValue ~ ";\n";
+        }
+        else
+        {
+            // 1D array assignment
+            cCode ~= arrayAssignNode.arrayName ~ "[" ~ processedIndex ~ "] = " ~ processedValue ~ ";\n";
+        }
         break;
 
     case "Declaration":
@@ -251,6 +279,19 @@ string generateC(ASTNode ast)
         else
         {
             cCode ~= "printf(\"" ~ printlnNode.message ~ "\\n\");\n";
+        }
+        break;
+
+    case "Print":
+        auto printNode = cast(PrintNode) ast;
+        if (printNode.isExpression)
+        {
+            string processedExpr = processExpression(printNode.message);
+            cCode ~= "printf(\"%d\", " ~ processedExpr ~ ");\n";
+        }
+        else
+        {
+            cCode ~= "printf(\"" ~ printNode.message ~ "\");\n";
         }
         break;
 

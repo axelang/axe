@@ -9,6 +9,7 @@ enum TokenType
 {
     MAIN,
     PRINTLN,
+    PRINT,
     LOOP,
     BREAK,
     STR,
@@ -115,11 +116,14 @@ class ArrayDeclarationNode : ASTNode
     // Can be a number or expression
     string size;
 
+    // For 2D arrays
+    string size2;
+
     // For array literals like [1, 2, 3]
     string[] initializer;
 
     this(string name, bool isMutable, string elementType, string size, string[] initializer = [
-        ])
+        ], string size2 = "")
     {
         super("ArrayDeclaration");
         this.name = name;
@@ -127,6 +131,7 @@ class ArrayDeclarationNode : ASTNode
         this.elementType = elementType;
         this.size = size;
         this.initializer = initializer;
+        this.size2 = size2;
     }
 }
 
@@ -134,12 +139,14 @@ class ArrayAccessNode : ASTNode
 {
     string arrayName;
     string index;
+    string index2;  // For 2D arrays
 
-    this(string arrayName, string index)
+    this(string arrayName, string index, string index2 = "")
     {
         super("ArrayAccess");
         this.arrayName = arrayName;
         this.index = index;
+        this.index2 = index2;
     }
 }
 
@@ -147,13 +154,15 @@ class ArrayAssignmentNode : ASTNode
 {
     string arrayName;
     string index;
+    string index2;  // For 2D arrays
     string value;
 
-    this(string arrayName, string index, string value)
+    this(string arrayName, string index, string value, string index2 = "")
     {
         super("ArrayAssignment");
         this.arrayName = arrayName;
         this.index = index;
+        this.index2 = index2;
         this.value = value;
     }
 }
@@ -206,6 +215,19 @@ class PrintlnNode : ASTNode
     this(string message, bool isExpression = false)
     {
         super("Println");
+        this.message = message;
+        this.isExpression = isExpression;
+    }
+}
+
+class PrintNode : ASTNode
+{
+    string message;
+    bool isExpression;
+
+    this(string message, bool isExpression = false)
+    {
+        super("Print");
         this.message = message;
         this.isExpression = isExpression;
     }
