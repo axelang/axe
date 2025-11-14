@@ -283,7 +283,8 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.MODEL, "model");
                 pos += 5;
             }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "new")
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "new" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.NEW, "new");
                 pos += 3;

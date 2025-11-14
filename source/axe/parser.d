@@ -3089,7 +3089,55 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
             pos++;
 
-        if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+        if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+        {
+            pos++;
+            string index = "";
+            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+            {
+                index ~= tokens[pos].value;
+                pos++;
+            }
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
+                "Expected ']' after array index");
+            pos++;
+            
+            string index2 = "";
+            if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+            {
+                pos++;
+                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                {
+                    index2 ~= tokens[pos].value;
+                    pos++;
+                }
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACKET,
+                    "Expected ']' after second array index");
+                pos++;
+            }
+            
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+            
+            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+            {
+                pos++;
+                string value = "";
+                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                {
+                    if (tokens[pos].type == TokenType.STR)
+                        value ~= "\"" ~ tokens[pos].value ~ "\"";
+                    else
+                        value ~= tokens[pos].value;
+                    pos++;
+                }
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                    "Expected ';' after array assignment");
+                pos++;
+                return new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2.strip());
+            }
+        }
+        else if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
         {
             // Variable assignment
             pos++;
