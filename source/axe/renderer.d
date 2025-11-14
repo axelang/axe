@@ -421,9 +421,12 @@ string generateC(ASTNode ast)
         loopLevel--;
         cCode ~= "}";
 
-        foreach (elifBranch; ifNode.elifBranches)
+        // Handle elif/else chain - elif nodes are stored as IfNodes in elseBody
+        IfNode currentNode = ifNode;
+        while (currentNode.elseBody.length == 1 && currentNode.elseBody[0].nodeType == "If")
         {
-            auto elifNode = cast(IfNode) elifBranch;
+            // This is an elif
+            auto elifNode = cast(IfNode) currentNode.elseBody[0];
             cCode ~= " else if (" ~ processCondition(elifNode.condition) ~ ") {\n";
             loopLevel++;
 
@@ -434,76 +437,24 @@ string generateC(ASTNode ast)
 
             loopLevel--;
             cCode ~= "}";
+            
+            // Move to the next node in the chain
+            currentNode = elifNode;
         }
-
-        if (ifNode.elseBody.length > 0)
+        
+        // Handle final else block (if not another elif)
+        if (currentNode.elseBody.length > 0)
         {
-            // Check if this is an elif (else body contains single IfNode)
-            if (ifNode.elseBody.length == 1 && cast(IfNode) ifNode.elseBody[0] !is null)
+            cCode ~= " else {\n";
+            loopLevel++;
+
+            foreach (elseChild; currentNode.elseBody)
             {
-                // Render as 'else if' for elif
-                auto elifNode = cast(IfNode) ifNode.elseBody[0];
-                cCode ~= " else if ((" ~ elifNode.condition ~ ")) {\n";
-                loopLevel++;
-
-                foreach (child; elifNode.children)
-                {
-                    cCode ~= generateC(child);
-                }
-
-                loopLevel--;
-                cCode ~= "}";
-                
-                // Recursively handle the elif's else body
-                if (elifNode.elseBody.length > 0)
-                {
-                    auto tempIfNode = new IfNode("");
-                    tempIfNode.elseBody = elifNode.elseBody;
-                    
-                    // Temporarily render just the else part
-                    if (tempIfNode.elseBody.length == 1 && cast(IfNode) tempIfNode.elseBody[0] !is null)
-                    {
-                        // Another elif - recurse
-                        auto nextElif = cast(IfNode) tempIfNode.elseBody[0];
-                        auto recursiveNode = new IfNode("");
-                        recursiveNode.elseBody = [nextElif];
-                        string recursiveCode = generateC(recursiveNode);
-                        // Extract just the else part
-                        if (recursiveCode.canFind(" else"))
-                        {
-                            cCode ~= recursiveCode[recursiveCode.indexOf(" else") .. $];
-                        }
-                    }
-                    else
-                    {
-                        // Final else block
-                        cCode ~= " else {\n";
-                        loopLevel++;
-
-                        foreach (child; elifNode.elseBody)
-                        {
-                            cCode ~= generateC(child);
-                        }
-
-                        loopLevel--;
-                        cCode ~= "}";
-                    }
-                }
+                cCode ~= generateC(elseChild);
             }
-            else
-            {
-                // Regular else block
-                cCode ~= " else {\n";
-                loopLevel++;
 
-                foreach (child; ifNode.elseBody)
-                {
-                    cCode ~= generateC(child);
-                }
-
-                loopLevel--;
-                cCode ~= "}";
-            }
+            loopLevel--;
+            cCode ~= "}";
         }
 
         cCode ~= "\n";
@@ -724,10 +675,16 @@ string processExpression(string expr)
 {
     expr = expr.strip();
     
-    import std.regex : regex, matchAll, replaceAll, matchFirst;
+    import std.regex : regex, matchFirst;
     import std.array : replace;
     
-    // First, transform 2D array accesses before any other processing
+    // FIRST: Replace Axe operators with C equivalents before any other processing
+    expr = expr.replace(" mod ", " % ");
+    expr = expr.replace(" and ", " && ");
+    expr = expr.replace(" or ", " || ");
+    expr = expr.replace(" xor ", " ^ ");
+    
+    // Second, transform 2D array accesses before any other processing
     // This must happen early to avoid the expression being wrapped in parens first
     string widthVar = "width"; // Default assumption for 2D arrays
     
@@ -816,9 +773,9 @@ string processExpression(string expr)
     {
         return expr;
     }
-
+    
     // Check for operators, but be careful not to split on dots (member access)
-    foreach (op; ["+", "-", "*", "/", "==", "!=", "<", ">", "<=", ">="])
+    foreach (op; ["+", "-", "*", "/", "%", "==", "!=", "<", ">", "<=", ">=", "&&", "||"])
     {
         if (expr.canFind(op) && op != "")
         {
@@ -858,10 +815,16 @@ import std.array;
 private string processCondition(string condition)
 {
     import std.array : replace, split;
+    import std.stdio : writeln;
+    
+    writeln("DEBUG processCondition input: '", condition, "'");
 
+    condition = condition.replace(" mod ", " % ");
     condition = condition.replace(" and ", " && ");
     condition = condition.replace(" or ", " || ");
     condition = condition.replace(" xor ", " ^ ");
+    
+    writeln("DEBUG processCondition after replace: '", condition, "'");
 
     foreach (op; ["==", "!=", ">", "<", ">=", "<="])
     {
@@ -1902,9 +1865,9 @@ unittest
 
         assert(cCode.canFind("if ((score>= 90))"), "Should have if condition");
         assert(cCode.canFind("printf(\"A\\n\");"), "Should have println A");
-        assert(cCode.canFind("} else if ((score >= 80)) {"), "Should have first elif");
+        assert(cCode.canFind("} else if ((score>= 80)) {"), "Should have first elif");
         assert(cCode.canFind("printf(\"B\\n\");"), "Should have println B");
-        assert(cCode.canFind("} else if ((score >= 70)) {"), "Should have second elif");
+        assert(cCode.canFind("} else if ((score>= 70)) {"), "Should have second elif");
         assert(cCode.canFind("printf(\"C\\n\");"), "Should have println C");
         assert(cCode.canFind("} else {"), "Should have else");
         assert(cCode.canFind("printf(\"F\\n\");"), "Should have println F");
@@ -1921,7 +1884,7 @@ unittest
 
         assert(cCode.canFind("if ((n<10))"), "Should have if condition");
         assert(cCode.canFind("printf(\"less\\n\");"), "Should have println in if");
-        assert(cCode.canFind("} else if ((n == 15)) {"), "Should have elif with parens");
+        assert(cCode.canFind("} else if ((n==15)) {"), "Should have elif with parens");
         assert(cCode.canFind("printf(\"equal\\n\");"), "Should have println in elif");
         assert(!cCode.canFind("} else {"), "Should not have else block");
     }

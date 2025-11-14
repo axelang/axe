@@ -230,6 +230,12 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.MUT, "mut");
                 pos += 3;
             }
+            else if (pos + 2 < source.length && source[pos .. pos + 3] == "mod" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
+            {
+                tokens ~= Token(TokenType.MOD, "mod");
+                pos += 3;
+            }
             else
             {
                 size_t start = pos;

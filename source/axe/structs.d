@@ -65,6 +65,7 @@ enum TokenType
     AND,
     OR,
     XOR,
+    MOD,
 }
 
 /** 
