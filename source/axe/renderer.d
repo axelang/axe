@@ -14,9 +14,9 @@ import std.string;
 
 private int[string] g_refDepths;
 private bool[string] g_isMutable;
-private string[string] g_arrayWidthVars;  // Maps array name to its width variable name
-private int[][string] g_functionParamReordering;  // Maps function name to reordering indices
-private MacroNode[string] g_macros;  // Maps macro name to MacroNode for expansion
+private string[string] g_arrayWidthVars;
+private int[][string] g_functionParamReordering;
+private MacroNode[string] g_macros;
 
 /** 
  * Converts a string to an operand.
@@ -141,13 +141,15 @@ string generateC(ASTNode ast)
                 import std.string : split, strip, indexOf, lastIndexOf;
 
                 // First pass: separate array params from dimension params
-                struct ParamInfo {
+                struct ParamInfo
+                {
                     string type;
                     string name;
                     bool isArray;
                     int dimensions;
-                    string[] dimNames;  // Dimension parameter names extracted from type
+                    string[] dimNames; // Dimension parameter names extracted from type
                 }
+
                 ParamInfo[] paramInfos;
 
                 foreach (param; funcNode.params)
@@ -186,8 +188,9 @@ string generateC(ASTNode ast)
                         {
                             import std.algorithm : count;
                             import std.regex : regex, matchAll;
-                            info.dimensions = cast(int)paramType.count('[');
-                            
+
+                            info.dimensions = cast(int) paramType.count('[');
+
                             // Extract dimension names from brackets: int[n][m] -> ["n", "m"]
                             auto dimPattern = regex(r"\[([^\]]+)\]");
                             foreach (match; matchAll(paramType, dimPattern))
@@ -202,8 +205,8 @@ string generateC(ASTNode ast)
                 // Second pass: reorder so dimensions come before arrays
                 // and convert array syntax to VLA
                 string[] dimensionParams;
-                string[] otherParams;  // Arrays and non-dimension params
-                int[] reorderMap;  // Maps new position to original position
+                string[] otherParams; // Arrays and non-dimension params
+                int[] reorderMap; // Maps new position to original position
 
                 // Collect all dimension parameter names referenced by arrays
                 bool[string] referencedDimensions;
@@ -221,7 +224,7 @@ string generateC(ASTNode ast)
                 // Track indices for reordering
                 int[] dimensionIndices;
                 int[] otherIndices;
-                
+
                 for (int i = 0; i < paramInfos.length; i++)
                 {
                     if (!paramInfos[i].isArray && paramInfos[i].name in referencedDimensions)
@@ -237,7 +240,7 @@ string generateC(ASTNode ast)
                         // Convert int[n][m] to VLA syntax: int arrayName[n][m]
                         auto bracketPos = info.type.indexOf('[');
                         string baseType = info.type[0 .. bracketPos];
-                        
+
                         if (info.dimNames.length > 0)
                         {
                             // Use the dimension names from the type
@@ -262,7 +265,7 @@ string generateC(ASTNode ast)
                         {
                             finalType = finalType[4 .. $].strip() ~ "*";
                         }
-                        
+
                         // Only include dimension params if they're referenced by arrays
                         if (info.name in referencedDimensions)
                         {
@@ -300,15 +303,16 @@ string generateC(ASTNode ast)
     case "FunctionCall":
         auto callNode = cast(FunctionCallNode) ast;
         string callName = callNode.functionName;
-        
+
         // Check if this is a macro call
         if (callName in g_macros)
         {
             writeln("DEBUG: Expanding macro '", callName, "'");
             auto macroNode = g_macros[callName];
-            
+
             // Parse arguments from the call
             import std.string : split, strip;
+
             string[] callArgs;
             if (callNode.args.length > 0)
             {
@@ -316,15 +320,16 @@ string generateC(ASTNode ast)
                 foreach (arg; callNode.args)
                     callArgs ~= arg.strip();
             }
-            
+
             // Build parameter substitution map
             string[string] paramMap;
-            for (size_t i = 0; i < macroNode.params.length && i < callArgs.length; i++)
+            for (size_t i = 0; i < macroNode.params.length && i < callArgs.length;
+                i++)
             {
                 paramMap[macroNode.params[i]] = callArgs[i];
                 writeln("  DEBUG: Mapping '", macroNode.params[i], "' -> '", callArgs[i], "'");
             }
-            
+
             // Expand macro body
             string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
             foreach (child; macroNode.children)
@@ -333,19 +338,19 @@ string generateC(ASTNode ast)
                 {
                     auto rawNode = cast(RawCNode) child;
                     string expandedCode = rawNode.code;
-                    
+
                     // Replace parameters in the raw code
                     foreach (paramName, paramValue; paramMap)
                     {
                         expandedCode = expandedCode.replace(paramName, paramValue);
                     }
-                    
+
                     cCode ~= indent ~ expandedCode ~ "\n";
                 }
             }
             break;
         }
-        
+
         // Not a macro, handle as regular function call
         string[] processedArgs;
 
@@ -358,7 +363,7 @@ string generateC(ASTNode ast)
             int[] reorderMap = g_functionParamReordering[callName];
             string[] reorderedArgs;
             reorderedArgs.length = processedArgs.length;
-            
+
             for (int i = 0; i < reorderMap.length && i < processedArgs.length; i++)
             {
                 reorderedArgs[i] = processedArgs[reorderMap[i]];
@@ -708,7 +713,7 @@ string generateC(ASTNode ast)
         }
         cCode ~= "} " ~ enumNode.name ~ ";\n";
         break;
-        
+
     case "Macro":
         // Store macro for later expansion, don't generate code now
         auto macroNode = cast(MacroNode) ast;
@@ -837,13 +842,13 @@ string processExpression(string expr)
     // FIRST: Replace Axe operators with C equivalents before any other processing
     import std.regex : replaceAll;
     import std.string : replace;
-    
+
     // Use regex to replace operators that are not part of identifiers
     // Match 'mod' when preceded/followed by non-letter/underscore characters
     expr = expr.replaceAll(regex(r"([^a-zA-Z_])mod([^a-zA-Z_])"), "$1%$2");
     expr = expr.replaceAll(regex(r"^mod([^a-zA-Z_])"), "%$1");
     expr = expr.replaceAll(regex(r"([^a-zA-Z_])mod$"), "$1%");
-    
+
     expr = expr.replace(" and ", " && ");
     expr = expr.replace(" or ", " || ");
     expr = expr.replace(" xor ", " ^ ");
@@ -855,7 +860,7 @@ string processExpression(string expr)
     {
         auto startIdx = expr.indexOf("ref_of(");
         auto parenStart = startIdx + 7; // After "ref_of("
-        
+
         // Find matching closing paren
         int depth = 1;
         size_t parenEnd = parenStart;
@@ -868,7 +873,7 @@ string processExpression(string expr)
             if (depth > 0)
                 parenEnd++;
         }
-        
+
         string varName = expr[parenStart .. parenEnd].strip();
         expr = expr[0 .. startIdx] ~ "&" ~ varName ~ expr[parenEnd + 1 .. $];
     }
@@ -878,7 +883,7 @@ string processExpression(string expr)
     {
         auto startIdx = expr.indexOf("addr_of(");
         auto parenStart = startIdx + 8; // After "addr_of("
-        
+
         // Find matching closing paren
         int depth = 1;
         size_t parenEnd = parenStart;
@@ -891,7 +896,7 @@ string processExpression(string expr)
             if (depth > 0)
                 parenEnd++;
         }
-        
+
         string varName = expr[parenStart .. parenEnd].strip();
         expr = expr[0 .. startIdx] ~ "(long)&" ~ varName ~ expr[parenEnd + 1 .. $];
     }
@@ -990,7 +995,8 @@ private string processCondition(string condition)
         {
             string left = condition[0 .. idx].strip();
             string right = condition[idx + op.length .. $].strip();
-            string result = "(" ~ processCondition(left) ~ " " ~ op ~ " " ~ processCondition(right) ~ ")";
+            string result = "(" ~ processCondition(left) ~ " " ~ op ~ " " ~ processCondition(
+                right) ~ ")";
             return result;
         }
     }
@@ -1007,7 +1013,7 @@ private string processCondition(string condition)
             return result;
         }
     }
-    
+
     string result = processExpression(condition);
     return result;
 }
@@ -2400,14 +2406,15 @@ unittest
         assert(cCode.canFind("&&"), "Should translate 'and' to '&&'");
         assert(!cCode.canFind("mod"), "Should not have 'mod' keyword in output");
         assert(!cCode.canFind("and"), "Should not have 'and' keyword in output");
-        assert(cCode.canFind("1%3==0") || cCode.canFind("(1 % 3 == 0)") || 
-               cCode.canFind("(1%3)==0"), "Should have proper first comparison");
-        assert(cCode.canFind("2%5==0") || cCode.canFind("(2 % 5 == 0)") || 
-               cCode.canFind("(2%5)==0"), "Should have proper second comparison");
+        assert(cCode.canFind("1%3==0") || cCode.canFind("(1 % 3 == 0)") ||
+                cCode.canFind("(1%3)==0"), "Should have proper first comparison");
+        assert(cCode.canFind("2%5==0") || cCode.canFind("(2 % 5 == 0)") ||
+                cCode.canFind("(2%5)==0"), "Should have proper second comparison");
     }
 
     {
-        auto tokens = lex("def get_value(x: int): int { return x; } def wrapper(y: int): int { return get_value(y); } main { }");
+        auto tokens = lex(
+            "def get_value(x: int): int { return x; } def wrapper(y: int): int { return get_value(y); } main { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -2420,7 +2427,8 @@ unittest
     }
 
     {
-        auto tokens = lex("def destroy(ptr: long) { } main { val x: int = 5; destroy(thing_of(x)); }");
+        auto tokens = lex(
+            "def destroy(ptr: long) { } main { val x: int = 5; destroy(thing_of(x)); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
