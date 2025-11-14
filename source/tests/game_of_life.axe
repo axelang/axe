@@ -1,0 +1,167 @@
+def print_grid(grid: int[][], width: int, height: int) {
+    mut val y: int = 0;
+    loop {
+        if y >= height {
+            break;
+        }
+        
+        mut val x: int = 0;
+        loop {
+            if x >= width {
+                break;
+            }
+            
+            if grid[y][x] == 1 {
+                print "■";
+            } else {
+                print "□";
+            }
+            
+            x = x + 1;
+        }
+        
+        println "";
+        y = y + 1;
+    }
+}
+
+def count_neighbors(grid: int[][], x: int, y: int, width: int, height: int): int {
+    mut val count: int = 0;
+    
+    // Check all 8 neighbors
+    mut val dy: int = -1;
+    loop {
+        if dy > 1 {
+            break;
+        }
+        
+        mut val dx: int = -1;
+        loop {
+            if dx > 1 {
+                break;
+            }
+            
+            if dx == 0 and dy == 0 {
+                dx = dx + 1;
+                continue;
+            }
+            
+            mut val nx: int = x + dx;
+            mut val ny: int = y + dy;
+            
+            // Check boundaries
+            if nx >= 0 and nx < width and ny >= 0 and ny < height {
+                count = count + grid[ny][nx];
+            }
+            
+            dx = dx + 1;
+        }
+        
+        dy = dy + 1;
+    }
+    
+    return count;
+}
+
+def next_generation(grid: int[][], new_grid: int[][], width: int, height: int) {
+    mut val y: int = 0;
+    loop {
+        if y >= height {
+            break;
+        }
+        
+        mut val x: int = 0;
+        loop {
+            if x >= width {
+                break;
+            }
+            
+            mut val neighbors: int = count_neighbors(grid, x, y, width, height);
+            
+            if grid[y][x] == 1 {
+                // Live cell rules
+                if neighbors == 2 or neighbors == 3 {
+                    new_grid[y][x] = 1;
+                } else {
+                    new_grid[y][x] = 0;
+                }
+            } else {
+                // Dead cell rules
+                if neighbors == 3 {
+                    new_grid[y][x] = 1;
+                } else {
+                    new_grid[y][x] = 0;
+                }
+            }
+            
+            x = x + 1;
+        }
+        
+        y = y + 1;
+    }
+}
+
+def copy_grid(src: int[][], dst: int[][], width: int, height: int) {
+    mut val y: int = 0;
+    loop {
+        if y >= height {
+            break;
+        }
+        
+        mut val x: int = 0;
+        loop {
+            if x >= width {
+                break;
+            }
+            
+            dst[y][x] = src[y][x];
+            x = x + 1;
+        }
+        
+        y = y + 1;
+    }
+}
+
+main {
+    // Grid dimensions
+    val width: int = 10;
+    val height: int = 10;
+    
+    // Create two grids for double buffering
+    mut val grid: int[10][10];
+    mut val new_grid: int[10][10];
+    
+    // Initialize with a glider pattern
+    grid[1][2] = 1;
+    grid[2][3] = 1;
+    grid[3][1] = 1;
+    grid[3][2] = 1;
+    grid[3][3] = 1;
+    
+    mut val generation: int = 0;
+    
+    loop {
+        print "Generation ";
+        println generation;
+        println "";
+        
+        print_grid(grid, width, height);
+        
+        // Calculate next generation
+        next_generation(grid, new_grid, width, height);
+        
+        // Copy new grid back to main grid
+        copy_grid(new_grid, grid, width, height);
+        
+        generation = generation + 1;
+        
+        // Run for 20 generations
+        if generation >= 20 {
+            break;
+        }
+        
+        println "";
+        println "---";
+        println "";
+    }
+}
