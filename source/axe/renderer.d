@@ -1652,7 +1652,7 @@ unittest
         writeln("Raw C block test (.axec):");
         writeln(cCode);
 
-        assert(cCode.canFind("printf (\"raw C\");"), "Should have raw C code");
+        assert(cCode.canFind("printf(\"raw C\");"), "Should have raw C code");
         assert(!cCode.canFind("raw {"), "Raw keyword should not appear in output");
     }
 

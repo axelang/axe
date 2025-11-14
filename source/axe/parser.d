@@ -66,6 +66,14 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             pos++;
         enforce(pos < tokens.length, "Expected type after ':'");
 
+        // Skip 'ref' keywords - they're handled separately by parseRefDepth
+        while (pos < tokens.length && tokens[pos].type == TokenType.REF)
+        {
+            pos++;
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+        }
+
         string typeName;
         if (tokens[pos].type == TokenType.IDENTIFIER)
         {
@@ -1870,37 +1878,20 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 case TokenType.RAW:
                     enforce(isAxec, "Raw C blocks are only allowed in .axec files");
                     pos++; // Skip 'raw'
+                    
+                    // Skip whitespace/newlines
+                    while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                        pos++;
 
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
                         "Expected '{' after 'raw'");
                     pos++; // Skip '{'
 
-                    string rawCode = "";
-                    int braceDepth = 1;
-                    while (pos < tokens.length && braceDepth > 0)
-                    {
-                        if (tokens[pos].type == TokenType.LBRACE)
-                            braceDepth++;
-                        else if (tokens[pos].type == TokenType.RBRACE)
-                        {
-                            braceDepth--;
-                            if (braceDepth == 0)
-                                break;
-                        }
-
-                        if (tokens[pos].type == TokenType.STR)
-                            rawCode ~= "\"" ~ tokens[pos].value ~ "\"";
-                        else
-                            rawCode ~= tokens[pos].value;
-
-                        if (pos + 1 < tokens.length && tokens[pos].type != TokenType.LPAREN
-                            && tokens[pos + 1].type != TokenType.RPAREN
-                            && tokens[pos + 1].type != TokenType.SEMICOLON
-                            && tokens[pos].type != TokenType.SEMICOLON)
-                            rawCode ~= " ";
-
-                        pos++;
-                    }
+                    // Lexer provides raw content as single IDENTIFIER token
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                        "Expected raw code content");
+                    string rawCode = tokens[pos].value;
+                    pos++;
 
                     enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
                         "Expected '}' after raw block");
@@ -2263,37 +2254,20 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     case TokenType.RAW:
                         enforce(isAxec, "Raw C blocks are only allowed in .axec files");
                         pos++; // Skip 'raw'
+                        
+                        // Skip whitespace/newlines
+                        while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                            pos++;
 
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
                             "Expected '{' after 'raw'");
                         pos++; // Skip '{'
 
-                        string rawCode = "";
-                        int braceDepth = 1;
-                        while (pos < tokens.length && braceDepth > 0)
-                        {
-                            if (tokens[pos].type == TokenType.LBRACE)
-                                braceDepth++;
-                            else if (tokens[pos].type == TokenType.RBRACE)
-                            {
-                                braceDepth--;
-                                if (braceDepth == 0)
-                                    break;
-                            }
-
-                            if (tokens[pos].type == TokenType.STR)
-                                rawCode ~= "\"" ~ tokens[pos].value ~ "\"";
-                            else
-                                rawCode ~= tokens[pos].value;
-
-                            if (pos + 1 < tokens.length && tokens[pos].type != TokenType.LPAREN
-                                && tokens[pos + 1].type != TokenType.RPAREN
-                                && tokens[pos + 1].type != TokenType.SEMICOLON
-                                && tokens[pos].type != TokenType.SEMICOLON)
-                                rawCode ~= " ";
-
-                            pos++;
-                        }
+                        // Lexer provides raw content as single IDENTIFIER token
+                        enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                            "Expected raw code content");
+                        string rawCode = tokens[pos].value;
+                        pos++;
 
                         enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
                             "Expected '}' after raw block");
@@ -2562,30 +2536,39 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             pos++;
 
                         string functionArgs;
-                        while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                        int parenDepth = 0;
+                        while (pos < tokens.length && (tokens[pos].type != TokenType.RPAREN || parenDepth > 0))
                         {
-                            if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
-                                .COMMA)
+                            if (tokens[pos].type == TokenType.LPAREN)
+                            {
+                                parenDepth++;
+                                functionArgs ~= tokens[pos].value;
+                                pos++;
+                            }
+                            else if (tokens[pos].type == TokenType.RPAREN)
+                            {
+                                parenDepth--;
+                                functionArgs ~= tokens[pos].value;
+                                pos++;
+                            }
+                            else if (tokens[pos].type == TokenType.WHITESPACE)
                             {
                                 pos++;
                             }
-                            else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
-                                .IDENTIFIER)
+                            else if (tokens[pos].type == TokenType.COMMA)
                             {
-                                if (tokens[pos].type == TokenType.STR)
-                                    functionArgs ~= "\"" ~ tokens[pos].value ~ "\"";
-                                else
-                                    functionArgs ~= tokens[pos].value;
+                                functionArgs ~= ", ";
                                 pos++;
-                                if (pos < tokens.length && tokens[pos].type == TokenType.COMMA)
-                                {
-                                    functionArgs ~= ", ";
-                                    pos++;
-                                }
+                            }
+                            else if (tokens[pos].type == TokenType.STR)
+                            {
+                                functionArgs ~= "\"" ~ tokens[pos].value ~ "\"";
+                                pos++;
                             }
                             else
                             {
-                                enforce(false, "Unexpected token in function call arguments: " ~ tokens[pos].value);
+                                functionArgs ~= tokens[pos].value;
+                                pos++;
                             }
                         }
 
@@ -2862,32 +2845,39 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     pos++;
 
                                 string args;
-                                while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+                                int parenDepth = 0;
+                                while (pos < tokens.length && (tokens[pos].type != TokenType.RPAREN || parenDepth > 0))
                                 {
-                                    if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
-                                        .COMMA)
+                                    if (tokens[pos].type == TokenType.LPAREN)
+                                    {
+                                        parenDepth++;
+                                        args ~= tokens[pos].value;
+                                        pos++;
+                                    }
+                                    else if (tokens[pos].type == TokenType.RPAREN)
+                                    {
+                                        parenDepth--;
+                                        args ~= tokens[pos].value;
+                                        pos++;
+                                    }
+                                    else if (tokens[pos].type == TokenType.WHITESPACE)
                                     {
                                         pos++;
                                     }
-                                    else if (tokens[pos].type == TokenType.STR || tokens[pos].type == TokenType
-                                        .IDENTIFIER)
+                                    else if (tokens[pos].type == TokenType.COMMA)
                                     {
-                                        if (tokens[pos].type == TokenType.STR)
-                                            args ~= "\"" ~ tokens[pos].value ~ "\"";
-                                        else
-                                            args ~= tokens[pos].value;
+                                        args ~= ", ";
                                         pos++;
-                                        if (pos < tokens.length && tokens[pos].type == TokenType
-                                            .COMMA)
-                                        {
-                                            args ~= ", ";
-                                            pos++;
-                                        }
+                                    }
+                                    else if (tokens[pos].type == TokenType.STR)
+                                    {
+                                        args ~= "\"" ~ tokens[pos].value ~ "\"";
+                                        pos++;
                                     }
                                     else
                                     {
-                                        enforce(false, "Unexpected token in function call arguments: " ~
-                                                tokens[pos].value);
+                                        args ~= tokens[pos].value;
+                                        pos++;
                                     }
                                 }
 
@@ -3042,6 +3032,31 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                     currentScope.addVariable(varName, isMutable);
                     funcNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName);
+                    break;
+
+                case TokenType.RAW:
+                    enforce(isAxec, "Raw C blocks are only allowed in .axec files");
+                    pos++; // Skip 'raw'
+                    
+                    // Skip whitespace/newlines
+                    while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                        pos++;
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                        "Expected '{' after 'raw'");
+                    pos++; // Skip '{'
+
+                    // Lexer provides raw content as single IDENTIFIER token
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                        "Expected raw code content");
+                    string rawCode = tokens[pos].value;
+                    pos++;
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                        "Expected '}' after raw block");
+                    pos++;
+
+                    funcNode.children ~= new RawCNode(rawCode);
                     break;
 
                 default:
@@ -3821,37 +3836,20 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
     case TokenType.RAW:
         enforce(isAxec, "Raw C blocks are only allowed in .axec files");
         pos++; // Skip 'raw'
+        
+        // Skip whitespace/newlines
+        while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+            pos++;
 
         enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
             "Expected '{' after 'raw'");
         pos++; // Skip '{'
 
-        string rawCode = "";
-        int braceDepth = 1;
-        while (pos < tokens.length && braceDepth > 0)
-        {
-            if (tokens[pos].type == TokenType.LBRACE)
-                braceDepth++;
-            else if (tokens[pos].type == TokenType.RBRACE)
-            {
-                braceDepth--;
-                if (braceDepth == 0)
-                    break;
-            }
-
-            if (tokens[pos].type == TokenType.STR)
-                rawCode ~= "\"" ~ tokens[pos].value ~ "\"";
-            else
-                rawCode ~= tokens[pos].value;
-
-            if (pos + 1 < tokens.length && tokens[pos].type != TokenType.LPAREN
-                && tokens[pos + 1].type != TokenType.RPAREN
-                && tokens[pos + 1].type != TokenType.SEMICOLON
-                && tokens[pos].type != TokenType.SEMICOLON)
-                rawCode ~= " ";
-
-            pos++;
-        }
+        // Lexer provides raw content as single IDENTIFIER token
+        enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+            "Expected raw code content");
+        string rawCode = tokens[pos].value;
+        pos++;
 
         enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
             "Expected '}' after raw block");

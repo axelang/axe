@@ -342,6 +342,53 @@ Token[] lex(string source)
             {
                 tokens ~= Token(TokenType.RAW, "raw");
                 pos += 3;
+                
+                // Skip whitespace and find opening brace
+                while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t' || source[pos] == '\n' || source[pos] == '\r'))
+                {
+                    if (source[pos] == '\n')
+                        tokens ~= Token(TokenType.NEWLINE, "\n");
+                    else if (source[pos] == ' ' || source[pos] == '\t')
+                        tokens ~= Token(TokenType.WHITESPACE, [source[pos]]);
+                    pos++;
+                }
+                
+                // If we find '{', skip the entire raw block content
+                if (pos < source.length && source[pos] == '{')
+                {
+                    tokens ~= Token(TokenType.LBRACE, "{");
+                    pos++;
+                    
+                    // Find matching closing brace, tracking depth
+                    int braceDepth = 1;
+                    size_t contentStart = pos;
+                    while (pos < source.length && braceDepth > 0)
+                    {
+                        if (source[pos] == '{')
+                            braceDepth++;
+                        else if (source[pos] == '}')
+                        {
+                            braceDepth--;
+                            if (braceDepth == 0)
+                                break;
+                        }
+                        pos++;
+                    }
+                    
+                    // Store the raw content as a single IDENTIFIER token (parser will handle it)
+                    if (pos > contentStart)
+                    {
+                        string rawContent = source[contentStart .. pos];
+                        tokens ~= Token(TokenType.IDENTIFIER, rawContent);
+                    }
+                    
+                    // Add closing brace
+                    if (pos < source.length && source[pos] == '}')
+                    {
+                        tokens ~= Token(TokenType.RBRACE, "}");
+                        pos++;
+                    }
+                }
             }
             else if (pos + 3 <= source.length && source[pos .. pos + 3] == "use")
             {
