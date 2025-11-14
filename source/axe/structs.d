@@ -50,6 +50,7 @@ enum TokenType
     SWITCH,
     CASE,
     DEFAULT,
+    LOOP_OLD_REMOVE_ME,
     INCREMENT,
     DECREMENT,
     ELSE,
