@@ -660,15 +660,15 @@ string generateC(ASTNode ast)
         }
         cCode ~= "} " ~ enumNode.name ~ ";\n";
         break;
-
+        
     case "Model":
         auto modelNode = cast(ModelNode) ast;
         cCode ~= "typedef struct {\n";
-        foreach (fieldName, fieldType; modelNode.fields)
+        foreach (field; modelNode.fields)
         {
-            cCode ~= "    " ~ fieldType ~ " " ~ fieldName ~ ";\n";
+            cCode ~= "    " ~ field.type ~ " " ~ field.name ~ ";\n";
         }
-        cCode ~= "} " ~ modelNode.name ~ ";\n";
+        cCode ~= "} " ~ modelNode.name ~ ";\n\n";
         break;
 
     case "ModelInstantiation":

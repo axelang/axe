@@ -376,7 +376,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 "Expected '{' after model name");
             pos++; // Skip '{'
 
-            string[string] fields;
+            // Build fields array in source order
+            ModelNode.Field[] orderedFields;
             while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
             {
                 if (tokens[pos].type == TokenType.IDENTIFIER)
@@ -389,7 +390,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++; // Skip ':'
 
                     string fieldType = parseType();
-                    fields[fieldName] = fieldType;
+                    orderedFields ~= ModelNode.Field(fieldName, fieldType);
                 }
                 else
                 {
@@ -401,7 +402,9 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 "Expected '}' after model body");
             pos++; // Skip '}'
 
-            ast.children ~= new ModelNode(modelName, fields);
+            auto modelNode = new ModelNode(modelName, null);
+            modelNode.fields = orderedFields;
+            ast.children ~= modelNode;
             continue;
 
         case TokenType.ENUM:

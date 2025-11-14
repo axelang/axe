@@ -362,14 +362,23 @@ class ModelNode : ASTNode
 {
     string name;
 
-    // field name -> type
-    string[string] fields;
+    // Array of (fieldName, fieldType) tuples to preserve order
+    struct Field {
+        string name;
+        string type;
+    }
+    Field[] fields;
 
-    this(string name, string[string] fields)
+    this(string name, string[string] fieldsMap)
     {
         super("Model");
         this.name = name;
-        this.fields = fields;
+        // Convert map to ordered array (order will be arbitrary from map)
+        // Parser should set fields array directly to preserve source order
+        foreach (fieldName, fieldType; fieldsMap)
+        {
+            fields ~= Field(fieldName, fieldType);
+        }
     }
 }
 
