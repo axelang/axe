@@ -201,6 +201,8 @@ def double_to_str(value: double, buffer: char*): char* {
 }
 
 test {
+    val some_thing: int = 10;
+    
     assert(is_alpha(65) != 0, "65 (A) should be alphabetic");
     assert(is_digit(48) != 0, "48 (0) should be a digit");
     assert(is_alnum(97) != 0, "97 (a) should be alphanumeric");
