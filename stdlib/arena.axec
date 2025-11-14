@@ -1,12 +1,14 @@
 use external("stdlib.h");
 use external("string.h");
 
+/// Arena for memory allocation.
 model Arena {
     buffer: uintptr_t; 
     capacity: int;
     offset: int;  
 }
 
+/// Creates a new arena with the specified size.
 def arena_create(size: int): Arena {
     mut val arena: Arena;
     
@@ -19,6 +21,7 @@ def arena_create(size: int): Arena {
     return arena;
 }
 
+/// Destroys the arena and frees its memory.
 def arena_destroy(arena: ref Arena) {
     raw {
         free((void*)arena->buffer);
@@ -28,6 +31,7 @@ def arena_destroy(arena: ref Arena) {
     }
 }
 
+/// Allocates memory from the arena.
 def arena_alloc(arena: ref Arena, size: int): long {
     mut val result: long = 0;
     
@@ -44,11 +48,13 @@ def arena_alloc(arena: ref Arena, size: int): long {
     return result;
 }
 
+/// Allocates memory for an array from the arena.
 def arena_alloc_array(arena: ref Arena, element_size: int, count: int): long {
     mut val total_size: int = element_size * count;
     return arena_alloc(arena, total_size);
 }
 
+/// Resets the arena, clearing all allocated memory.
 def arena_reset(arena: ref Arena) {
     raw {
         arena->offset = 0;
@@ -56,6 +62,7 @@ def arena_reset(arena: ref Arena) {
     }
 }
 
+/// Returns the amount of memory used by the arena.
 def arena_get_used(arena: ref Arena): int {
     mut val result: int = 0;
     raw {
@@ -64,6 +71,7 @@ def arena_get_used(arena: ref Arena): int {
     return result;
 }
 
+/// Returns the amount of remaining memory in the arena.
 def arena_get_remaining(arena: ref Arena): int {
     mut val result: int = 0;
     raw {
