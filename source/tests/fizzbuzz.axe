@@ -1,0 +1,13 @@
+main {
+    for mut val i = 1; i <= 100; i++ {
+        if i mod 3 == 0 and i mod 5 == 0 {
+            println "FizzBuzz";
+        } elif i mod 3 == 0 {
+            println "Fizz";
+        } elif i mod 5 == 0 {
+            println "Buzz";
+        } else {
+            println i;
+        }
+    }
+}
