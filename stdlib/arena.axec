@@ -1,0 +1,65 @@
+use external("stdlib.h");
+use external("string.h");
+
+model Arena {
+    buffer: long; 
+    capacity: int;
+    offset: int;  
+}
+
+def arena_create(size: int): Arena {
+    mut val arena: Arena;
+    
+    raw {
+        arena.buffer = (long)malloc(size);
+        arena.capacity = size;
+        arena.offset = 0;
+    }
+    
+    return arena;
+}
+
+def arena_destroy(arena: ref Arena) {
+    raw {
+        free((void*)arena->buffer);
+        arena->buffer = 0;
+        arena->offset = 0;
+        arena->capacity = 0;
+    }
+}
+
+def arena_alloc(arena: ref Arena, size: int): long {
+    mut val result: long = 0;
+    
+    raw {
+        if (arena->offset + size > arena->capacity) {
+            printf("Arena out of memory!\n");
+            return 0;
+        }
+        result = arena->buffer + arena->offset;
+        arena->offset += size;        
+        arena->offset = (arena->offset + 7) & ~7;
+    }
+    
+    return result;
+}
+
+def arena_alloc_array(arena: ref Arena, element_size: int, count: int): long {
+    mut val total_size: int = element_size * count;
+    return arena_alloc(arena, total_size);
+}
+
+def arena_reset(arena: ref Arena) {
+    raw {
+        arena->offset = 0;
+        memset((void*)arena->buffer, 0, arena->capacity);
+    }
+}
+
+def arena_get_used(arena: ref Arena): int {
+    return arena.offset;
+}
+
+def arena_get_remaining(arena: ref Arena): int {
+    return arena.capacity - arena.offset;
+}
