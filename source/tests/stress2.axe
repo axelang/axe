@@ -1,0 +1,101 @@
+use stdlib/arena (
+    Arena,
+    arena_create,
+    arena_destroy,
+    arena_alloc
+);
+
+use stdlib/memory (
+    copy,
+    size_of
+);
+
+model Particle {
+    x: int;
+    y: int;
+    vx: int;
+    vy: int;
+}
+
+def init_particles(particles: Particle[count], count: int, arena: Arena) {
+    mut val i: int = 0;
+    loop {
+        if i >= count { break; }
+
+        // Allocate a particle in the arena
+        val ptr: long = arena_alloc(ref_of(arena), sizeof(Particle));
+
+        particles[i].x = i * 2;
+        particles[i].y = 0;
+        particles[i].vx = 1;
+        particles[i].vy = 0;
+
+        i = i + 1;
+    }
+}
+
+def update_particles(particles: Particle[count], count: int) {
+    mut val i: int = 0;
+    loop {
+        if i >= count { break; }
+
+        // Gravity
+        particles[i].vy = particles[i].vy + 1;
+
+        // Update position
+        particles[i].x = particles[i].x + particles[i].vx;
+        particles[i].y = particles[i].y + particles[i].vy;
+
+        // Bounce on the floor (y = 20)
+        if particles[i].y > 20 {
+            particles[i].y = 20;
+            particles[i].vy = -particles[i].vy / 2;
+        }
+
+        i = i + 1;
+    }
+}
+
+def print_particles(particles: Particle[count], count: int) {
+    mut val i: int = 0;
+    loop {
+        if i >= count { break; }
+        print "(";
+        print particles[i].x;
+        print ", ";
+        print particles[i].y;
+        println ")";
+        i = i + 1;
+    }
+}
+
+main {
+    val particle_count: int = 10;
+    mut val arena: Arena = arena_create(65536);
+
+    mut val particles: Particle[10];
+
+    init_particles(particles, particle_count, arena);
+
+    println "Initial particle positions:";
+    print_particles(particles, particle_count);
+    println "";
+
+    mut val step: int = 0;
+    loop {
+        if step >= 10 { break; }
+
+        update_particles(particles, particle_count);
+
+        println "Step ";
+        print step;
+        println ":";
+        print_particles(particles, particle_count);
+        println "";
+
+        step = step + 1;
+    }
+
+    arena_destroy(ref_of(arena));
+    println "Arena destroyed - memory freed!";
+}
