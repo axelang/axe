@@ -871,7 +871,8 @@ import std.array;
 
 private string processCondition(string condition)
 {
-    import std.array : replace, split;
+    import std.array : replace;
+    import std.string : indexOf;
     import std.stdio : writeln;
 
     writeln("DEBUG processCondition input: '", condition, "'");
@@ -883,34 +884,32 @@ private string processCondition(string condition)
 
     writeln("DEBUG processCondition after replace: '", condition, "'");
 
+    // Handle logical operators (&&, ||) first - they have lowest precedence
     foreach (op; ["&&", "||"])
     {
-        if (condition.canFind(op))
+        auto idx = condition.indexOf(op);
+        if (idx >= 0)
         {
-            auto parts = condition.split(op);
-            if (parts.length == 2)
-            {
-                string result = "(" ~ processCondition(parts[0].strip()) ~ " " ~ op ~ " " ~ processCondition(
-                    parts[1].strip()) ~ ")";
-                return result;
-            }
+            string left = condition[0 .. idx].strip();
+            string right = condition[idx + op.length .. $].strip();
+            string result = "(" ~ processCondition(left) ~ " " ~ op ~ " " ~ processCondition(right) ~ ")";
+            return result;
         }
     }
 
-    // Then handle comparison operators
+    // Then handle comparison operators - check longer operators first to avoid partial matches
     foreach (op; ["==", "!=", ">=", "<=", ">", "<"])
     {
-        if (condition.canFind(op))
+        auto idx = condition.indexOf(op);
+        if (idx >= 0)
         {
-            auto parts = condition.split(op);
-            if (parts.length == 2)
-            {
-                string result = "(" ~ processExpression(
-                    parts[0]) ~ op ~ processExpression(parts[1]) ~ ")";
-                return result;
-            }
+            string left = condition[0 .. idx].strip();
+            string right = condition[idx + op.length .. $].strip();
+            string result = "(" ~ processExpression(left) ~ op ~ processExpression(right) ~ ")";
+            return result;
         }
     }
+    
     string result = processExpression(condition);
     return result;
 }
