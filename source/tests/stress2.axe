@@ -23,7 +23,7 @@ def init_particles(particles: Particle[count], count: int, arena: Arena) {
         if i >= count { break; }
 
         // Allocate a particle in the arena
-        val ptr: long = arena_alloc(ref_of(arena), sizeof(Particle));
+        val ptr: long = arena_alloc(ref_of(arena), size_of(Particle));
 
         particles[i].x = i * 2;
         particles[i].y = 0;

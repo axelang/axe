@@ -63,6 +63,18 @@ string generateC(ASTNode ast)
     case "Program":
         g_refDepths.clear();
         g_isMutable.clear();
+        g_macros.clear();
+
+        // First pass: collect all macros
+        foreach (child; ast.children)
+        {
+            if (child.nodeType == "Macro")
+            {
+                auto macroNode = cast(MacroNode) child;
+                g_macros[macroNode.name] = macroNode;
+                writeln("DEBUG: Pre-stored macro '", macroNode.name, "' with ", macroNode.params.length, " parameters");
+            }
+        }
 
         cCode ~= "#include <stdio.h>\n";
         cCode ~= "#include <stdbool.h>\n";
@@ -854,10 +866,17 @@ string processExpression(string expr)
     expr = expr.replace(" xor ", " ^ ");
 
     // Check for macro calls in expressions
+    writeln("DEBUG processExpression: Checking for macros in expr: '", expr, "'");
+    writeln("DEBUG processExpression: Available macros: ", g_macros.keys);
     foreach (macroName, macroNode; g_macros)
     {
         import std.string : indexOf, split, strip;
         string macroCallPattern = macroName ~ "(";
+        
+        if (expr.canFind(macroCallPattern))
+        {
+            writeln("DEBUG processExpression: Found macro call '", macroName, "' in expression");
+        }
         
         while (expr.canFind(macroCallPattern))
         {

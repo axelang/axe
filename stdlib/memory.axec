@@ -11,6 +11,8 @@ macro copy(src: untyped, dest: untyped, type: untyped) {
 }
 
 /// Returns the size of a type in bytes.
-macro size_of(type: untyped): int {
-    (int)sizeof(type);
+macro size_of(type: untyped) {
+    raw {
+        (int)sizeof(type)
+    }
 }
