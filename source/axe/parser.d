@@ -3702,7 +3702,42 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
 
-            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+            // Check for member access on array element (e.g., grid[r][c].temperature)
+            if (pos < tokens.length && tokens[pos].type == TokenType.DOT)
+            {
+                pos++; // Skip '.'
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                    "Expected field name after '.'");
+                string fieldName = tokens[pos].value;
+                pos++;
+
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+
+                if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+                {
+                    pos++;
+                    string value = "";
+                    while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                    {
+                        if (tokens[pos].type == TokenType.STR)
+                            value ~= "\"" ~ tokens[pos].value ~ "\"";
+                        else
+                            value ~= tokens[pos].value;
+                        pos++;
+                    }
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                        "Expected ';' after field assignment");
+                    pos++;
+                    // Build the full member access expression
+                    string fullExpr = identName ~ "[" ~ index.strip() ~ "]";
+                    if (index2.length > 0)
+                        fullExpr ~= "[" ~ index2.strip() ~ "]";
+                    fullExpr ~= "." ~ fieldName;
+                    return new AssignmentNode(fullExpr, value.strip());
+                }
+            }
+            else if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
             {
                 pos++;
                 string value = "";
@@ -3876,7 +3911,7 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
         // Safeguard: if we don't recognize the token, we must advance to prevent infinite loops
         writeln("[parseStatementHelper] WARNING: Unhandled token type ", tokens[pos].type, " at pos ", pos);
         enforce(false, "Unexpected token in statement: " ~ tokens[pos].value ~ " (type: " ~ tokens[pos]
-                .type.to!string ~ ")");
+                .type.to!string ~ ")\nFull context: " ~ tokens[pos-5 .. pos+5].map!(t => t.value).join(""));
         return null;
     }
 }
