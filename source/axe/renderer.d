@@ -780,22 +780,50 @@ string processExpression(string expr)
 
     // No transformation needed for 2D arrays - they work naturally in C!
 
-    // Handle ref_of() built-in function
-    if (expr.canFind("ref_of(") && expr.endsWith(")"))
+    // Handle ref_of() built-in function - replace all occurrences
+    while (expr.canFind("ref_of("))
     {
-        auto startIdx = expr.indexOf("ref_of(") + 7;
-        auto endIdx = expr.lastIndexOf(")");
-        string varName = expr[startIdx .. endIdx].strip();
-        return "&" ~ varName;
+        auto startIdx = expr.indexOf("ref_of(");
+        auto parenStart = startIdx + 7; // After "ref_of("
+        
+        // Find matching closing paren
+        int depth = 1;
+        size_t parenEnd = parenStart;
+        while (parenEnd < expr.length && depth > 0)
+        {
+            if (expr[parenEnd] == '(')
+                depth++;
+            else if (expr[parenEnd] == ')')
+                depth--;
+            if (depth > 0)
+                parenEnd++;
+        }
+        
+        string varName = expr[parenStart .. parenEnd].strip();
+        expr = expr[0 .. startIdx] ~ "&" ~ varName ~ expr[parenEnd + 1 .. $];
     }
 
-    // Handle addr_of() built-in function
-    if (expr.canFind("addr_of(") && expr.endsWith(")"))
+    // Handle addr_of() built-in function - replace all occurrences
+    while (expr.canFind("addr_of("))
     {
-        auto startIdx = expr.indexOf("addr_of(") + 8;
-        auto endIdx = expr.lastIndexOf(")");
-        string varName = expr[startIdx .. endIdx].strip();
-        return "(long)&" ~ varName;
+        auto startIdx = expr.indexOf("addr_of(");
+        auto parenStart = startIdx + 8; // After "addr_of("
+        
+        // Find matching closing paren
+        int depth = 1;
+        size_t parenEnd = parenStart;
+        while (parenEnd < expr.length && depth > 0)
+        {
+            if (expr[parenEnd] == '(')
+                depth++;
+            else if (expr[parenEnd] == ')')
+                depth--;
+            if (depth > 0)
+                parenEnd++;
+        }
+        
+        string varName = expr[parenStart .. parenEnd].strip();
+        expr = expr[0 .. startIdx] ~ "(long)&" ~ varName ~ expr[parenEnd + 1 .. $];
     }
 
     if (expr.canFind(".") && !expr.canFind(".len"))

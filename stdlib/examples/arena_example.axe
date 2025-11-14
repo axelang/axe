@@ -1,4 +1,5 @@
 use stdlib/arena (
+    Arena,
     arena_create,
     arena_destroy,
     arena_alloc,

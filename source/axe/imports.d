@@ -70,7 +70,9 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
                     auto funcNode = cast(FunctionNode) importChild;
                     if (useNode.imports.canFind(funcNode.name))
                     {
-                        string prefixedName = useNode.moduleName ~ "_" ~ funcNode.name;
+                        // Replace slashes with underscores for valid C identifiers
+                        string sanitizedModuleName = useNode.moduleName.replace("/", "_");
+                        string prefixedName = sanitizedModuleName ~ "_" ~ funcNode.name;
                         importedFunctions[funcNode.name] = prefixedName;
                         auto newFunc = new FunctionNode(prefixedName, funcNode.params);
                         newFunc.returnType = funcNode.returnType;
