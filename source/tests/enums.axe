@@ -8,4 +8,5 @@ main {
     val fixed_state: State = State.CHANGING;
     println State.RUNNING;
     println fixed_state;
+    fixed_state = State.RUNNING;
 }

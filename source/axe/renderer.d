@@ -13,6 +13,7 @@ import std.ascii;
 import std.string;
 
 private int[string] g_refDepths;
+private bool[string] g_isMutable;
 
 /** 
  * Converts a string to an operand.
@@ -58,6 +59,8 @@ string generateC(ASTNode ast)
     {
     case "Program":
         g_refDepths.clear();
+        g_isMutable.clear();
+
         cCode = "#include <stdio.h>\n#include <stdbool.h>\n#include <stdlib.h>\n#include <string.h>\n";
 
         foreach (child; ast.children)
@@ -167,9 +170,11 @@ string generateC(ASTNode ast)
         }
         else
         {
+            if (dest in g_isMutable && !g_isMutable[dest])
+                throw new Exception("Cannot assign to immutable variable '" ~ dest ~ "' (declared with 'val')");
+            
             string processedExpr = processExpression(expr);
             
-            // Auto-dereference if dest is a reference variable
             string destWithDeref = dest;
             if (dest in g_refDepths && g_refDepths[dest] > 0)
             {
@@ -213,6 +218,7 @@ string generateC(ASTNode ast)
     case "Declaration":
         auto declNode = cast(DeclarationNode) ast;
 
+        g_isMutable[declNode.name] = declNode.isMutable;
         if (declNode.refDepth > 0)
         {
             g_refDepths[declNode.name] = declNode.refDepth;
