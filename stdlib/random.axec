@@ -1,3 +1,11 @@
+/// Initializes the random number generator with the current time.
+def randomize() {
+    raw {
+        srand(time(NULL));
+    }
+}
+
+/// Returns a random integer between min and max (inclusive).
 def random(min: int, max: int): int {
     return min + rand() mod (max - min + 1);
 }
