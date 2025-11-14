@@ -379,7 +379,7 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.XOR, "xor");
                 pos += 3;
             }
-            else if (source[pos].isAlphaNum())
+            else if (source[pos].isAlphaNum() || source[pos] == '_')
             {
                 size_t start = pos;
                 while (pos < source.length && (source[pos].isAlphaNum() || source[pos] == '_'))

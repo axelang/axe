@@ -237,8 +237,41 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
                     {
                         pos++;
-                        string typeName = parseType();
-                        args ~= typeName ~ " " ~ paramName;
+                        
+                        // Check if this is an array type
+                        size_t savedPos = pos;
+                        string baseType = parseType();
+                        
+                        if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+                        {
+                            // Array parameter - parse full array type
+                            pos = savedPos;
+                            auto arrayInfo = parseArrayType();
+                            string fullType = arrayInfo.elementType;
+                            if (arrayInfo.size.length > 0)
+                                fullType ~= "[" ~ arrayInfo.size ~ "]";
+                            else
+                                fullType ~= "[]";
+                            
+                            if (arrayInfo.size2.length > 0)
+                                fullType ~= "[" ~ arrayInfo.size2 ~ "]";
+                            else if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+                            {
+                                // Handle second [] for 2D arrays
+                                pos++; // Skip '['
+                                if (pos < tokens.length && tokens[pos].type == TokenType.RBRACKET)
+                                {
+                                    fullType ~= "[]";
+                                    pos++; // Skip ']'
+                                }
+                            }
+                            
+                            args ~= fullType ~ " " ~ paramName;
+                        }
+                        else
+                        {
+                            args ~= baseType ~ " " ~ paramName;
+                        }
                     }
                     else
                     {
