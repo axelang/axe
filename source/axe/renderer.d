@@ -2658,4 +2658,78 @@ unittest
 
         assert(cCode.canFind("return middle(inner(c))"), "Should handle deeply nested calls: middle(inner(c))");
     }
+
+    // Macro system tests
+    {
+        auto tokens = lex("macro add(a: int, b: int) { raw { a + b } } main { val x: int = add(5, 3); }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Basic macro test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("const int x = (5+3);") || cCode.canFind("const int x = ( 5 + 3 );"), 
+            "Should expand macro add(5, 3) to (5+3)");
+        assert(!cCode.canFind("add(5, 3)"), "Should not have macro call in output");
+    }
+
+    {
+        auto tokens = lex("macro square(x: int) { raw { x * x } } main { val result: int = square(4); }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Macro with repeated parameter test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("const int result = ( 4 * 4 );") || cCode.canFind("const int result = (4 * 4);"), 
+            "Should expand square(4) to (4*4)");
+    }
+
+    {
+        auto tokens = lex("macro max(a: int, b: int) { raw { (a > b) ? a : b } } main { val m: int = max(10, 20); }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Macro with ternary operator test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("(10>20)?10:20") || cCode.canFind("(10 > 20) ? 10 : 20"), 
+            "Should expand max(10, 20) to ternary expression");
+    }
+
+    {
+        auto tokens = lex("macro add(a: int, b: int) { raw { a + b } } def calc(x: int, y: int): int { return add(x, y); } main { }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Macro in function body test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("return ( x + y );") || cCode.canFind("return (x + y);"), 
+            "Should expand macro in function return statement");
+    }
+
+    {
+        auto tokens = lex("macro inc(x: int) { raw { x + 1 } } main { val a: int = 5; val b: int = inc(a); }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Macro with variable argument test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("const int b = ( a + 1 );") || cCode.canFind("const int b = (a + 1);"), 
+            "Should expand inc(a) with variable argument");
+    }
+
+    {
+        auto tokens = lex("macro triple(x: int) { raw { x * 3 } } main { if triple(2) == 6 { println \"yes\"; } }");
+        auto ast = parse(tokens, true);
+        auto cCode = generateC(ast);
+
+        writeln("Macro in condition test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("if") && (cCode.canFind("(2*3)==6") || cCode.canFind("(2 * 3) == 6")), 
+            "Should expand macro in if condition");
+    }
 }
