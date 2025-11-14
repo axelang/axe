@@ -61,7 +61,15 @@ string generateC(ASTNode ast)
         g_refDepths.clear();
         g_isMutable.clear();
 
-        cCode = "#include <stdio.h>\n#include <stdbool.h>\n#include <stdlib.h>\n#include <string.h>\n";
+        cCode ~= "#include <stdio.h>\n";
+        cCode ~= "#include <stdbool.h>\n";
+        cCode ~= "#include <stdlib.h>\n";
+        cCode ~= "#include <string.h>\n";
+        version(Windows)
+        {
+            cCode ~= "#include <windows.h>\n";
+        }
+        cCode ~= "\n";
 
         foreach (child; ast.children)
         {
@@ -91,7 +99,6 @@ string generateC(ASTNode ast)
         break;
 
     case "Main":
-        cCode ~= "int main() {\n";
         loopLevel++;
 
         foreach (child; ast.children)
@@ -115,6 +122,9 @@ string generateC(ASTNode ast)
         if (funcNode.name == "main")
         {
             cCode ~= "int main() {\n";
+            version (Windows) {
+                cCode ~= "SetConsoleOutputCP(CP_UTF8);\n";
+            }
         }
         else
         {
