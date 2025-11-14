@@ -1,0 +1,48 @@
+use external("time.h");
+
+/// Exits the program with the given exit code.
+def quit(code: int) {
+    raw {
+        exit(code);
+    }
+}
+
+/// Suspends the program for the given number of milliseconds.
+def wait(ms: int) {
+    raw {
+        #ifdef _WIN32
+        Sleep(ms);
+        #else
+        usleep(ms * 1000);
+        #endif
+    }
+}
+
+/// Suspends the program for the given number of seconds.
+def wait_sec(seconds: int) {
+    raw {
+        #ifdef _WIN32
+        Sleep(seconds * 1000);
+        #else
+        sleep(seconds);
+        #endif
+    }
+}
+
+/// Executes a command in a new process and returns the exit code.
+def exec(command: char*): int {
+    mut val result: int = 0;
+    raw {
+        result = system((const char*)command);
+    }
+    return result;
+}
+
+/// Gets an environment variable value.
+def get_env(name: char*): char* {
+    mut val result: char* = 0;
+    raw {
+        result = getenv((const char*)name);
+    }
+    return result;
+}

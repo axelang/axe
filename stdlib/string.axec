@@ -1,0 +1,158 @@
+use external("string.h");
+use external("stdlib.h");
+use external("ctype.h");
+
+/// String model representing a dynamic string with length tracking.
+model String {
+    data: long;
+    length: int;
+    capacity: int;
+}
+
+/// Returns the length of a null-terminated C string.
+def str_len(s: char*): int {
+    mut val result: int = 0;
+    raw {
+        result = (int)strlen((const char*)s);
+    }
+    return result;
+}
+
+/// Compares two null-terminated C strings. Returns 0 if equal.
+def str_cmp(s1: char*, s2: char*): int {
+    mut val result: int = 0;
+    raw {
+        result = strcmp((const char*)s1, (const char*)s2);
+    }
+    return result;
+}
+
+/// Copies source string to destination. Returns destination pointer.
+def str_copy(dest: char*, src: char*): char* {
+    mut val result: char* = 0;
+    raw {
+        result = strcpy((char*)dest, (const char*)src);
+    }
+    return result;
+}
+
+/// Concatenates source string to destination. Returns destination pointer.
+def str_cat(dest: char*, src: char*): char* {
+    mut val result: char* = 0;
+    raw {
+        result = strcat((char*)dest, (const char*)src);
+    }
+    return result;
+}
+
+/// Finds first occurrence of character in string. Returns pointer or 0.
+def str_chr(s: char*, c: int): char* {
+    mut val result: char* = 0;
+    raw {
+        result = strchr((const char*)s, c);
+    }
+    return result;
+}
+
+/// Finds first occurrence of substring in string. Returns pointer or 0.
+def substring(haystack: char*, needle: char*): char* {
+    mut val result: char* = 0;
+    raw {
+        result = strstr((const char*)haystack, (const char*)needle);
+    }
+    return result;
+}
+
+/// Converts string to integer.
+def str_to_int(s: char*): int {
+    mut val result: int = 0;
+    raw {
+        result = atoi((const char*)s);
+    }
+    return result;
+}
+
+/// Converts string to long integer.
+def str_to_long(s: char*): long {
+    mut val result: long = 0;
+    raw {
+        result = atol((const char*)s);
+    }
+    return result;
+}
+
+/// Checks if character is alphabetic.
+def is_alpha(c: int): int {
+    mut val result: int = 0;
+    raw {
+        result = isalpha(c);
+    }
+    return result;
+}
+
+/// Checks if character is numeric.
+def is_digit(c: int): int {
+    mut val result: int = 0;
+    raw {
+        result = isdigit(c);
+    }
+    return result;
+}
+
+/// Checks if character is alphanumeric.
+def is_alnum(c: int): int {
+    mut val result: int = 0;
+    raw {
+        result = isalnum(c);
+    }
+    return result;
+}
+
+/// Converts character to uppercase.
+def to_upper(c: int): int {
+    mut val result: int = 0;
+    raw {
+        result = toupper(c);
+    }
+    return result;
+}
+
+/// Converts character to lowercase.
+def to_lower(c: int): int {
+    mut val result: int = 0;
+    raw {
+        result = tolower(c);
+    }
+    return result;
+}
+
+/// Allocates and copies a string. Caller must free the result.
+def str_dup(s: char*): char* {
+    mut val len: int = str_len(s);
+    mut val result: char* = 0;
+    raw {
+        result = (char*)malloc(len + 1);
+        if (result != 0) {
+            strcpy((char*)result, (const char*)s);
+        }
+    }
+    return result;
+}
+
+/// Compares first n characters of two strings. Returns 0 if equal.
+def str_ncmp(s1: char*, s2: char*, n: int): int {
+    mut val result: int = 0;
+    raw {
+        result = strncmp((const char*)s1, (const char*)s2, n);
+    }
+    return result;
+}
+
+/// Copies at most n characters from source to destination.
+def str_ncopy(dest: char*, src: char*, n: int): char* {
+    mut val result: char* = 0;
+    raw {
+        result = strncpy((char*)dest, (const char*)src, n);
+    }
+    return result;
+}
