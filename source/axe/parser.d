@@ -52,7 +52,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
         {
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
-            
+
             if (pos < tokens.length && tokens[pos].type == TokenType.REF)
             {
                 refDepth++;
@@ -237,11 +237,11 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
                     {
                         pos++;
-                        
+
                         // Check if this is an array type
                         size_t savedPos = pos;
                         string baseType = parseType();
-                        
+
                         if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
                         {
                             // Array parameter - parse full array type
@@ -252,7 +252,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 fullType ~= "[" ~ arrayInfo.size ~ "]";
                             else
                                 fullType ~= "[]";
-                            
+
                             if (arrayInfo.size2.length > 0)
                                 fullType ~= "[" ~ arrayInfo.size2 ~ "]";
                             else if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
@@ -265,7 +265,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     pos++; // Skip ']'
                                 }
                             }
-                            
+
                             args ~= fullType ~ " " ~ paramName;
                         }
                         else
@@ -387,24 +387,24 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             if (pos < tokens.length && tokens[pos].type == TokenType.EXTERNAL)
             {
                 pos++; // Skip 'external'
-                
+
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
                     "Expected '(' after 'external'");
                 pos++; // Skip '('
-                
+
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.STR,
                     "Expected string literal for header file");
                 string headerFile = tokens[pos].value;
                 pos++;
-                
+
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
                     "Expected ')' after header file");
                 pos++; // Skip ')'
-                
+
                 enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                     "Expected ';' after external import");
                 pos++; // Skip ';'
-                
+
                 ast.children ~= new ExternalImportNode(headerFile);
                 continue;
             }
@@ -544,7 +544,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                 "Expected ';' after array assignment");
                             pos++;
 
-                            mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2.strip());
+                            mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2
+                                    .strip());
                         }
                         else
                         {
@@ -1915,7 +1916,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             {
                                 pos++; // Skip '['
 
-                                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                                while (pos < tokens.length && tokens[pos].type != TokenType
+                                    .RBRACKET)
                                 {
                                     index2 ~= tokens[pos].value;
                                     pos++;
@@ -1947,7 +1949,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                                     "Expected ';' after array assignment");
                                 pos++;
 
-                                mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2.strip());
+                                mainNode.children ~= new ArrayAssignmentNode(identName, index.strip(), value.strip(), index2
+                                        .strip());
                             }
                             else
                             {
@@ -2835,7 +2838,9 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                             {
                                 writeln(i, ": ", tokens[i].type, " ('", tokens[i].value, "')");
                             }
-                            enforce(false, "Unexpected token in loop body at " ~ to!string(pos));
+                            enforce(false, "Unexpected token in loop body at " ~ to!string(
+                                    pos) ~ ": "
+                                    ~ to!string(tokens[pos].type) ~ " ('" ~ tokens[pos].value ~ "')");
                         }
                     }
 
@@ -2847,42 +2852,6 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++;
                     currentScopeNode = funcNode;
                     funcNode.children ~= loopNode;
-                    break;
-
-                case TokenType.VAL:
-                    bool isMutable = false;
-                    pos++;
-                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                        pos++;
-
-                    if (pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER)
-                    {
-                        string varName = tokens[pos].value;
-                        pos++;
-                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                            pos++;
-
-                        string initializer = "";
-                        if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR
-                            && tokens[pos].value == "=")
-                        {
-                            pos++;
-                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                                pos++;
-                            while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
-                            {
-                                initializer ~= tokens[pos].value;
-                                pos++;
-                            }
-                        }
-
-                        enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                            "Expected ';' after val declaration");
-                        pos++;
-
-                        currentScope.addVariable(varName, isMutable);
-                        funcNode.children ~= new DeclarationNode(varName, isMutable, initializer);
-                    }
                     break;
 
                 case TokenType.RETURN:
@@ -2902,6 +2871,51 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++;
 
                     funcNode.children ~= new ReturnNode(returnExpr);
+                    break;
+
+                case TokenType.MUT:
+                    pos++;
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.VAL,
+                        "Expected 'val' after 'mut'");
+                    goto case TokenType.VAL;
+
+                case TokenType.VAL:
+                    bool isMutable = tokens[pos - 1].type == TokenType.MUT;
+                    pos++;
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                        "Expected identifier after 'val'");
+                    string varName = tokens[pos].value;
+                    pos++;
+
+                    string typeName = "";
+                    string initializer = "";
+
+                    if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
+                    {
+                        pos++;
+                        typeName = parseType();
+                    }
+
+                    if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+                    {
+                        pos++;
+                        while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                        {
+                            if (tokens[pos].type == TokenType.STR)
+                                initializer ~= "\"" ~ tokens[pos].value ~ "\"";
+                            else
+                                initializer ~= tokens[pos].value;
+                            pos++;
+                        }
+                    }
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                        "Expected ';' after variable declaration");
+                    pos++;
+
+                    currentScope.addVariable(varName, isMutable);
+                    funcNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName);
                     break;
 
                 default:
