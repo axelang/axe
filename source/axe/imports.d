@@ -98,10 +98,16 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
         }
         else
         {
-            renameFunctionCalls(child, importedFunctions);
-            renameTypeReferences(child, importedModels);
             newChildren ~= child;
         }
+    }
+
+    // Now rename all function calls and type references in ALL children
+    // This includes both imported functions and user code
+    foreach (child; newChildren)
+    {
+        renameFunctionCalls(child, importedFunctions);
+        renameTypeReferences(child, importedModels);
     }
 
     programNode.children = newChildren;
