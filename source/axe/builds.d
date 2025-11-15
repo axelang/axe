@@ -3,6 +3,7 @@ module axe.builds;
 import axe.lexer;
 import axe.parser;
 import axe.renderer;
+import axe.renderer_asm;
 import axe.imports;
 import axe.structs;
 import std.file;
