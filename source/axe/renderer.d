@@ -139,6 +139,7 @@ string generateC(ASTNode ast)
                         foreach (i, param; funcNode.params)
                         {
                             import std.string : replace, split, strip;
+
                             string cParam = param;
                             if (param.canFind("ref "))
                             {
@@ -150,7 +151,7 @@ string generateC(ASTNode ast)
                                 }
                             }
                             cCode ~= cParam;
-                            if (i < cast(int)funcNode.params.length - 1)
+                            if (i < cast(int) funcNode.params.length - 1)
                                 cCode ~= ", ";
                         }
                     }
@@ -421,14 +422,14 @@ string generateC(ASTNode ast)
 
     case "Assignment":
         auto assignNode = cast(AssignmentNode) ast;
+
         import std.stdio : writeln;
+        import std.string : indexOf;
 
         debug writeln("DEBUG Assignment: variable='", assignNode.variable, "'");
         string dest = processExpression(assignNode.variable.strip());
         debug writeln("DEBUG Assignment: dest after processExpression='", dest, "'");
         string expr = assignNode.expression.strip();
-
-        import std.string : indexOf;
 
         string baseVarName = dest;
         auto bracketPos = dest.indexOf('[');
@@ -881,7 +882,7 @@ string generateC(ASTNode ast)
 
         string accessOp = ".";
         // Check if this member access is to a pointer field or if the object is already a pointer (contains ->)
-        if (memberNode.objectName.canFind("->") || 
+        if (memberNode.objectName.canFind("->") ||
             (memberNode.objectName ~ "." ~ memberNode.memberName in g_pointerFields))
         {
             accessOp = "->";
@@ -977,7 +978,7 @@ string processExpression(string expr)
     // Use regex to replace operators that are not part of identifiers
     // First handle the common case with spaces explicitly
     expr = expr.replace(" mod ", " % ");
-    
+
     // Then match 'mod' when preceded/followed by non-letter/underscore characters
     expr = expr.replaceAll(regex(r"([^a-zA-Z_])mod([^a-zA-Z_])"), "$1%$2");
     expr = expr.replaceAll(regex(r"^mod([^a-zA-Z_])"), "%$1");
@@ -1237,9 +1238,9 @@ string processExpression(string expr)
                     inString = !inString;
                     current ~= expr[i];
                 }
-                else if (!inString && i + op.length <= expr.length && 
-                         expr[i .. i + op.length] == op && 
-                         (i == 0 || expr[i-1] != op[0]))
+                else if (!inString && i + op.length <= expr.length &&
+                    expr[i .. i + op.length] == op &&
+                    (i == 0 || expr[i - 1] != op[0]))
                 {
                     parts ~= current;
                     current = "";
@@ -2871,7 +2872,8 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val ptr: int* = NULL; if deref(ptr) == 5 { println \"equal\"; } }");
+        auto tokens = lex(
+            "main { mut val ptr: int* = NULL; if deref(ptr) == 5 { println \"equal\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
