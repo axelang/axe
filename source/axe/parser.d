@@ -2591,7 +2591,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                         }
                         else
                         {
-                            enforce(false, "Expected '=' after member access");
+                            enforce(false, "Expected '=' after member access here: " ~ tokens[pos - 5 .. pos + 5]
+                                    .map!(t => t.value).join(""));
                         }
                     }
                     // Check if this is an assignment
