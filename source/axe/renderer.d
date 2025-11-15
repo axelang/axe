@@ -136,7 +136,12 @@ string generateC(ASTNode ast)
                 auto funcNode = cast(FunctionNode) child;
                 if (funcNode.name != "main")
                 {
-                    cCode ~= funcNode.returnType ~ " " ~ funcNode.name ~ "(";
+                    string processedReturnType = funcNode.returnType;
+                    if (processedReturnType.startsWith("ref "))
+                    {
+                        processedReturnType = processedReturnType[4 .. $].strip() ~ "*";
+                    }
+                    cCode ~= processedReturnType ~ " " ~ funcNode.name ~ "(";
                     if (funcNode.params.length > 0)
                     {
                         foreach (i, param; funcNode.params)
@@ -206,7 +211,12 @@ string generateC(ASTNode ast)
         }
         else
         {
-            cCode ~= funcNode.returnType ~ " " ~ funcName ~ "(";
+            string processedReturnType = funcNode.returnType;
+            if (processedReturnType.startsWith("ref "))
+            {
+                processedReturnType = processedReturnType[4 .. $].strip() ~ "*";
+            }
+            cCode ~= processedReturnType ~ " " ~ funcName ~ "(";
             if (params.length > 0)
             {
                 import std.stdio : writeln;
@@ -414,7 +424,7 @@ string generateC(ASTNode ast)
         string[] processedArgs;
 
         foreach (arg; callNode.args)
-            processedArgs ~= processExpression(arg);
+            processedArgs ~= processExpression(arg, "function_call");
 
         if (callName in g_functionParamReordering)
         {
@@ -458,7 +468,7 @@ string generateC(ASTNode ast)
 
             if (expr.length > 0)
             {
-                string processedExpr = processExpression(expr);
+                string processedExpr = processExpression(expr, "assignment");
                 cCode ~= " = " ~ processedExpr;
             }
             cCode ~= ";\n";
@@ -469,18 +479,9 @@ string generateC(ASTNode ast)
                 throw new Exception(
                     "Cannot assign to immutable variable '" ~ baseVarName ~ "' (declared with 'val')");
 
-            string processedExpr = processExpression(expr);
+            string processedExpr = processExpression(expr, "assignment");
 
-            string destWithDeref = dest;
-            if (baseVarName in g_refDepths && g_refDepths[baseVarName] > 0)
-            {
-                for (int i = 0; i < g_refDepths[baseVarName]; i++)
-                {
-                    destWithDeref = "*" ~ destWithDeref;
-                }
-            }
-
-            cCode ~= destWithDeref ~ " = " ~ processedExpr ~ ";\n";
+            cCode ~= dest ~ " = " ~ processedExpr ~ ";\n";
         }
         break;
 
@@ -573,7 +574,7 @@ string generateC(ASTNode ast)
 
         if (declNode.initializer.length > 0)
         {
-            string processedExpr = processExpression(declNode.initializer);
+            string processedExpr = processExpression(declNode.initializer, "assignment");
 
             // Special handling for deref on long variables (e.g., from arena_alloc)
             string var = "";
@@ -643,7 +644,7 @@ string generateC(ASTNode ast)
         auto printlnNode = cast(PrintlnNode) ast;
         if (printlnNode.isExpression)
         {
-            string processedExpr = processExpression(printlnNode.message);
+            string processedExpr = processExpression(printlnNode.message, "println");
             cCode ~= "printf(\"%d\\n\", " ~ processedExpr ~ ");\n";
         }
         else
@@ -656,7 +657,7 @@ string generateC(ASTNode ast)
         auto printNode = cast(PrintNode) ast;
         if (printNode.isExpression)
         {
-            string processedExpr = processExpression(printNode.message);
+            string processedExpr = processExpression(printNode.message, "println");
             cCode ~= "printf(\"%d\", " ~ processedExpr ~ ");\n";
         }
         else
@@ -1009,7 +1010,7 @@ string generateC(ASTNode ast)
 /**
  * Helper function to process arithmetic expressions
  */
-string processExpression(string expr)
+string processExpression(string expr, string context = "")
 {
     expr = expr.strip();
 
@@ -1338,12 +1339,15 @@ string processExpression(string expr)
     // Auto-dereference if this is a reference variable
     if (expr in g_refDepths && g_refDepths[expr] > 0)
     {
-        string result = expr;
-        for (int i = 0; i < g_refDepths[expr]; i++)
+        if (context == "println" || context == "assignment")
         {
-            result = "*" ~ result;
+            string result = expr;
+            for (int i = 0; i < g_refDepths[expr]; i++)
+            {
+                result = "*" ~ result;
+            }
+            return result;
         }
-        return result;
     }
 
     return expr;

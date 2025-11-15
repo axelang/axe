@@ -2493,7 +2493,22 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
             {
                 pos++;
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+
+                // Handle ref keyword(s)
+                int refDepth = 0;
+                while (pos < tokens.length && tokens[pos].type == TokenType.REF)
+                {
+                    refDepth++;
+                    pos++;
+                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                        pos++;
+                }
+
                 returnType = parseType();
+                for (int i = 0; i < refDepth; i++)
+                    returnType = "ref " ~ returnType;
             }
 
             auto funcNode = new FunctionNode(currentFuncName, params, returnType);
@@ -3090,10 +3105,23 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
                     string typeName = "";
                     string initializer = "";
+                    int refDepth = 0;
 
                     if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
                     {
                         pos++;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                            pos++;
+
+                        // Handle ref keyword(s)
+                        while (pos < tokens.length && tokens[pos].type == TokenType.REF)
+                        {
+                            refDepth++;
+                            pos++;
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+                        }
+
                         typeName = parseType();
                     }
 
@@ -3115,7 +3143,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                     pos++;
 
                     currentScope.addVariable(varName, isMutable);
-                    funcNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName);
+                    funcNode.children ~= new DeclarationNode(varName, isMutable, initializer, typeName, refDepth);
                     break;
 
                 case TokenType.RAW:

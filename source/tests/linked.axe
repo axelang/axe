@@ -46,7 +46,7 @@ def list_push_back(head: ref Node, arena: Arena, value: int): ref Node {
 }
 
 /// Print linked list
-def list_print(head: Node) {
+def list_print(head: ref Node) {
     mut val cur: ref Node = head;
 
     loop {
@@ -56,7 +56,7 @@ def list_print(head: Node) {
 
         print cur.value;
         print " ";
-        cur = deref(cur.next);
+        cur = cur.next;
     }
 
     println "";
