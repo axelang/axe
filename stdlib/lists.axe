@@ -57,7 +57,7 @@ def int_list_print(lst: ref IntList) {
     println "";
 }
 
-main {
+test {
     mut val arena: Arena = arena_create(65536);
     mut val my_list: ref IntList = int_list_new(ref_of(arena), 4);
 
