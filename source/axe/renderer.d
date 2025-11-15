@@ -2887,6 +2887,6 @@ unittest
         writeln("deref assignment test:");
         writeln(cCode);
 
-        assert(cCode.canFind("*ptr = 10;"), "Should handle deref on left side of assignment");
+        assert(cCode.canFind("(*ptr) = 10;"), "Should handle deref on left side of assignment");
     }
 }

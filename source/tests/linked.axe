@@ -1,0 +1,105 @@
+use stdlib/arena (
+    Arena,
+    arena_create,
+    arena_destroy,
+    arena_alloc
+);
+
+use stdlib/memory (
+    size_of,
+    copy
+);
+
+model Node {
+    value: int;
+    next: Node;   // recursive!
+}
+
+/// Create a "null" node with value=0 and next=itself (self-loop sentinel)
+def make_null_node(): Node {
+    mut val n: Node;
+    n.value = 0;
+    copy(n.next, n, Node);   // next = itself
+    return n;
+}
+
+def list_push_front(head: Node, arena: Arena, value: int): Node {
+    // allocate a new Node from the arena
+    val ptr: long = arena_alloc(ref_of(arena), size_of(Node));
+    mut val newv: ref Node = deref(ptr);
+
+    newv.value = value;
+    copy(newv.next, head, Node);
+
+    return newv;
+}
+
+def list_push_back(head: Node, arena: Arena, value: int): Node {
+    // empty list?
+    if head.next.value == head.value and head.value == 0 {
+        // list is empty, reuse push_front for clarity
+        return list_push_front(head, arena, value);
+    }
+
+    mut val cur: Node;
+    copy(cur, head, Node);
+
+    // traverse to end
+    loop {
+        if cur.next.value == cur.value and cur.value == 0 {
+            break;
+        }
+        copy(cur, cur.next, Node);
+    }
+
+    // add new tail
+    val ptr: long = arena_alloc(ref_of(arena), size_of(Node));
+    mut val newv: ref Node = deref(ptr);
+
+    newv.value = val;
+    newv.next = make_null_node();  // set sentinel
+
+    // overwrite tail.next
+    copy(cur.next, newv, Node);
+
+    return head;
+}
+
+/// Print linked list until sentinel is reached
+def list_print(head: Node) {
+    mut val cur: Node;
+    copy(cur, head, Node);
+
+    loop {
+        if cur.next.value == cur.value and cur.value == 0 {
+            break;
+        }
+
+        print cur.value;
+        print " ";
+
+        copy(cur, cur.next, Node);
+    }
+
+    println "";
+}
+
+main {
+    println "=== RECURSIVE NODE LINKED LIST ===";
+
+    mut val arena: Arena = arena_create(65536);
+
+    // Start with null node sentinel
+    mut val head: Node = make_null_node();
+
+    head = list_push_front(head, arena, 10);
+    head = list_push_front(head, arena, 5);
+    head = list_push_back(head, arena, 20);
+    head = list_push_back(head, arena, 25);
+
+    println "List contents:";
+    list_print(head);
+
+    arena_destroy(ref_of(arena));
+    println "Arena destroyed.";
+}

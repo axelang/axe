@@ -4057,10 +4057,28 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             pos++;
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
-            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                "Expected ';' after function call");
-            pos++;
-            return new FunctionCallNode(identName, args.join(", "));
+            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+            {
+                // Assignment to function call result, e.g., deref(ptr) = value
+                pos++;
+                string value = "";
+                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                {
+                    value ~= tokens[pos].value;
+                    pos++;
+                }
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                    "Expected ';' after assignment");
+                pos++;
+                return new AssignmentNode(identName ~ "(" ~ args.join(", ") ~ ")", value.strip());
+            }
+            else
+            {
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                    "Expected ';' after function call");
+                pos++;
+                return new FunctionCallNode(identName, args.join(", "));
+            }
         }
         return null;
 
