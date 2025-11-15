@@ -108,11 +108,8 @@ string generateC(ASTNode ast)
                 cCode ~= generateC(child);
         }
 
-        // Global variables for command line arguments
         cCode ~= "int __axe_argc = 0;\n";
-        cCode ~= "char** __axe_argv = NULL;\n\n";
-
-        cCode ~= "\n";
+        cCode ~= "char** __axe_argv = NULL;\n\n\n";
 
         foreach (child; ast.children)
         {
