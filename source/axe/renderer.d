@@ -2840,7 +2840,6 @@ unittest
             "Should expand macro in if condition");
     }
 
-    // deref tests
     {
         auto tokens = lex("main { mut val ptr: int* = NULL; val value: int = deref(ptr); }");
         auto ast = parse(tokens);
