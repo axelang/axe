@@ -1927,54 +1927,46 @@ string generateAsm(ASTNode ast)
 
 string generateStackTraceHandlers()
 {
-    string code = "";
-    code ~= "#include <stdio.h>\n";
-    code ~= "#include <dbghelp.h>\n";
-    code ~= "#include <signal.h>\n";
-    code ~= "\n";
-    code ~= "static void axe_win_print_backtrace(void) {\n";
-    code ~= "    HANDLE process = GetCurrentProcess();\n";
-    code ~= "    SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);\n";
-    code ~= "    SymInitialize(process, NULL, TRUE);\n";
-    code ~= "\n";
-    code ~= "    void* stack[64];\n";
-    code ~= "    USHORT frames = CaptureStackBackTrace(0, 64, stack, NULL);\n";
-    code ~= "    fprintf(stderr, \"Backtrace (%u frames):\\n\", (unsigned)frames);\n";
-    code ~= "\n";
-    code ~= "    SYMBOL_INFO* symbol = (SYMBOL_INFO*)malloc(sizeof(SYMBOL_INFO) + 256);\n";
-    code ~= "    if (!symbol) return;\n";
-    code ~= "    memset(symbol, 0, sizeof(SYMBOL_INFO) + 256);\n";
-    code ~= "    symbol->MaxNameLen = 255;\n";
-    code ~= "    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);\n";
-    code ~= "\n";
-    code ~= "    for (USHORT i = 0; i < frames; i++) {\n";
-    code ~= "        DWORD64 address = (DWORD64)(stack[i]);\n";
-    code ~= "        if (SymFromAddr(process, address, 0, symbol)) {\n";
-    code ~= "            fprintf(stderr, \"  #%02u 0x%llx %s\\n\", (unsigned)i, (unsigned long long)address, symbol->Name);\n";
-    code ~= "        } else {\n";
-    code ~= "            fprintf(stderr, \"  #%02u 0x%llx <unknown>\\n\", (unsigned)i, (unsigned long long)address);\n";
-    code ~= "        }\n";
-    code ~= "    }\n";
-    code ~= "    free(symbol);\n";
-    code ~= "}\n";
-    code ~= "\n";
-    code ~= "static void axe_segv_handler(int sig) {\n";
-    code ~= "    const char* name = (sig == \"SIGSEGV\" ? \"SIGSEGV\" : (sig == \"SIGABRT\" ? \"SIGABRT\" : \"SIGNAL\"));\n";
-    code ~= "    fprintf(stderr, \"Fatal: %s received.\\n\", name);\n";
-    code ~= "#if defined(__unix__) || defined(__APPLE__)\n";
-    code ~= "    void* frames[64];\n";
-    code ~= "    int n = backtrace(frames, 64);\n";
-    code ~= "    if (n > 0) {\n";
-    code ~= "        fprintf(stderr, \"Backtrace (%d frames):\\n\", n);\n";
-    code ~= "        backtrace_symbols_fd(frames, n, fileno(stderr));\n";
-    code ~= "    }\n";
-    code ~= "#endif\n";
-    code ~= "    fflush(stderr);\n";
-    code ~= "    _exit(139);\n";
-    code ~= "}\n";
-    code ~= "\n";
-    version (Windows)
+    string code = "#include <stdio.h>\n";
+    version(Windows)
     {
+        code ~= "#include <dbghelp.h>\n";
+    }
+    else version(Posix)
+    {
+        code ~= "#include <execinfo.h>\n";
+        code ~= "#include <signal.h>\n";
+        code ~= "#include <unistd.h>\n";
+    }
+    code ~= "\n";
+    version(Windows)
+    {
+        code ~= "static void axe_win_print_backtrace(void) {\n";
+        code ~= "    HANDLE process = GetCurrentProcess();\n";
+        code ~= "    SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_LOAD_LINES);\n";
+        code ~= "    SymInitialize(process, NULL, TRUE);\n";
+        code ~= "\n";
+        code ~= "    void* stack[64];\n";
+        code ~= "    USHORT frames = CaptureStackBackTrace(0, 64, stack, NULL);\n";
+        code ~= "    fprintf(stderr, \"Backtrace (%u frames):\\n\", (unsigned)frames);\n";
+        code ~= "\n";
+        code ~= "    SYMBOL_INFO* symbol = (SYMBOL_INFO*)malloc(sizeof(SYMBOL_INFO) + 256);\n";
+        code ~= "    if (!symbol) return;\n";
+        code ~= "    memset(symbol, 0, sizeof(SYMBOL_INFO) + 256);\n";
+        code ~= "    symbol->MaxNameLen = 255;\n";
+        code ~= "    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);\n";
+        code ~= "\n";
+        code ~= "    for (USHORT i = 0; i < frames; i++) {\n";
+        code ~= "        DWORD64 address = (DWORD64)(stack[i]);\n";
+        code ~= "        if (SymFromAddr(process, address, 0, symbol)) {\n";
+        code ~= "            fprintf(stderr, \"  #%02u 0x%llx %s\\n\", (unsigned)i, (unsigned long long)address, symbol->Name);\n";
+        code ~= "        } else {\n";
+        code ~= "            fprintf(stderr, \"  #%02u 0x%llx <unknown>\\n\", (unsigned)i, (unsigned long long)address);\n";
+        code ~= "        }\n";
+        code ~= "    }\n";
+        code ~= "    free(symbol);\n";
+        code ~= "}\n";
+        code ~= "\n";
         code ~= "static LONG WINAPI axe_unhandled_exception_filter(EXCEPTION_POINTERS* info) {\n";
         code ~= "    (void)info;\n";
         code ~= "    fprintf(stderr, \"Fatal: Unhandled exception.\\n\");\n";
@@ -1983,16 +1975,38 @@ string generateStackTraceHandlers()
         code ~= "    ExitProcess(1);\n";
         code ~= "    return EXCEPTION_EXECUTE_HANDLER;\n";
         code ~= "}\n";
-        code ~= "\n";
     }
+    else version(Posix)
+    {
+        code ~= "static void axe_segv_handler(int sig) {\n";
+        code ~= "    const char* name = (sig == SIGSEGV ? \"SIGSEGV\" : (sig == SIGABRT ? \"SIGABRT\" : \"SIGNAL\"));\n";
+        code ~= "    fprintf(stderr, \"Fatal: %s received.\\n\", name);\n";
+        code ~= "    void* frames[64];\n";
+        code ~= "    int n = backtrace(frames, 64);\n";
+        code ~= "    if (n > 0) {\n";
+        code ~= "        fprintf(stderr, \"Backtrace (%d frames):\\n\", n);\n";
+        code ~= "        backtrace_symbols_fd(frames, n, fileno(stderr));\n";
+        code ~= "    }\n";
+        code ~= "    fflush(stderr);\n";
+        code ~= "    _exit(139);\n";
+        code ~= "}\n";
+    }
+    code ~= "\n";
     return code;
 }
 
 string generateStackTraceSetup()
 {
-    string code = "#if defined(_WIN32)\n";
-    code ~= "    SetUnhandledExceptionFilter(axe_unhandled_exception_filter);\n";
-    code ~= "#endif\n";
+    string code;
+    version(Windows)
+    {
+        code ~= "    SetUnhandledExceptionFilter(axe_unhandled_exception_filter);\n";
+    }
+    else version(Posix)
+    {
+        code ~= "    signal(SIGSEGV, axe_segv_handler);\n";
+        code ~= "    signal(SIGABRT, axe_segv_handler);\n";
+    }
     return code;
 }
 
