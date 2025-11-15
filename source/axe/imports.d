@@ -98,7 +98,6 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
                 }
             }
 
-            // Second pass: only add explicitly imported items to the program
             writeln("DEBUG imports: Processing imported items");
             foreach (importChild; importProgram.children)
             {
@@ -114,6 +113,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
                         newFunc.children = funcNode.children;
 
                         writeln("  DEBUG: Renaming calls in function '", prefixedName, "'");
+                        
                         // Rename internal calls within this function
                         renameFunctionCalls(newFunc, moduleFunctionMap);
                         renameTypeReferences(newFunc, moduleModelMap);
