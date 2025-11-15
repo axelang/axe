@@ -131,6 +131,18 @@ string generateC(ASTNode ast)
 
         foreach (child; ast.children)
         {
+            if (child.nodeType == "Model")
+            {
+                auto modelNode = cast(ModelNode) child;
+                foreach (method; modelNode.methods)
+                {
+                    cCode ~= generateC(method) ~ "\n";
+                }
+            }
+        }
+
+        foreach (child; ast.children)
+        {
             if (child.nodeType == "Function")
             {
                 auto funcNode = cast(FunctionNode) child;
@@ -379,6 +391,9 @@ string generateC(ASTNode ast)
     case "FunctionCall":
         auto callNode = cast(FunctionCallNode) ast;
         string callName = callNode.functionName;
+
+        if (callName.canFind("."))
+            callName = callName.replace(".", "_");
 
         if (callName in g_macros)
         {

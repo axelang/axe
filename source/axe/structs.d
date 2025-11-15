@@ -406,8 +406,10 @@ class ModelNode : ASTNode
         string name;
         string type;
     }
-    Field[] fields;
 
+    Field[] fields;
+    FunctionNode[] methods;
+    
     this(string name, string[string] fieldsMap)
     {
         super("Model");

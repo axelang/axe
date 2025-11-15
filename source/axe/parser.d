@@ -384,9 +384,89 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
             pos++; // Skip '{'
 
             ModelNode.Field[] orderedFields;
+            FunctionNode[] modelMethods; // <-- ADD THIS
+
             while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
             {
-                if (tokens[pos].type == TokenType.IDENTIFIER)
+                // Skip whitespace/newlines
+                if (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType
+                    .NEWLINE)
+                {
+                    pos++;
+                    continue;
+                }
+
+                // Check if this is a method definition
+                if (tokens[pos].type == TokenType.DEF)
+                {
+                    pos++; // Skip 'def'
+
+                    // Skip BOTH whitespace AND newlines
+                    while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE ||
+                            tokens[pos].type == TokenType.NEWLINE))
+                        pos++;
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                        "Expected method name after 'def', full context: " ~ tokens[max(0, cast(int) pos - 5) .. pos].map!(t => t.value)
+                        .join(""));
+                    string methodName = tokens[pos].value;
+                    pos++;
+
+                    // Parse method parameters
+                    string[] params = parseArgs();
+                    string returnType = "void";
+
+                    // Check for return type annotation
+                    if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
+                    {
+                        pos++;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                            pos++;
+
+                        int refDepth = 0;
+                        while (pos < tokens.length && tokens[pos].type == TokenType.REF)
+                        {
+                            refDepth++;
+                            pos++;
+                            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                                pos++;
+                        }
+
+                        returnType = parseType();
+                        for (int i = 0; i < refDepth; i++)
+                            returnType = "ref " ~ returnType;
+                    }
+
+                    // Create function with namespaced name: ModelName_methodName
+                    string namespacedName = modelName ~ "_" ~ methodName;
+                    auto funcNode = new FunctionNode(namespacedName, params, returnType);
+
+                    while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                        pos++;
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                        "Expected '{' after method declaration");
+                    pos++;
+
+                    // Parse method body (same as regular function)
+                    Scope methodScope = new Scope();
+                    ASTNode methodScopeNode = funcNode;
+
+                    while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+                    {
+                        auto stmt = parseStatementHelper(pos, tokens, methodScope, methodScopeNode, isAxec);
+                        if (stmt !is null)
+                            funcNode.children ~= stmt;
+                    }
+
+                    enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                        "Expected '}' after method body");
+                    pos++;
+
+                    modelMethods ~= funcNode;
+                }
+                // Otherwise it's a field
+                else if (tokens[pos].type == TokenType.IDENTIFIER)
                 {
                     string fieldName = tokens[pos].value;
                     pos++;
@@ -400,7 +480,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
                 }
                 else
                 {
-                    pos++; // Skip whitespace/newlines
+                    pos++; // Skip other tokens
                 }
             }
 
@@ -410,9 +490,9 @@ ASTNode parse(Token[] tokens, bool isAxec = false)
 
             auto modelNode = new ModelNode(modelName, null);
             modelNode.fields = orderedFields;
+            modelNode.methods = modelMethods; // <-- ADD THIS
             ast.children ~= modelNode;
             continue;
-
         case TokenType.ENUM:
             pos++; // Skip 'enum'
 
