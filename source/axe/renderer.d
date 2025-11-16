@@ -2146,4 +2146,39 @@ unittest
                 cCode.canFind("stdlib_arena_Arena_create( 512)")), 
                "Should still prefix function call even without member access");
     }
+
+    {
+        auto tokens = lex(
+            "model String { data: char*, len: usize } " ~
+            "def str_cmp(a: String, b: String): i32 { " ~
+            "    mut val len: usize = 0; " ~
+            "    if a.len < b.len { len = a.len; } else { len = b.len; } " ~
+            "    for mut val i = 0; i < len; i++ { " ~
+            "        if a.data[i] < b.data[i] { return -1; } " ~
+            "    } " ~
+            "    return 0; " ~
+            "} " ~
+            "main { }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Function parameter and variable scope test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("int32_t str_cmp(String a, String b)"), 
+               "Should have function declaration with parameters");
+        
+        assert(cCode.canFind("uintptr_t len = 0;") || cCode.canFind("uintptr_t len=0;"), 
+               "Should have len variable declaration");
+        
+        assert((cCode.canFind("if ((a.len<b.len)") || cCode.canFind("if ((a.len < b.len)") ||
+                cCode.canFind("if (a.len < b.len")), 
+               "Should use function parameter 'a' in if condition");
+        
+        assert((cCode.canFind("i < len") || cCode.canFind("i<len")), 
+               "Should use declared variable 'len' in for loop condition");
+        
+        assert((cCode.canFind("a.data[i]") || cCode.canFind("a.data[ i ]")), 
+               "Should use function parameter 'a' in for loop body");
+    }
 }
