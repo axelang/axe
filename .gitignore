@@ -2,3 +2,4 @@
 .dub
 *.pdb
 *.o
+.vscode
