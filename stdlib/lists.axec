@@ -2,11 +2,6 @@ use stdlib/arena (
     Arena
 );
 
-use stdlib/memory (
-    copy,
-    size_of
-);
-
 macro make_list(name: string, type: string) {
     model name {
         data: ref type;
@@ -14,8 +9,11 @@ macro make_list(name: string, type: string) {
         cap: int;
 
         def new_list(arena: ref Arena, capacity: int): ref name {
-            mut val lst: ref name = Arena.alloc(arena, size_of(name));
-            lst.data = Arena.alloc_array(arena, size_of(type), capacity);
+            mut val lst: ref name;
+            raw {
+                lst = (name*)stdlib_arena_Arena_alloc(arena, sizeof(name));
+                lst->data = (type*)stdlib_arena_Arena_alloc_array(arena, sizeof(type), capacity);
+            }
             lst.length = 0;
             lst.cap = capacity;
             return lst;
@@ -24,8 +22,13 @@ macro make_list(name: string, type: string) {
         def push(lst: ref name, arena: ref Arena, value: type) {
             if lst.length >= lst.cap {
                 val new_cap: int = lst.cap * 2;
-                mut val new_data: ref type = Arena.alloc_array(arena, size_of(type), new_cap);
-                copy(lst.data[0], new_data[0], type[lst.length]);
+                mut val new_data: ref type;
+                raw {
+                    new_data = (type*)stdlib_arena_Arena_alloc_array(arena, sizeof(type), new_cap);
+                    for (int i = 0; i < lst->length; i++) {
+                        memcpy(&new_data[i], &lst->data[i], sizeof(type));
+                    }
+                }
                 lst.data = new_data;
                 lst.cap = new_cap;
             }
