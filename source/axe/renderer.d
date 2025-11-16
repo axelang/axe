@@ -580,9 +580,6 @@ string generateC(ASTNode ast)
         {
             arrayPart = baseType[bracketPos .. $];
             baseType = baseType[0 .. bracketPos];
-
-            // Keep 2D arrays as 2D for proper pointer arithmetic
-            // int[10][10] stays as int[10][10]
         }
 
         for (int i = 0; i < declNode.refDepth; i++)
@@ -600,7 +597,6 @@ string generateC(ASTNode ast)
         {
             string processedExpr = processExpression(declNode.initializer, "assignment");
 
-            // Special handling for deref on long variables (e.g., from arena_alloc)
             string var = "";
             if (processedExpr.startsWith("*"))
             {
