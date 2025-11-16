@@ -1,17 +1,30 @@
 
 def cross_platform_func() {
-    platform Windows {
+    platform windows {
         parallel for mut val i = 0; i < 10; i++ {
             println "Windows worker: ", i;
         }
     }
-    platform Posix {
+    platform posix {
         parallel for mut val i = 0; i < 10; i++ {
             println "POSIX worker: ", i;
         }
     }
 }
 
+platform windows {
+    def some_function() {
+        println "hi from windows!";
+    }
+}
+
+platform posix {
+    def some_function() {
+        println "hi from posix!";
+    }
+}
+
 main {
     cross_platform_func();
+    some_function();
 }
