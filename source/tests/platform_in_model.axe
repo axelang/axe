@@ -1,0 +1,16 @@
+model TestModel {
+    value: int;
+    
+    def test_method() {
+        platform windows {
+            println "Method on Windows";
+        }
+        platform posix {
+            println "Method on POSIX";
+        }
+    }
+}
+
+main {
+    TestModel.test_method();
+}
