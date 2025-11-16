@@ -418,7 +418,7 @@ void renameFunctionCalls(ASTNode node, string[string] nameMap)
     else if (node.nodeType == "Declaration")
     {
         auto declNode = cast(DeclarationNode) node;
-        writeln("    DEBUG renameFunctionCalls Declaration: initializer='", declNode.initializer, "'");
+        debug writeln("    DEBUG renameFunctionCalls Declaration: initializer='", declNode.initializer, "'");
         foreach (oldName, newName; nameMap)
         {
             string oldCall = oldName ~ "(";
