@@ -7,6 +7,21 @@ model String {
     data: char*;
     len: int;
     cap: int;
+
+    /// Creates a new string from a char pointer.
+    def create(data: char*): String {
+        mut val result: String;
+        raw {
+            String* ptr = (String*)malloc(sizeof(String));
+            if (ptr != NULL) {
+                ptr->data = (char*)data;
+                ptr->len = (int)strlen((const char*)data);
+                ptr->cap = ptr->len;
+                result = *ptr;
+            }
+        }
+        return result;
+    }
 }
 
 /// Returns the length of a null-terminated C string.
@@ -19,25 +34,10 @@ def str_len(s: String): int {
 }
 
 /// Compares two null-terminated C strings. Returns 0 if equal.
-def compare(s1: String, s2: String): int {
+def str_compare(s1: String, s2: String): int {
     mut val result: int = 0;
     raw {
         result = strcmp((const char*)s1.data, (const char*)s2.data);
-    }
-    return result;
-}
-
-/// Creates a new string from a char pointer.
-def new_string(data: char*): String {
-    mut val result: String;
-    raw {
-        String* ptr = (String*)malloc(sizeof(String));
-        if (ptr != NULL) {
-            ptr->data = (char*)data;
-            ptr->len = (int)strlen((const char*)data);
-            ptr->cap = ptr->len;
-            result = *ptr;
-        }
     }
     return result;
 }

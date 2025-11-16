@@ -2,7 +2,11 @@ use stdlib/arena (
     Arena
 );
 
-macro make_list(name: string, type: string) {
+use stdlib/string (
+    String
+);
+
+macro make_list(name: string, type: string, nullval: untyped) {
     model name {
         data: ref type;
         length: int;
@@ -39,7 +43,7 @@ macro make_list(name: string, type: string) {
         def get(lst: ref name, index: int): type {
             if index < 0 or index >= lst.length {
                 println "Index out of bounds!";
-                return 0;
+                return nullval;
             }
             return lst.data[index];
         }
@@ -54,8 +58,11 @@ macro make_list(name: string, type: string) {
     }
 }
 
-make_list(IntList, int);
-
+make_list(IntList, int, 0);
+make_list(FloatList, float, 0.0);
+make_list(CharList, char, "");
+make_list(LongList, long, 0);
+make_list(DoubleList, double, 0.0);
 
 test {
     mut val arena: Arena = Arena.create(65536);

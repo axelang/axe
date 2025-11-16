@@ -14,7 +14,7 @@ import std.exception;
 /**
  * Process use statements and merge imported ASTs
  */
-ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
+ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentFilePath = "")
 {
     auto programNode = cast(ProgramNode) ast;
     if (programNode is null)
@@ -23,6 +23,38 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
     ASTNode[] newChildren;
     string[string] importedFunctions;
     string[string] importedModels;
+    
+    // Determine current module prefix
+    string currentModulePrefix = "";
+    if (currentFilePath.length > 0 && isAxec)
+    {
+        import std.path : baseName, stripExtension;
+        import std.algorithm : canFind;
+        
+        // For stdlib files, extract module name from path
+        if (currentFilePath.canFind("stdlib"))
+        {
+            // e.g., "a:/Projects/Apps/Axe/axe/stdlib/string.axec" -> "stdlib_string"
+            auto fileName = baseName(currentFilePath).stripExtension();
+            currentModulePrefix = "stdlib_" ~ fileName;
+        }
+    }
+    
+    // Build a map of local models for .axec files
+    string[string] localModels;
+    if (currentModulePrefix.length > 0)
+    {
+        foreach (child; programNode.children)
+        {
+            if (child.nodeType == "Model")
+            {
+                auto modelNode = cast(ModelNode) child;
+                localModels[modelNode.name] = currentModulePrefix ~ "_" ~ modelNode.name;
+                writeln("DEBUG: Added local model '", modelNode.name, "' -> '", currentModulePrefix ~ "_" ~ modelNode.name, "'");
+            }
+        }
+        writeln("DEBUG: Total local models: ", localModels.length);
+    }
 
     foreach (child; programNode.children)
     {
@@ -173,11 +205,47 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
             {
                 writeln("  DEBUG: importedFunctions['", key, "'] = '", value, "'");
             }
-            renameFunctionCalls(child, importedFunctions);
-            renameTypeReferences(child, importedModels);
-
-            // If this is a model with methods, also rename calls within those methods
-            if (child.nodeType == "Model")
+            
+            // If this is a model with methods in a .axec file, rename the model and its methods
+            if (child.nodeType == "Model" && currentModulePrefix.length > 0)
+            {
+                auto modelNode = cast(ModelNode) child;
+                string originalModelName = modelNode.name;
+                string prefixedModelName = currentModulePrefix ~ "_" ~ originalModelName;
+                
+                // Create a type map that includes the model's own type
+                string[string] modelTypeMap = importedModels.dup;
+                modelTypeMap[originalModelName] = prefixedModelName;
+                
+                // Rename the model itself for library files (.axec)
+                modelNode.name = prefixedModelName;
+                
+                // Rename methods to include the full model prefix
+                foreach (method; modelNode.methods)
+                {
+                    auto methodFunc = cast(FunctionNode) method;
+                    if (methodFunc !is null)
+                    {
+                        // Method names come in as just the method name (e.g., "create")
+                        // They need to become prefixedModelName_methodName
+                        string methodName = methodFunc.name;
+                        // Remove the original model name prefix if it exists
+                        if (methodName.startsWith(originalModelName ~ "_"))
+                        {
+                            methodName = methodName[originalModelName.length + 1 .. $];
+                        }
+                        methodFunc.name = prefixedModelName ~ "_" ~ methodName;
+                    }
+                    
+                    renameFunctionCalls(method, importedFunctions);
+                    renameTypeReferences(method, modelTypeMap);
+                }
+                
+                // Apply type renaming to the entire file (for all functions)
+                renameFunctionCalls(child, importedFunctions);
+                renameTypeReferences(child, modelTypeMap);
+            }
+            else if (child.nodeType == "Model")
             {
                 auto modelNode = cast(ModelNode) child;
                 foreach (method; modelNode.methods)
@@ -185,6 +253,38 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec)
                     renameFunctionCalls(method, importedFunctions);
                     renameTypeReferences(method, importedModels);
                 }
+                
+                renameFunctionCalls(child, importedFunctions);
+                renameTypeReferences(child, importedModels);
+            }
+            else if (child.nodeType == "Function" && currentModulePrefix.length > 0)
+            {
+                // For regular functions in .axec files, use local models map
+                string[string] localTypeMap = importedModels.dup;
+                foreach (modelName, prefixedName; localModels)
+                {
+                    localTypeMap[modelName] = prefixedName;
+                }
+                
+                renameFunctionCalls(child, importedFunctions);
+                renameTypeReferences(child, localTypeMap);
+            }
+            else if (child.nodeType == "Test" && currentModulePrefix.length > 0)
+            {
+                // For test blocks in .axec files, use local models map
+                string[string] localTypeMap = importedModels.dup;
+                foreach (modelName, prefixedName; localModels)
+                {
+                    localTypeMap[modelName] = prefixedName;
+                }
+                
+                renameFunctionCalls(child, importedFunctions);
+                renameTypeReferences(child, localTypeMap);
+            }
+            else
+            {
+                renameFunctionCalls(child, importedFunctions);
+                renameTypeReferences(child, importedModels);
             }
 
             newChildren ~= child;
@@ -363,8 +463,19 @@ void renameTypeReferences(ASTNode node, string[string] typeMap)
     {
         auto funcNode = cast(FunctionNode) node;
 
+        // Handle return type renaming, including ref types
         if (funcNode.returnType in typeMap)
+        {
             funcNode.returnType = typeMap[funcNode.returnType];
+        }
+        else if (funcNode.returnType.startsWith("ref "))
+        {
+            string baseType = funcNode.returnType[4 .. $].strip();
+            if (baseType in typeMap)
+            {
+                funcNode.returnType = "ref " ~ typeMap[baseType];
+            }
+        }
 
         for (size_t i = 0; i < funcNode.params.length; i++)
         {
@@ -413,6 +524,23 @@ void renameTypeReferences(ASTNode node, string[string] typeMap)
         if (modelInstNode.modelName in typeMap)
         {
             modelInstNode.modelName = typeMap[modelInstNode.modelName];
+        }
+    }
+    else if (node.nodeType == "RawC")
+    {
+        auto rawNode = cast(RawCNode) node;
+        import std.regex : regex, replaceAll;
+        
+        // Replace type names in raw C code blocks
+        // We need to be careful to only replace whole words (type names)
+        foreach (oldType, newType; typeMap)
+        {
+            // Match type name as a whole word, accounting for common C patterns:
+            // - Type declarations: "String*"
+            // - Casts: "(String*)"
+            // - sizeof: "sizeof(String)"
+            auto wordPattern = regex("\\b" ~ oldType ~ "\\b");
+            rawNode.code = replaceAll(rawNode.code, wordPattern, newType);
         }
     }
 

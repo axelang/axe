@@ -84,7 +84,7 @@ bool handleMachineArgs(string[] args)
 
         auto ast = parse(tokens, isAxec);
 
-        ast = processImports(ast, dirName(name), isAxec);
+        ast = processImports(ast, dirName(name), isAxec, name);
 
         if (args.canFind("-ast"))
             writeln(ast);
