@@ -22,6 +22,142 @@ private string[string] g_varType;
 private string[string] g_isPointerVar;
 private string[string] g_functionPrefixes;
 
+struct ParamInfo
+{
+    string type;
+    string name;
+    bool isArray;
+    int dimensions;
+    string[] dimNames;
+}
+
+/** 
+ * Helper function to compute reordered C parameters for functions with variable-length arrays.
+ * Returns the reordered parameter strings, reorder map, and parameter info array.
+ */
+string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, out ParamInfo[] paramInfos)
+{
+    import std.stdio : writeln;
+    import std.string : split, strip, indexOf, lastIndexOf;
+    import std.algorithm : count;
+    import std.regex : regex, matchAll;
+
+    foreach (param; funcNode.params)
+    {
+        writeln("DEBUG: Processing param: '", param, "'");
+        auto lastSpace = param.lastIndexOf(' ');
+        while (lastSpace > 0)
+        {
+            int openBrackets = 0;
+            for (size_t i = 0; i < lastSpace; i++)
+            {
+                if (param[i] == '[')
+                    openBrackets++;
+                if (param[i] == ']')
+                    openBrackets--;
+            }
+            if (openBrackets == 0)
+                break;
+            lastSpace = param[0 .. lastSpace].lastIndexOf(' ');
+        }
+
+        if (lastSpace > 0)
+        {
+            string paramType = param[0 .. lastSpace].strip();
+            string paramName = param[lastSpace + 1 .. $].strip();
+
+            ParamInfo info;
+            info.type = paramType;
+            info.name = paramName;
+            info.isArray = paramType.canFind('[');
+            if (info.isArray)
+            {
+                info.dimensions = cast(int) paramType.count('[');
+
+                auto dimPattern = regex(r"\[([^\]]+)\]");
+                foreach (match; matchAll(paramType, dimPattern))
+                {
+                    info.dimNames ~= match[1].strip();
+                }
+            }
+            paramInfos ~= info;
+        }
+    }
+
+    // Second pass: reorder so dimensions come before arrays
+    // and convert array syntax to VLA
+    string[] dimensionParams;
+    string[] otherParams;
+
+    // Collect all dimension parameter names referenced by arrays
+    bool[string] referencedDimensions;
+    foreach (info; paramInfos)
+    {
+        if (info.isArray)
+        {
+            foreach (dimName; info.dimNames)
+            {
+                referencedDimensions[dimName] = true;
+            }
+        }
+    }
+
+    // Track indices for reordering
+    int[] dimensionIndices;
+    int[] otherIndices;
+
+    for (int i = 0; i < paramInfos.length; i++)
+    {
+        if (!paramInfos[i].isArray && paramInfos[i].name in referencedDimensions)
+            dimensionIndices ~= i;
+        else
+            otherIndices ~= i;
+    }
+
+    foreach (info; paramInfos)
+    {
+        if (info.isArray)
+        {
+            // Convert int[n][m] to VLA syntax: int arrayName[n][m]
+            auto bracketPos = info.type.indexOf('[');
+            string baseType = info.type[0 .. bracketPos];
+
+            if (info.dimNames.length > 0)
+            {
+                string dimString = "";
+                foreach (dimName; info.dimNames)
+                {
+                    dimString ~= "[" ~ dimName ~ "]";
+                }
+                otherParams ~= baseType ~ " " ~ info.name ~ dimString;
+            }
+            else
+            {
+                otherParams ~= baseType ~ "* " ~ info.name;
+            }
+        }
+        else
+        {
+            string finalType = info.type;
+            if (finalType.startsWith("ref "))
+            {
+                finalType = finalType[4 .. $].strip() ~ "*";
+            }
+
+            if (info.name in referencedDimensions)
+            {
+                dimensionParams ~= finalType ~ " " ~ info.name;
+            }
+            else
+            {
+                otherParams ~= finalType ~ " " ~ info.name;
+            }
+        }
+    }
+    reorderMap = dimensionIndices ~ otherIndices;
+    return dimensionParams ~ otherParams;
+}
+
 /** 
  * C backend renderer.
  *
@@ -134,24 +270,11 @@ string generateC(ASTNode ast)
                     cCode ~= processedReturnType ~ " " ~ funcNode.name ~ "(";
                     if (funcNode.params.length > 0)
                     {
-                        foreach (i, param; funcNode.params)
-                        {
-                            import std.string : replace, split, strip;
-
-                            string cParam = param;
-                            if (param.canFind("ref "))
-                            {
-                                cParam = param.replace("ref ", "");
-                                auto parts = cParam.split();
-                                if (parts.length >= 2)
-                                {
-                                    cParam = parts[0] ~ "* " ~ parts[1];
-                                }
-                            }
-                            cCode ~= cParam;
-                            if (i < cast(int) funcNode.params.length - 1)
-                                cCode ~= ", ";
-                        }
+                        int[] reorderMap;
+                        ParamInfo[] paramInfos;
+                        string[] processedParams = computeReorderedCParams(funcNode, reorderMap, paramInfos);
+                        cCode ~= processedParams.join(", ");
+                        g_functionParamReordering[funcNode.name] = reorderMap;
                     }
                     cCode ~= ");\n";
                 }
@@ -172,24 +295,11 @@ string generateC(ASTNode ast)
                         cCode ~= processedReturnType ~ " " ~ methodFunc.name ~ "(";
                         if (methodFunc.params.length > 0)
                         {
-                            foreach (i, param; methodFunc.params)
-                            {
-                                import std.string : replace, split, strip;
-
-                                string cParam = param;
-                                if (param.canFind("ref "))
-                                {
-                                    cParam = param.replace("ref ", "");
-                                    auto parts = cParam.split();
-                                    if (parts.length >= 2)
-                                    {
-                                        cParam = parts[0] ~ "* " ~ parts[1];
-                                    }
-                                }
-                                cCode ~= cParam;
-                                if (i < cast(int) methodFunc.params.length - 1)
-                                    cCode ~= ", ";
-                            }
+                            int[] reorderMap;
+                            ParamInfo[] paramInfos;
+                            string[] processedParams = computeReorderedCParams(methodFunc, reorderMap, paramInfos);
+                            cCode ~= processedParams.join(", ");
+                            g_functionParamReordering[methodFunc.name] = reorderMap;
                         }
                         cCode ~= ");\n";
                     }
@@ -260,140 +370,11 @@ string generateC(ASTNode ast)
             cCode ~= processedReturnType ~ " " ~ funcName ~ "(";
             if (params.length > 0)
             {
-                import std.stdio : writeln;
-                import std.string : split, strip, indexOf, lastIndexOf;
-
-                struct ParamInfo
-                {
-                    string type;
-                    string name;
-                    bool isArray;
-                    int dimensions;
-                    string[] dimNames;
-                }
-
-                ParamInfo[] paramInfos;
-
-                foreach (param; funcNode.params)
-                {
-                    writeln("DEBUG: Processing param: '", param, "'");
-                    auto lastSpace = param.lastIndexOf(' ');
-                    while (lastSpace > 0)
-                    {
-                        int openBrackets = 0;
-                        for (size_t i = 0; i < lastSpace; i++)
-                        {
-                            if (param[i] == '[')
-                                openBrackets++;
-                            if (param[i] == ']')
-                                openBrackets--;
-                        }
-                        if (openBrackets == 0)
-                            break;
-                        lastSpace = param[0 .. lastSpace].lastIndexOf(' ');
-                    }
-
-                    if (lastSpace > 0)
-                    {
-                        string paramType = param[0 .. lastSpace].strip();
-                        string paramName = param[lastSpace + 1 .. $].strip();
-
-                        ParamInfo info;
-                        info.type = paramType;
-                        info.name = paramName;
-                        info.isArray = paramType.canFind('[');
-                        if (info.isArray)
-                        {
-                            import std.algorithm : count;
-                            import std.regex : regex, matchAll;
-
-                            info.dimensions = cast(int) paramType.count('[');
-
-                            auto dimPattern = regex(r"\[([^\]]+)\]");
-                            foreach (match; matchAll(paramType, dimPattern))
-                            {
-                                info.dimNames ~= match[1].strip();
-                            }
-                        }
-                        paramInfos ~= info;
-                    }
-                }
-
-                // Second pass: reorder so dimensions come before arrays
-                // and convert array syntax to VLA
-                string[] dimensionParams;
-                string[] otherParams;
                 int[] reorderMap;
-
-                // Collect all dimension parameter names referenced by arrays
-                bool[string] referencedDimensions;
-                foreach (info; paramInfos)
-                {
-                    if (info.isArray)
-                    {
-                        foreach (dimName; info.dimNames)
-                        {
-                            referencedDimensions[dimName] = true;
-                        }
-                    }
-                }
-
-                // Track indices for reordering
-                int[] dimensionIndices;
-                int[] otherIndices;
-
-                for (int i = 0; i < paramInfos.length; i++)
-                {
-                    if (!paramInfos[i].isArray && paramInfos[i].name in referencedDimensions)
-                        dimensionIndices ~= i;
-                    else
-                        otherIndices ~= i;
-                }
-
-                foreach (info; paramInfos)
-                {
-                    if (info.isArray)
-                    {
-                        // Convert int[n][m] to VLA syntax: int arrayName[n][m]
-                        auto bracketPos = info.type.indexOf('[');
-                        string baseType = info.type[0 .. bracketPos];
-
-                        if (info.dimNames.length > 0)
-                        {
-                            string dimString = "";
-                            foreach (dimName; info.dimNames)
-                            {
-                                dimString ~= "[" ~ dimName ~ "]";
-                            }
-                            otherParams ~= baseType ~ " " ~ info.name ~ dimString;
-                        }
-                        else
-                        {
-                            otherParams ~= baseType ~ "* " ~ info.name;
-                        }
-                    }
-                    else
-                    {
-                        string finalType = info.type;
-                        if (finalType.startsWith("ref "))
-                        {
-                            finalType = finalType[4 .. $].strip() ~ "*";
-                        }
-
-                        if (info.name in referencedDimensions)
-                        {
-                            dimensionParams ~= finalType ~ " " ~ info.name;
-                        }
-                        else
-                        {
-                            otherParams ~= finalType ~ " " ~ info.name;
-                        }
-                    }
-                }
-                reorderMap = dimensionIndices ~ otherIndices;
-                g_functionParamReordering[funcName] = reorderMap;
-                string[] processedParams = dimensionParams ~ otherParams;
+                ParamInfo[] paramInfos;
+                string[] processedParams = computeReorderedCParams(funcNode, reorderMap, paramInfos);
                 cCode ~= processedParams.join(", ");
+                g_functionParamReordering[funcName] = reorderMap;
 
                 foreach (info; paramInfos)
                 {
