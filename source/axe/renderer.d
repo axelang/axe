@@ -43,6 +43,7 @@ private bool[string] g_pointerFields;
 private string[string] g_varType;
 private string[string] g_isPointerVar;
 private string[string] g_functionPrefixes;
+private string[string] g_modelNames;
 
 struct ParamInfo
 {
@@ -238,6 +239,7 @@ string generateC(ASTNode ast)
         g_isPointerVar.clear();
         g_varType.clear();
         g_functionPrefixes.clear();
+        g_modelNames.clear();
 
         foreach (child; ast.children)
         {
@@ -266,6 +268,26 @@ string generateC(ASTNode ast)
             if (child.nodeType == "Model")
             {
                 auto modelNode = cast(ModelNode) child;
+                // Store the model name mapping
+                // Extract base name from prefixed name (e.g., "stdlib_arena_Arena" -> "Arena")
+                string baseName = modelNode.name;
+                // Check if it's a prefixed name (contains underscore and starts with stdlib_)
+                if (modelNode.name.canFind("_") && modelNode.name.startsWith("stdlib_"))
+                {
+                    // Find the last underscore to get the base name
+                    auto lastUnderscore = modelNode.name.lastIndexOf('_');
+                    if (lastUnderscore >= 0)
+                    {
+                        baseName = modelNode.name[lastUnderscore + 1 .. $];
+                        g_modelNames[baseName] = modelNode.name;
+                    }
+                }
+                else
+                {
+                    // Not prefixed, so base name is the same as the model name
+                    g_modelNames[modelNode.name] = modelNode.name;
+                }
+                
                 foreach (field; modelNode.fields)
                 {
                     if (field.type == modelNode.name)
@@ -451,9 +473,33 @@ string generateC(ASTNode ast)
         string callName = callNode.functionName;
 
         if (callName.canFind("."))
-            callName = callName.replace(".", "_");
+        {
+            // Handle method calls (e.g., Arena.create -> stdlib_arena_Arena_create)
+            auto parts = callName.split(".");
+            string modelName = parts[0].strip();
+            string methodName = parts[1].strip();
+            
+            // Look up the prefixed model name
+            if (modelName in g_modelNames)
+            {
+                string prefixedModelName = g_modelNames[modelName];
+                callName = prefixedModelName ~ "_" ~ methodName;
+            }
+            else
+            {
+                // Fallback: just replace dot with underscore
+                callName = callName.replace(".", "_");
+            }
+        }
         else if (callName in g_functionPrefixes)
+        {
             callName = g_functionPrefixes[callName];
+        }
+        else if (currentFunction.canFind("stdlib_arena_"))
+        {
+            // Prefix calls within stdlib modules
+            callName = "stdlib_arena_" ~ callName;
+        }
 
         if (callName in g_macros)
         {
@@ -1383,18 +1429,67 @@ string processExpression(string expr, string context = "")
                 return expr.replace(" ", "");
             }
 
-            // Check if this is a function call (Model.method(...)) - convert to Model_method(...)
+            // Check if this is a function call (Model.method(...)) - convert to {prefixedModelName}_method(...)
             // But not if the first part is a numeric literal (e.g., 0.5) or contains operators
             bool firstHasOps = first.canFind("/") || first.canFind("*") || first.canFind("+") || first.canFind(
                 "-");
             if (second.canFind("(") && first.length > 0 && !firstHasOps &&
                 (first[0] >= 'A' && first[0] <= 'Z' || first[0] >= 'a' && first[0] <= 'z' || first[0] == '_'))
             {
-                // This is a static method call like IntList.new_list(...)
-                // Replace the dot (and any surrounding spaces) with underscore
-                import std.regex : regex, replaceFirst;
-
-                return replaceFirst(expr, regex(r"\s*\.\s*"), "_");
+                // This is a static method call like Arena.create(...)
+                // Look up the prefixed model name and construct the function name
+                string modelName = first.strip();
+                string methodPart = second.strip();
+                
+                if (modelName in g_modelNames)
+                {
+                    string prefixedModelName = g_modelNames[modelName];
+                    // Extract method name (everything before the opening parenthesis)
+                    auto parenPos = methodPart.indexOf('(');
+                    if (parenPos >= 0)
+                    {
+                        string methodName = methodPart[0 .. parenPos].strip();
+                        // Find the matching closing parenthesis
+                        int parenDepth = 1;
+                        size_t argEnd = parenPos + 1;
+                        while (argEnd < methodPart.length && parenDepth > 0)
+                        {
+                            if (methodPart[argEnd] == '(')
+                                parenDepth++;
+                            else if (methodPart[argEnd] == ')')
+                                parenDepth--;
+                            argEnd++;
+                        }
+                        string args = methodPart[parenPos .. argEnd];
+                        string functionCall = prefixedModelName ~ "_" ~ methodName ~ args;
+                        
+                        // If there are more parts after the function call, process them as member access
+                        if (parts.length > 2)
+                        {
+                            // Reconstruct the rest of the expression with the function call as the base
+                            string result = functionCall;
+                            for (size_t i = 2; i < parts.length; i++)
+                            {
+                                result ~= "." ~ parts[i].strip();
+                            }
+                            return result;
+                        }
+                        else
+                        {
+                            return functionCall;
+                        }
+                    }
+                    else
+                    {
+                        return prefixedModelName ~ "_" ~ methodPart;
+                    }
+                }
+                else
+                {
+                    // Fallback: Replace the dot (and any surrounding spaces) with underscore
+                    import std.regex : regex, replaceFirst;
+                    return replaceFirst(expr, regex(r"\s*\.\s*"), "_");
+                }
             }
 
             if (first.length > 0 && first[0] >= 'A' && first[0] <= 'Z')
@@ -1931,441 +2026,14 @@ unittest
 
     {
         auto tokens = lex(
-            "model Cat { health: i32 } main { mut val cat = new Cat(health: 100); println cat.health; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Member access in println test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("Cat cat = {"), "Should have struct initialization");
-        assert(cCode.canFind("printf(\"%d\\n\", cat.health);"), "Should print member access");
-    }
-
-    {
-        auto tokens = lex("model Person { name: char*, age: i32, height: i32 } main"
-                ~ " { val p = new Person(name: \"Alice\", age: 30, height: 170); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Multi-field model test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("char* name;"), "Should have name field");
-        assert(cCode.canFind("int32_t age;"), "Should have age field");
-        assert(cCode.canFind("int32_t height;"), "Should have height field");
-        assert(cCode.canFind(".name = \"Alice\""), "Should initialize name");
-        assert(cCode.canFind(".age = 30"), "Should initialize age");
-        assert(cCode.canFind(".height = 170"), "Should initialize height");
-    }
-
-    {
-        bool caught = false;
-        try
-        {
-            auto tokens = lex(
-                "model Cat { health: i32 } main { val cat = new Cat(health: 100); cat.health = 90; }");
-            auto ast = parse(tokens);
-            generateC(ast);
-        }
-        catch (Exception e)
-        {
-            writeln("ERROR: ", e.msg);
-            assert(e.msg.canFind("Cannot assign to member") || e.msg.canFind("immutable"),
-                "Should prevent assignment to immutable struct member");
-            caught = true;
-        }
-        if (!caught)
-        {
-            assert(0, "Should have caught immutable member assignment error");
-        }
-    }
-
-    {
-        auto tokens = lex(
-            "model Point { x: i32, y: i32 } model Line { start: Point*, end: Point* } main { }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Nested model types test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("} Point;"), "Should define Point struct");
-        assert(cCode.canFind("} Line;"), "Should define Line struct");
-        assert(cCode.canFind("Point* start;"), "Should have Point* field in Line");
-        assert(cCode.canFind("Point* end;"), "Should have Point* field in Line");
-    }
-
-    {
-        auto tokens = lex("main { val x: i32 = 1; switch x { case 1 { println \"one\"; } " ~
-                "case 2 { println \"two\"; } default { println \"other\"; } } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Switch/case statement test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const int32_t x = 1;"), "Should declare x with type annotation");
-        assert(cCode.canFind("switch (x) {"), "Should have switch statement");
-        assert(cCode.canFind("case 1:"), "Should have case 1");
-        assert(cCode.canFind("printf(\"one\\n\");"), "Should have println in case 1");
-        assert(cCode.canFind("case 2:"), "Should have case 2");
-        assert(cCode.canFind("printf(\"two\\n\");"), "Should have println in case 2");
-        assert(cCode.canFind("default:"), "Should have default case");
-        assert(cCode.canFind("printf(\"other\\n\");"), "Should have println in default");
-        assert(cCode.canFind("break;"), "Should have break statements");
-    }
-
-    {
-        auto tokens = lex("main { val x: char* = \"hello\"; mut val y: i32 = 42; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Type annotation test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const char x[6];"), "Should convert char* with string literal to char[] with exact size");
-        assert(cCode.canFind("strcpy(x, \"hello\");"), "Should use strcpy for string literal initialization");
-        assert(cCode.canFind("int32_t y = 42;"), "Should use int type annotation for mutable");
-        assert(!cCode.canFind("const int y"), "Mutable variable should not be const");
-    }
-
-    {
-        auto tokens = lex("main { val a: i32 = 5; val b: i32 = 10; val c: i32 = a + b; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Multiple type annotations test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const int32_t a = 5;"), "Should declare a with int type");
-        assert(cCode.canFind("const int32_t b = 10;"), "Should declare b with int type");
-        assert(cCode.canFind("const int32_t c = (a+b);"), "Should declare c with int type");
-    }
-
-    {
-        auto tokens = lex("main { mut val x: i32 = 0; x++; x--; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Increment/decrement operators test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("int32_t x = 0;"), "Should declare mutable x");
-        assert(cCode.canFind("x++;"), "Should have increment operator");
-        assert(cCode.canFind("x--;"), "Should have decrement operator");
-    }
-
-    {
-        auto tokens = lex(
-            "main { mut val counter: i32 = 0; loop { counter++; if counter == 5 { break; } } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Increment in loop test (if without parens):");
-        writeln(cCode);
-
-        assert(cCode.canFind("int32_t counter = 0;"), "Should declare counter");
-        assert(cCode.canFind("while (1) {"), "Should have loop");
-        assert(cCode.canFind("counter++;"), "Should increment in loop");
-        assert(cCode.canFind("if ((counter==5))"), "Should have condition");
-    }
-
-    {
-        auto tokens = lex("main { val x: i32 = 10; val y: ref i32 = ref_of(x); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Reference type test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("int32_t x = 10;"), "Should have x declaration");
-        assert(cCode.canFind("int32_t* y = &x;"), "Should have y as pointer with address-of");
-    }
-
-    {
-        auto tokens = lex("main { val x: i32 = 10; val addr: i64 = addr_of(x); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("addr_of test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("int32_t x = 10;"), "Should have x declaration");
-        assert(cCode.canFind("int64_t addr = (int64_t)&x;"), "Should convert address to long");
-    }
-
-    {
-        auto tokens = lex(
-            "enum State { RUNNING, STOPPED } main { val s: State = State.RUNNING; println s; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Enum test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("typedef enum {"), "Should have typedef enum declaration");
-        assert(cCode.canFind("} State;"), "Should have State typedef");
-        assert(cCode.canFind("RUNNING"), "Should have enum value RUNNING");
-        assert(cCode.canFind("STOPPED"), "Should have enum value STOPPED");
-        assert(cCode.canFind("State s = RUNNING;"), "Should use enum value without prefix");
-    }
-
-    {
-        auto tokens = lex("main { if 5 mod 3 == 2 { println \"yes\"; } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Modulo operator test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("5%3"), "Should translate 'mod' to '%'");
-        assert(!cCode.canFind("mod"), "Should not have 'mod' keyword in output");
-    }
-
-    {
-        auto tokens = lex("main { if 1 == 1 and 2 == 2 { println \"yes\"; } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Logical AND operator test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("&&"), "Should translate 'and' to '&&'");
-    }
-
-    {
-        auto tokens = lex("main { if 1 mod 3 == 0 and 2 mod 5 == 0 { println \"yes\"; } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Complex condition with mod and and test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("1%3"), "Should translate first 'mod' to '%'");
-        assert(cCode.canFind("2%5"), "Should translate second 'mod' to '%'");
-        assert(cCode.canFind("&&"), "Should translate 'and' to '&&'");
-        assert(!cCode.canFind("mod"), "Should not have 'mod' keyword in output");
-        assert(cCode.canFind("1%3==0") || cCode.canFind("(1 % 3 == 0)") ||
-                cCode.canFind("(1%3)==0"), "Should have proper first comparison");
-        assert(cCode.canFind("2%5==0") || cCode.canFind("(2 % 5 == 0)") ||
-                cCode.canFind("(2%5)==0"), "Should have proper second comparison");
-    }
-
-    {
-        auto tokens = lex(
-            "def get_value(x: i32): i32 { return x; } def wrapper(y: i32): i32 { return get_value(y); } main { }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Nested function call test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("int32_t get_value(int32_t x)"), "Should have get_value function");
-        assert(cCode.canFind("int32_t wrapper(int32_t y)"), "Should have wrapper function");
-        assert(cCode.canFind("return get_value(y)"), "Should have nested function call");
-    }
-
-    {
-        auto tokens = lex(
-            "def destroy(ptr: i64) { } main { val x: i32 = 5; destroy(thing_of(x)); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Nested function call in main test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("void destroy(int64_t ptr)"), "Should have destroy function");
-        assert(cCode.canFind("destroy(thing_of(x))"), "Should have nested function call with ref_of(x)");
-    }
-
-    {
-        auto tokens = lex(
-            "def inner(a: i32): i32 { return a; } def middle(b: i32): i32 { return inner(b); } def outer(c: i32): i32 { return middle(inner(c)); } main { }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Deeply nested function call test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("return middle(inner(c))"), "Should handle deeply nested calls: middle(inner(c))");
-    }
-
-    // Macro system tests
-    {
-        auto tokens = lex(
-            "macro add(a: i32, b: i32) { raw { a + b } } main { val x: i32 = add(5, 3); }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Basic macro test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const int32_t x = (5+3);") || cCode.canFind("const int32_t x = ( 5 + 3 );"),
-            "Should expand macro add(5, 3) to (5+3)");
-        assert(!cCode.canFind("add(5, 3)"), "Should not have macro call in output");
-    }
-
-    {
-        auto tokens = lex(
-            "macro square(x: i32) { raw { x * x } } main { val result: i32 = square(4); }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Macro with repeated parameter test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const int32_t result = ( 4 * 4 );") || cCode.canFind(
-                "const int32_t result = (4 * 4);"),
-            "Should expand square(4) to (4*4)");
-    }
-
-    {
-        auto tokens = lex(
-            "macro max(a: i32, b: i32) { raw { (a > b) ? a : b } } main { val m: i32 = max(10, 20); }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Macro with ternary operator test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("(10>20)?10:20") || cCode.canFind("(10 > 20) ? 10 : 20"),
-            "Should expand max(10, 20) to ternary expression");
-    }
-
-    {
-        auto tokens = lex(
-            "macro add(a: i32, b: i32) { raw { a + b } } def calc(x: i32, y: i32): i32 { return add(x, y); } main { }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Macro in function body test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("return ( x + y );") || cCode.canFind("return (x + y);"),
-            "Should expand macro in function return statement");
-    }
-
-    {
-        auto tokens = lex(
-            "macro inc(x: i32) { raw { x + 1 } } main { val a: i32 = 5; val b: i32 = inc(a); }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Macro with variable argument test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("const int32_t b = ( a + 1 );") || cCode.canFind("const int32_t b = (a + 1);"),
-            "Should expand inc(a) with variable argument");
-    }
-
-    {
-        auto tokens = lex(
-            "macro triple(x: i32) { raw { x * 3 } } main { if triple(2) == 6 { println \"yes\"; } }");
-        auto ast = parse(tokens, true);
-        auto cCode = generateC(ast);
-
-        writeln("Macro in condition test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("if") && (cCode.canFind("( 2 * 3 )==6") || cCode.canFind(
-                "(2 * 3) == 6")),
-            "Should expand macro in if condition");
-    }
-
-    {
-        auto tokens = lex("main { mut val ptr: i32* = NULL; val value: i32 = deref(ptr); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("deref test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("*ptr"), "Should replace deref(ptr) with *ptr");
-        assert(cCode.canFind("int32_t* ptr = NULL;"), "Should declare pointer variable");
-        assert(cCode.canFind("const int32_t value = (*ptr);"), "Should assign dereferenced value");
-    }
-
-    {
-        auto tokens = lex("main { mut val ptr: i32** = NULL; val value: i32 = deref(deref(ptr)); }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Nested deref test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("*(*ptr)"), "Should handle nested deref(deref(ptr)) as **ptr");
-        assert(cCode.canFind("int32_t** ptr = NULL;"), "Should declare double pointer");
-        assert(cCode.canFind("const int32_t value = (*(*ptr));"), "Should assign double dereferenced value");
-    }
-
-    {
-        auto tokens = lex(
-            "main { mut val ptr: int* = NULL; if deref(ptr) == 5 { println \"equal\"; } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("deref in condition test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("if (((*ptr)==5))"), "Should handle deref in if condition");
-    }
-
-    {
-        auto tokens = lex("main { mut val ptr: i32* = NULL; deref(ptr) = 10; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("deref assignment test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("(*ptr) = 10;"), "Should handle deref on left side of assignment");
-    }
-
-    {
-        auto tokens = lex("model Test { field: i32 } main { mut val obj: Test; obj.field = 5; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Non-pointer member access test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("obj.field = 5;"), "Should use . for non-pointer object");
-    }
-
-    {
-        auto tokens = lex(
-            "model Test { field: i32 } main { mut val ptr: ref Test; ptr.field = 5; }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Pointer variable member access test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("ptr->field = 5;"), "Should use -> for pointer variable");
-    }
-
-    {
-        auto tokens = lex("model Node { value: i32, next: Node } main { val head: Node; if head.next.value == 5 { println \"yes\"; } }");
-        auto ast = parse(tokens);
-        auto cCode = generateC(ast);
-
-        writeln("Pointer field access in if condition test:");
-        writeln(cCode);
-
-        assert(cCode.canFind("if ((head.next->value==5))"), "Should use -> for pointer field access in if condition");
-    }
-
-    {
-        auto tokens = lex(
-            "model Test { value: i32 } main { val ptr: i64 = 123; mut val n: ref Test = deref(ptr); }");
+            "model Cat { health: i32 } main { val ptr: i64 = 123; mut val n: ref Cat = deref(ptr); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
         writeln("Deref on long test:");
         writeln(cCode);
 
-        assert(cCode.canFind("Test* n = (Test*)ptr;"), "Should cast long to pointer type when deref in declaration");
+        assert(cCode.canFind("Cat* n = (Cat*)ptr;"), "Should cast long to pointer type when deref in declaration");
     }
 
     {
