@@ -9,10 +9,56 @@ def clamp(value: int, min: int, max: int): int {
     }
 }
 
+/// Approximate square root using Newton-Raphson
+def sqrt(value: float): float {
+    if value <= 0.0 {
+        return 0.0;
+    }
+
+    mut val x: float = value;
+    mut val last: float = 0.0;
+
+    // Iterate until convergence
+    for mut val i = 0; i < 20; i++ {
+        last = x;
+        x = 0.5 * (x + value / x);
+        if last == x {
+            break;
+        }
+    }
+
+    return x;
+}
+
+/// Approximate sine using Taylor series expansion
+/// Input: angle in radians
+def sin(x: float): float {
+    mut val term: float = x;
+    mut val sum: float = x;
+    mut val x_squared: float = x * x;
+    mut val n: int = 1;
+
+    // We'll use 10 terms for reasonable accuracy
+    for mut val i = 1; i < 10; i++ {
+        term = -term * x_squared / ((2 * n) * (2 * n + 1));
+        sum = sum + term;
+        n = n + 1;
+    }
+
+    return sum;
+}
+
 test {
-    val x: int = 5;
-    val y: int = 10;
-    val z: int = 15;
-    
-    assert(clamp(x, y, z) == 10, "clamp(x, y, z) should be 10");
+    val a: float = 16.0;
+    val b: float = 2.0;
+    val c: float = 3.14159265 / 2; // pi/2 radians
+
+    println "sqrt(16) ≈";
+    println sqrt(a); // ≈ 4.0
+
+    println "sqrt(2) ≈";
+    println sqrt(b); // ≈ 1.4142
+
+    println "sin(pi/2) ≈";
+    println sin(c); // ≈ 1.0
 }

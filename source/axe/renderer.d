@@ -1360,7 +1360,9 @@ string processExpression(string expr, string context = "")
             string second = parts[1].strip();
             
             // Check if this is a function call (Model.method(...)) - convert to Model_method(...)
-            if (second.canFind("("))
+            // But not if the first part is a numeric literal (e.g., 0.5)
+            if (second.canFind("(") && first.length > 0 && 
+                (first[0] >= 'A' && first[0] <= 'Z' || first[0] >= 'a' && first[0] <= 'z' || first[0] == '_'))
             {
                 // This is a static method call like IntList.new_list(...)
                 // Replace the dot (and any surrounding spaces) with underscore

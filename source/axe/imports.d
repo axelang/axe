@@ -287,12 +287,13 @@ void renameFunctionCalls(ASTNode node, string[string] nameMap)
             }
 
             // Also check for dot notation: Model.method( or Model . method(
+            // Use word boundary to ensure we don't match floating point literals like 0.5
             import std.regex : regex, replaceAll;
 
             if (returnNode.expression.canFind(".") && oldName.canFind("_"))
             {
                 string modelMethod = convertToModelMethodPattern(oldName);
-                auto dotPattern = regex(modelMethod ~ "\\s*\\(");
+                auto dotPattern = regex("\\b" ~ modelMethod ~ "\\s*\\(");
                 string newExpr = replaceAll(returnNode.expression, dotPattern, newName ~ "(");
                 if (newExpr != returnNode.expression)
                 {
@@ -316,13 +317,14 @@ void renameFunctionCalls(ASTNode node, string[string] nameMap)
             }
 
             // Also check for dot notation: Model.method( or Model . method(
+            // Use word boundary to ensure we don't match floating point literals like 0.5
             import std.regex : regex, replaceAll;
 
             if (declNode.initializer.canFind(".") && oldName.canFind("_"))
             {
                 string modelMethod = convertToModelMethodPattern(oldName);
-                auto dotPattern = regex(modelMethod ~ "\\s*\\(");
-                writeln("    DEBUG: Trying regex pattern '", modelMethod, "\\s*\\(' on '", declNode.initializer, "'");
+                auto dotPattern = regex("\\b" ~ modelMethod ~ "\\s*\\(");
+                writeln("    DEBUG: Trying regex pattern '\\b", modelMethod, "\\s*\\(' on '", declNode.initializer, "'");
                 string newInit = replaceAll(declNode.initializer, dotPattern, newName ~ "(");
                 if (newInit != declNode.initializer)
                 {
@@ -345,12 +347,13 @@ void renameFunctionCalls(ASTNode node, string[string] nameMap)
             }
 
             // Also check for dot notation: Model.method( or Model . method(
+            // Use word boundary to ensure we don't match floating point literals like 0.5
             import std.regex : regex, replaceAll;
 
             if (assignNode.expression.canFind(".") && oldName.canFind("_"))
             {
                 string modelMethod = convertToModelMethodPattern(oldName);
-                auto dotPattern = regex(modelMethod ~ "\\s*\\(");
+                auto dotPattern = regex("\\b" ~ modelMethod ~ "\\s*\\(");
                 string newExpr = replaceAll(assignNode.expression, dotPattern, newName ~ "(");
                 if (newExpr != assignNode.expression)
                 {

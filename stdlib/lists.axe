@@ -14,9 +14,9 @@ model IntList {
     cap: int;
 
     /// Initialize a new IntList with a given capacity
-    def create(arena: ref Arena, capacity: int): ref IntList {
+    def new_list(arena: ref Arena, capacity: int): ref IntList {
         mut val lst: ref IntList = Arena.alloc(arena, size_of(IntList));
-        lst.data = Arena.alloc(arena, capacity * size_of(int));
+        lst.data = Arena.alloc_array(arena, size_of(int), capacity);
         lst.length = 0;
         lst.cap = capacity;
         return lst;
@@ -26,7 +26,7 @@ model IntList {
     def push(lst: ref IntList, arena: ref Arena, value: int) {
         if lst.length >= lst.cap {
             val new_cap: int = lst.cap * 2;
-            mut val new_data: ref int = Arena.alloc(arena, new_cap * size_of(int));
+            mut val new_data: ref int = Arena.alloc_array(arena, size_of(int), new_cap);
             copy(lst.data[0], new_data[0], int[lst.length]);
             lst.data = new_data;
             lst.cap = new_cap;
@@ -56,7 +56,7 @@ model IntList {
 
 test {
     mut val arena: Arena = Arena.create(65536);
-    mut val my_list: ref IntList = IntList.create(ref_of(arena), 4);
+    mut val my_list: ref IntList = IntList.new_list(ref_of(arena), 4);
 
     IntList.push(my_list, ref_of(arena), 10);
     IntList.push(my_list, ref_of(arena), 20);
