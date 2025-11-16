@@ -42,6 +42,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
     
     // Build a map of local models for .axec files
     string[string] localModels;
+    string[string] localFunctions;
     if (currentModulePrefix.length > 0)
     {
         foreach (child; programNode.children)
@@ -51,9 +52,25 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 auto modelNode = cast(ModelNode) child;
                 localModels[modelNode.name] = currentModulePrefix ~ "_" ~ modelNode.name;
                 writeln("DEBUG: Added local model '", modelNode.name, "' -> '", currentModulePrefix ~ "_" ~ modelNode.name, "'");
+
+                foreach (method; modelNode.methods)
+                {
+                    auto methodFunc = cast(FunctionNode) method;
+                    if (methodFunc !is null)
+                    {
+                        // methodFunc.name is already modelName_methodName from parser
+                        // Map the original call name (modelName_methodName) to the prefixed name
+                        string methodName = methodFunc.name[modelNode.name.length + 1 .. $];
+                        string originalCallName = modelNode.name ~ "_" ~ methodName;
+                        string prefixedCallName = currentModulePrefix ~ "_" ~ modelNode.name ~ "_" ~ methodName;
+                        localFunctions[originalCallName] = prefixedCallName;
+                        writeln("DEBUG: Added local function '", originalCallName, "' -> '", prefixedCallName, "'");
+                    }
+                }
             }
         }
         writeln("DEBUG: Total local models: ", localModels.length);
+        writeln("DEBUG: Total local functions: ", localFunctions.length);
     }
 
     foreach (child; programNode.children)
@@ -266,7 +283,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     localTypeMap[modelName] = prefixedName;
                 }
                 
-                renameFunctionCalls(child, importedFunctions);
+                string[string] combinedFunctions = importedFunctions.dup;
+                foreach (key, value; localFunctions)
+                {
+                    combinedFunctions[key] = value;
+                }
+                
+                renameFunctionCalls(child, combinedFunctions);
                 renameTypeReferences(child, localTypeMap);
             }
             else if (child.nodeType == "Test" && currentModulePrefix.length > 0)
@@ -278,7 +301,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     localTypeMap[modelName] = prefixedName;
                 }
                 
-                renameFunctionCalls(child, importedFunctions);
+                string[string] combinedFunctions = importedFunctions.dup;
+                foreach (key, value; localFunctions)
+                {
+                    combinedFunctions[key] = value;
+                }
+                
+                renameFunctionCalls(child, combinedFunctions);
                 renameTypeReferences(child, localTypeMap);
             }
             else
