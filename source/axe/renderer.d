@@ -55,7 +55,7 @@ string generateC(ASTNode ast)
             {
                 auto macroNode = cast(MacroNode) child;
                 g_macros[macroNode.name] = macroNode;
-                writeln("DEBUG: Pre-stored macro '", macroNode.name, "' with ", macroNode.params.length, " parameters");
+                debug writeln("DEBUG: Pre-stored macro '", macroNode.name, "' with ", macroNode.params.length, " parameters");
             }
             if (child.nodeType == "Use")
             {
@@ -158,7 +158,6 @@ string generateC(ASTNode ast)
             }
             else if (child.nodeType == "Model")
             {
-                // Also generate forward declarations for model methods
                 auto modelNode = cast(ModelNode) child;
                 foreach (method; modelNode.methods)
                 {
@@ -370,7 +369,6 @@ string generateC(ASTNode ast)
                         }
                         else
                         {
-                            // No dimensions specified, fallback to pointer
                             otherParams ~= baseType ~ "* " ~ info.name;
                         }
                     }
@@ -400,7 +398,7 @@ string generateC(ASTNode ast)
                 foreach (info; paramInfos)
                 {
                     g_varType[info.name] = info.type;
-                    if (info.type.canFind("*")) // Assume 1 for pointers
+                    if (info.type.canFind("*"))
                         g_refDepths[info.name] = 1;
                 }
             }
@@ -572,7 +570,6 @@ string generateC(ASTNode ast)
         string processedValue = processExpression(arrayAssignNode.value);
         if (arrayAssignNode.index2.length > 0)
         {
-            // 2D array assignment - keep as-is
             string processedIndex2 = processExpression(arrayAssignNode.index2);
             cCode ~= arrayAssignNode.arrayName ~ "[" ~ processedIndex ~ "][" ~ processedIndex2 ~ "] = " ~ processedValue ~ ";\n";
         }
@@ -594,7 +591,6 @@ string generateC(ASTNode ast)
         string baseType = declNode.typeName.length > 0 ? declNode.typeName : "int";
         string arrayPart = "";
 
-        // Extract array dimensions from type (e.g., "int[5]" -> "int" and "[5]")
         import std.string : indexOf, count;
         import std.conv : to;
 
