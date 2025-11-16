@@ -766,40 +766,41 @@ string generateC(ASTNode ast)
 
     case "Platform":
         auto platformNode = cast(PlatformNode) ast;
-        
+
         // Generate #ifdef for windows, #ifndef for posix
         if (platformNode.platform == "windows")
             cCode ~= "#ifdef _WIN32\n";
         else if (platformNode.platform == "posix")
             cCode ~= "#ifndef _WIN32\n";
-        
+
         foreach (child; ast.children)
         {
             cCode ~= generateC(child);
         }
-        
+
         cCode ~= "#endif\n";
         break;
-    
+
     case "ParallelFor":
         auto parallelForNode = cast(ParallelForNode) ast;
-        
+
         string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
         cCode ~= indent ~ "#pragma omp parallel for\n";
-        cCode ~= indent ~ "for (" ~ parallelForNode.initialization ~ "; " 
-            ~ processCondition(parallelForNode.condition) ~ "; " 
+        cCode ~= indent ~ "for (" ~ parallelForNode.initialization ~ "; "
+            ~ processCondition(
+                parallelForNode.condition) ~ "; "
             ~ parallelForNode.increment ~ ") {\n";
         loopLevel++;
-        
+
         foreach (child; ast.children)
         {
             cCode ~= generateC(child);
         }
-        
+
         loopLevel--;
         cCode ~= indent ~ "}\n";
         break;
-    
+
     case "For":
         auto forNode = cast(ForNode) ast;
 
@@ -1290,11 +1291,10 @@ string processExpression(string expr, string context = "")
         if (pos >= expr.length || expr[pos] != '(')
             break;
 
-        auto parenStart = pos + 1; // After "("
-
-        // Find matching closing paren
+        auto parenStart = pos + 1;
         int depth = 1;
         size_t parenEnd = parenStart;
+
         while (parenEnd < expr.length && depth > 0)
         {
             if (expr[parenEnd] == '(')
@@ -1343,30 +1343,34 @@ string processExpression(string expr, string context = "")
             // Handle enum access if first part is uppercase
             string first = parts[0].strip();
             string second = parts[1].strip();
-            
+
             // Skip if this is a numeric literal (e.g., 2.0, 3.14)
             // Check if both parts are all digits
             import std.algorithm : all;
             import std.ascii : isDigit;
+
             if (first.length > 0 && first.all!isDigit && second.length > 0 && second.all!isDigit)
             {
                 // This is a float literal - return it with spaces removed
                 import std.array : replace;
+
                 return expr.replace(" ", "");
             }
-            
+
             // Check if this is a function call (Model.method(...)) - convert to Model_method(...)
             // But not if the first part is a numeric literal (e.g., 0.5) or contains operators
-            bool firstHasOps = first.canFind("/") || first.canFind("*") || first.canFind("+") || first.canFind("-");
+            bool firstHasOps = first.canFind("/") || first.canFind("*") || first.canFind("+") || first.canFind(
+                "-");
             if (second.canFind("(") && first.length > 0 && !firstHasOps &&
                 (first[0] >= 'A' && first[0] <= 'Z' || first[0] >= 'a' && first[0] <= 'z' || first[0] == '_'))
             {
                 // This is a static method call like IntList.new_list(...)
                 // Replace the dot (and any surrounding spaces) with underscore
                 import std.regex : regex, replaceFirst;
+
                 return replaceFirst(expr, regex(r"\s*\.\s*"), "_");
             }
-            
+
             if (first.length > 0 && first[0] >= 'A' && first[0] <= 'Z')
             {
                 // Enum access: State.RUNNING -> RUNNING
