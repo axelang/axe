@@ -147,8 +147,8 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     }
                 }
             }
-            string sanitizedModuleName = useNode.moduleName.replace("/", "_");
 
+            string sanitizedModuleName = useNode.moduleName.replace("/", "_");
             string[string] moduleFunctionMap;
             string[string] moduleModelMap;
             string[string] moduleMacroMap;
