@@ -315,7 +315,6 @@ test {
     assert(approx_equal(reduce_angle(-PI), TWO_PI - PI, 0.001), "reduce negative");
     assert(approx_equal(mod_float(10.5, 2.0), 0.5, 0.001), "mod float basic");
     assert(approx_equal(mod_float(-1.0, 2.0), 1.0, 0.001), "mod float negative");
-    println pow(2.0, 10); //shows 0.
     assert(approx_equal(pow(2.0, 10), 1024.0, 0.001), "pow positive exp");
     assert(approx_equal(pow(2.0, -3), 0.125, 0.001), "pow negative exp");
     assert(approx_equal(pow(5.0, 0), 1.0, 0.0001), "pow zero");
