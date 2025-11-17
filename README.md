@@ -1,6 +1,6 @@
 # Axe
 
-<center><img src="docs/axe/docs/assets/axe.png" width="256"></center>
+<p style="text-align: center;"><img src="docs/axe/docs/assets/axe.png" width="256"></p>
 
 Axe is a compiled programming language with a focus on type safety, ease of concurrency, and performance. 
 
