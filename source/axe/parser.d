@@ -4382,9 +4382,8 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                     "Expected '{' after default");
                 pos++;
 
-                auto defaultNode = new CaseNode("default");
+                auto defaultNode = new CaseNode("", true);
 
-                // Parse default body
                 while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
                 {
                     auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode, isAxec);

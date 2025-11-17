@@ -1,5 +1,5 @@
 main {
-    val x: int = 1;
+    val x: i32 = 1;
 
     switch x {
         case 1 {
