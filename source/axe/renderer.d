@@ -1224,7 +1224,27 @@ string generateC(ASTNode ast)
         string modelName = canonicalModelCName(modelNode.name);
         if (modelName.length == 0)
             modelName = modelNode.name;
+
+        cCode ~= "struct " ~ modelName ~ ";\n";
         cCode ~= "typedef struct " ~ modelName ~ " {\n";
+        
+        bool hasSelfReference = false;
+        foreach (field; modelNode.fields)
+        {
+            string fieldType = field.type;
+            auto bracketPos = fieldType.indexOf('[');
+            if (bracketPos >= 0)
+            {
+                fieldType = fieldType[0 .. bracketPos].strip();
+            }
+            
+            if (fieldType == modelNode.name)
+            {
+                hasSelfReference = true;
+                break;
+            }
+        }
+        
         foreach (field; modelNode.fields)
         {
             string fieldType;
@@ -1254,12 +1274,11 @@ string generateC(ASTNode ast)
 
             fieldType = formatModelFieldType(fieldType);
 
-            // If field type is the same as the model name, make it a pointer
-            // This logic is now handled by the 'ref' type conversion above
-            // if (field.type == modelNode.name)
-            // {
-            //     fieldType = "struct " ~ field.type ~ "*";
-            // }
+            // If field type is the same as the model name, use the forward-declared struct
+            if (field.type == modelNode.name)
+            {
+                fieldType = "struct " ~ field.type ~ "*";
+            }
 
             cCode ~= "    " ~ fieldType ~ " " ~ field.name ~ arrayPart ~ ";\n";
         }
@@ -3272,8 +3291,10 @@ unittest
             }
 
             def __test_error(): error {
-                return new error(msg: string.create("Some bad thing happened"));
+                return new error(msg: string.create("test"));
             }
+
+            test {}
             `
         );
         auto ast = parse(tokens);
@@ -3283,7 +3304,7 @@ unittest
         writeln(cCode);
 
         assert(cCode.canFind("struct stdlib_errors_error"), "Should have generated struct with prefixed name");
-        assert(cCode.canFind("struct stdlib_errors_error){(stdlib_string_string_create(\"test\"))}"), 
+        assert(cCode.canFind("struct stdlib_errors_error){.msg = string_create(\"test\")}"), 
         "Should instantiate with correct prefixed struct name");
     }
 }
