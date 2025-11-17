@@ -4,11 +4,17 @@ use stdlib/arena (
 
 use stdlib/io (
     print_i32,
-    print_str
+    print_str,
+    print_char
 );
 
 use stdlib/string (
     string
+);
+
+use stdlib/errors (
+    panic,
+    error
 );
 
 macro make_list(
@@ -53,7 +59,7 @@ macro make_list(
 
         def get(lst: ref name, index: i32): type {
             if index < 0 or index >= lst.len {
-                println "Index out of bounds!";
+                panic(error.create("Index out of bounds for list."));
                 return nullval;
             }
             return lst.data[index];
@@ -71,7 +77,7 @@ macro make_list(
 
 make_list(IntList, i32, 0, int, print_i32);
 make_list(FloatList, f32, 0.0, float, print_i32);
-make_list(CharList, char, "", char, print_i32);
+make_list(CharList, char, "", char, print_char);
 make_list(LongList, i64, 0, long, print_i32);
 make_list(DoubleList, f64, 0.0, double, print_i32);
 make_list(StringList, string, string.create(""), string, print_str);

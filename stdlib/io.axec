@@ -1,6 +1,20 @@
-use std/string(
+use stdlib/string (
     string
 );
+
+/// Print out some char
+def print_char(value: char) {
+    raw {
+        printf("%c", value);
+    }
+}
+
+/// Print out some char with a newline
+def println_char(value: char) {
+    raw {
+        printf("%c\n", value);
+    }
+}
 
 /// Print out some string
 def print_str(value: string) {
