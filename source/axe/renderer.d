@@ -3317,4 +3317,28 @@ unittest
         assert(cCode.canFind("struct stdlib_errors_error){.msg = string_create(\"test\")}"), 
         "Should instantiate with correct prefixed struct name");
     }
+
+    {
+        auto tokens = lex(`
+        model Counter {
+            value: i32,
+        }
+
+        main {
+            mut val counter: Counter;
+            counter.value = 5;
+            counter.value++;
+            println counter.value;
+            counter.value--;
+            println counter.value;
+        }`);
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+        
+        writeln("Increment/decrement on struct member test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("counter.value++;"), "Should increment struct member correctly");
+        assert(cCode.canFind("counter.value--;"), "Should decrement struct member correctly");
+    }
 }
