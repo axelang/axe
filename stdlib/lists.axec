@@ -3,7 +3,7 @@ use stdlib/arena (
 );
 
 use stdlib/string (
-    String
+    string
 );
 
 macro make_list(name: string, type: string, nullval: untyped, cep: untyped) {
