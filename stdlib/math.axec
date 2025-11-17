@@ -330,7 +330,7 @@ test {
     assert(approx_equal(atan(0.0), 0.0, 0.01), "atan(0)");
     assert(approx_equal(asin(0.0), 0.0, 0.05), "asin(0)");
     assert(approx_equal(acos(1.0), 0.0, 0.05), "acos(1)");
-    assert(approx_equal(powf(2.0, 10.0), 1024.0, 0.01), "powf 2^10"); // fails
+    assert(approx_equal(powf(2.0, 10.0), 1024.0, 0.01), "powf 2^10");
     assert(approx_equal(powf(9.0, 0.5), 3.0, 0.01), "powf sqrt via powf");
     assert(approx_equal(powf(E, 1.0), E, 0.01), "powf e^1");
     assert(approx_equal(powf(E, 2.0), E*E, 0.05), "powf e^2");
