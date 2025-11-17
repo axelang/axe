@@ -11,6 +11,7 @@ import std.string;
 import std.array;
 import std.exception;
 
+
 private string[string] g_processedModules;
 private bool[string] g_addedNodeNames;
 
@@ -288,6 +289,14 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                             g_addedNodeNames[funcNode.name] = true;
                             isTransitiveDependency[funcNode.name] = true;
                             writeln("DEBUG: Adding transitive function: ", funcNode.name);
+
+                            renameFunctionCalls(funcNode, moduleFunctionMap);
+                            renameTypeReferences(funcNode, moduleModelMap);
+                            foreach (childNode; funcNode.children)
+                            {
+                                renameFunctionCalls(childNode, moduleFunctionMap);
+                                renameTypeReferences(childNode, moduleModelMap);
+                            }
                             newChildren ~= funcNode;
                         }
                     }
