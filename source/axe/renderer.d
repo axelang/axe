@@ -298,7 +298,8 @@ string mapAxeTypeToC(string axeType)
     return axeType;
 }
 
-static class RendererConfiguration {
+static class RendererConfiguration
+{
     static bool releaseBuild = false;
 }
 
@@ -495,7 +496,8 @@ string generateC(ASTNode ast)
 
         foreach (child; ast.children)
         {
-            if (child.nodeType != "Model" && child.nodeType != "ExternalImport" && child.nodeType != "Enum" && child.nodeType != "Use")
+            if (child.nodeType != "Model" && child.nodeType != "ExternalImport" && child.nodeType != "Enum" && child
+                .nodeType != "Use")
                 cCode ~= generateC(child) ~ "\n";
         }
         break;
@@ -1693,8 +1695,10 @@ string processExpression(string expr, string context = "")
                 depth--;
             endPos++;
         }
+
         if (depth > 0)
-            return expr; // malformed
+            return expr;
+
         string index = expr[bracketPos + 1 .. endPos - 1].strip();
         string rest = expr[endPos .. $].strip();
         string processedBase = processExpression(base);
@@ -1703,10 +1707,33 @@ string processExpression(string expr, string context = "")
         return processedBase ~ "[" ~ processedIndex ~ "]" ~ processedRest;
     }
 
-    // Handle member access with auto-detection of pointer types
+    // Handle member access with auto-detection of pointer types.
+    //
+    // IMPORTANT: Be string-literal aware so we never rewrite dots inside quoted strings
     if (expr.canFind("."))
     {
-        auto parts = expr.split(".");
+        string[] parts;
+        string current = "";
+        bool inString = false;
+
+        for (size_t i = 0; i < expr.length; i++)
+        {
+            if (expr[i] == '"' && (i == 0 || expr[i - 1] != '\\'))
+            {
+                inString = !inString;
+                current ~= expr[i];
+            }
+            else if (!inString && expr[i] == '.')
+            {
+                parts ~= current;
+                current = "";
+            }
+            else
+            {
+                current ~= expr[i];
+            }
+        }
+        parts ~= current;
         if (parts.length >= 2)
         {
             // Handle enum access if first part is uppercase
@@ -3418,6 +3445,6 @@ unittest
         writeln(cCode);
         assert(cCode.canFind("void error_print_self(stdlib_errors_error err)"),
             "Should generate method function with correct signature");
-        
+
     }
 }
