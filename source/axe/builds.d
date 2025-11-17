@@ -219,7 +219,7 @@ bool handleMachineArgs(string[] args)
         }
         else
         {
-            stderr.writeln("Compilation error: ", e.msg);
+            stderr.writeln("\033[31mCompilation error: ", e.msg, "\033[0m");
         }
         return false;
     }
