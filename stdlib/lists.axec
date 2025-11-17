@@ -87,6 +87,7 @@ test {
     IntList.push(my_list, ref_of(arena), 50);
 
     println "IntList contents:";
+
     IntList.print_all(my_list);
 
     println "Element at index 2:";
