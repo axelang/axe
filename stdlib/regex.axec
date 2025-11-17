@@ -1,0 +1,81 @@
+use stdlib/string (
+    string
+);
+
+use external("pcre.h");
+
+/// Simple regex-like support built on substring search.
+/// For now, this treats the pattern as a literal substring.
+model regex {
+    pattern: string;
+}
+
+/// Compile a pattern into a regex value.
+def compile(pattern: string): regex {
+    return new regex(pattern: pattern);
+}
+
+/// Returns true if the given text contains the pattern as a substring.
+def is_match(re: regex, text: string): bool {
+    return match(re.pattern, text);
+}
+
+/// Returns true if the given text contains pattern as a substring.
+def match(pattern: string, text: string): bool {
+    mut val result: bool = false;
+
+    raw {
+        const char *error = NULL;
+        int erroffset = 0;
+
+        // Compile the pattern using PCRE (treats pattern as a regular expression).
+        pcre *re = pcre_compile((const char*)pattern.data,
+                                0,
+                                &error,
+                                &erroffset,
+                                NULL);
+
+        if (re != NULL) {
+            int ovector[30];
+            int rc = pcre_exec(re,
+                               NULL,
+                               (const char*)text.data,
+                               (int)text.len,
+                               0,
+                               0,
+                               ovector,
+                               30);
+
+            if (rc >= 0) {
+                result = true;
+            } else {
+                result = false;
+            }
+
+            pcre_free(re);
+        } else {
+            // Compilation failed; consider this a non-match.
+            result = false;
+        }
+    }
+
+    return result;
+}
+
+/// Convenience helper: returns true if text fully equals pattern.
+def full_match(pattern: string, text: string): bool {
+    if pattern.len != text.len {
+        return false;
+    }
+    return match(pattern, text);
+}
+
+test {
+    val text: string = string.create("hello world");
+    assert(match(string.create("hello"), text), "pattern 'hello' should match");
+    assert(match(string.create("world"), text), "pattern 'world' should match");
+    assert(!match(string.create("axe"), text), "pattern 'axe' should not match");
+
+    val re: regex = compile(string.create("lo wo"));
+    assert(is_match(re, text), "compiled regex should match substring");
+}

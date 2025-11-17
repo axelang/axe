@@ -32,6 +32,27 @@ bool hasParallelBlocks(ASTNode node)
 }
 
 /**
+ * Detects whether the AST uses a specific external header (e.g., "pcre.h").
+ */
+bool hasExternalHeader(ASTNode node, string headerFile)
+{
+    if (node.nodeType == "ExternalImport")
+    {
+        auto ext = cast(ExternalImportNode) node;
+        if (ext !is null && ext.headerFile == headerFile)
+            return true;
+    }
+
+    foreach (child; node.children)
+    {
+        if (hasExternalHeader(child, headerFile))
+            return true;
+    }
+
+    return false;
+}
+
+/**
  * Compiles and runs the generated assembly code.
  *
  * Returns NASM errors if any.
@@ -149,6 +170,11 @@ bool handleMachineArgs(string[] args)
                 {
                     clangCmd ~= arg;
                 }
+            }
+
+            if (hasExternalHeader(ast, "pcre.h"))
+            {
+                clangCmd ~= "-lpcre";
             }
 
             if (makeDll)
