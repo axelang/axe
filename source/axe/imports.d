@@ -12,6 +12,7 @@ import std.array;
 import std.exception;
 
 private string[string] g_processedModules;
+private bool[string] g_addedNodeNames;
 
 /**
  * Reset the processed modules cache before a new compilation
@@ -19,6 +20,7 @@ private string[string] g_processedModules;
 void resetProcessedModules()
 {
     g_processedModules.clear();
+    g_addedNodeNames.clear();
 }
 
 /**
@@ -111,8 +113,8 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
         writeln("DEBUG: Total local functions: ", localFunctions.length);
     }
 
-    bool[string] addedNodeNames;
     bool[string] isTransitiveDependency;
+    // Deduplication now uses global g_addedNodeNames
 
     foreach (child; programNode.children)
     {
@@ -260,16 +262,32 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         renameTypeReferences(newFunc, moduleModelMap);
 
                         newChildren ~= newFunc;
-                        addedNodeNames[prefixedName] = true;
+                        g_addedNodeNames[prefixedName] = true;
                     }
                     else
                     {
                         // Add transitive dependency functions as-is (don't rename them)
-                        // But avoid duplicates
-                        if (funcNode.name !in addedNodeNames)
+                        // But avoid duplicates by checking if already in newChildren
+                        bool alreadyAdded = false;
+                        foreach (existingChild; newChildren)
                         {
-                            addedNodeNames[funcNode.name] = true;
+                            if (existingChild.nodeType == "Function")
+                            {
+                                auto existingFunc = cast(FunctionNode) existingChild;
+                                if (existingFunc.name == funcNode.name)
+                                {
+                                    alreadyAdded = true;
+                                    writeln("DEBUG: Skipping duplicate transitive function: ", funcNode.name);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!alreadyAdded && funcNode.name !in g_addedNodeNames)
+                        {
+                            g_addedNodeNames[funcNode.name] = true;
                             isTransitiveDependency[funcNode.name] = true;
+                            writeln("DEBUG: Adding transitive function: ", funcNode.name);
                             newChildren ~= funcNode;
                         }
                     }
@@ -312,16 +330,32 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         }
 
                         newChildren ~= newModel;
-                        addedNodeNames[prefixedName] = true;
+                        g_addedNodeNames[prefixedName] = true;
                     }
                     else
                     {
                         // Add transitive dependency models as-is (don't rename them)
-                        // But avoid duplicates
-                        if (modelNode.name !in addedNodeNames)
+                        // But avoid duplicates by checking if already in newChildren
+                        bool alreadyAdded = false;
+                        foreach (existingChild; newChildren)
                         {
-                            addedNodeNames[modelNode.name] = true;
+                            if (existingChild.nodeType == "Model")
+                            {
+                                auto existingModel = cast(ModelNode) existingChild;
+                                if (existingModel.name == modelNode.name)
+                                {
+                                    alreadyAdded = true;
+                                    writeln("DEBUG: Skipping duplicate transitive model: ", modelNode.name);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!alreadyAdded && modelNode.name !in g_addedNodeNames)
+                        {
+                            g_addedNodeNames[modelNode.name] = true;
                             isTransitiveDependency[modelNode.name] = true;
+                            writeln("DEBUG: Adding transitive model: ", modelNode.name);
                             newChildren ~= modelNode;
                         }
                     }
@@ -332,19 +366,33 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     if (useNode.imports.canFind(macroNode.name))
                     {
                         resolvedImports[macroNode.name] = true;
-                        if (macroNode.name !in addedNodeNames)
+                        if (macroNode.name !in g_addedNodeNames)
                         {
-                            addedNodeNames[macroNode.name] = true;
+                            g_addedNodeNames[macroNode.name] = true;
                             newChildren ~= macroNode;
                         }
                     }
                     else
                     {
                         // Add transitive dependency macros as-is
-                        // But avoid duplicates
-                        if (macroNode.name !in addedNodeNames)
+                        // But avoid duplicates by checking if already in newChildren
+                        bool alreadyAdded = false;
+                        foreach (existingChild; newChildren)
                         {
-                            addedNodeNames[macroNode.name] = true;
+                            if (existingChild.nodeType == "Macro")
+                            {
+                                auto existingMacro = cast(MacroNode) existingChild;
+                                if (existingMacro.name == macroNode.name)
+                                {
+                                    alreadyAdded = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!alreadyAdded && macroNode.name !in g_addedNodeNames)
+                        {
+                            g_addedNodeNames[macroNode.name] = true;
                             newChildren ~= macroNode;
                         }
                     }
