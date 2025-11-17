@@ -128,14 +128,33 @@ def pow(base: f64, exp: i32): f64 {
 
 /// Exponential series
 def exp(x: f64): f64 {
+    if x < 0.0 {
+        return 1.0 / exp(-x);
+    }
+
+    mut val n: i32 = 0;
+    loop {
+        if x > 1.0 {
+            x = x * 0.5;
+            n = n + 1;
+        } else {
+            break;
+        }
+    }
+
     mut val sum: f64 = 1.0;
     mut val term: f64 = 1.0;
-    for mut val n = 1; n < 20; n++ {
-        term = term * x / n;
+    for mut val k = 1; k < 25; k++ {
+        term = term * x / k;
         sum = sum + term;
+    }
+
+    for mut val i = 0; i < n; i++ {
+        sum = sum * sum;
     }
     return sum;
 }
+
 
 /// Natural logarithm
 def ln(x: f64): f64 {
@@ -227,6 +246,39 @@ def atan(x: f64): f64 {
     return sum;
 }
 
+/// Float power: base^exp for non-integer exponents
+def powf(base: f64, expp: f64): f64 {
+    if base <= 0.0 {
+        return 0.0; // avoid log(0) or negative base issues
+    }
+    return exp(ln(base) * expp);
+}
+
+/// Two-argument arctangent: returns angle in radians between [-PI, PI]
+def atan2(y: f64, x: f64): f64 {
+    if x > 0.0 {
+        return atan(y / x);
+    } elif x < 0.0 and y >= 0.0 {
+        return atan(y / x) + PI;
+    } elif x < 0.0 and y < 0.0 {
+        return atan(y / x) - PI;
+    } elif x == 0.0 and y > 0.0 {
+        return HALF_PI;
+    } elif x == 0.0 and y < 0.0 {
+        return -HALF_PI;
+    } else {
+        return 0.0; // undefined, return 0
+    }
+}
+
+/// Hyperbolic tangent inverse
+def atanh(x: f64): f64 {
+    if x <= -1.0 or x >= 1.0 {
+        return 0.0;
+    }
+    return 0.5 * ln((1.0 + x) / (1.0 - x));
+}
+
 test {
     assert(approx_equal(sqrt(16.0), 4.0, 0.001), "sqrt(16) should be ~4");
     assert(approx_equal(sin(PI/2.0), 1.0, 0.01), "sin(pi/2) should be ~1");
@@ -279,4 +331,9 @@ test {
     assert(approx_equal(atan(0.0), 0.0, 0.01), "atan(0)");
     assert(approx_equal(asin(0.0), 0.0, 0.05), "asin(0)");
     assert(approx_equal(acos(1.0), 0.0, 0.05), "acos(1)");
+    assert(approx_equal(powf(2.0, 10.0), 1024.0, 0.01), "powf 2^10"); // fails
+    assert(approx_equal(powf(9.0, 0.5), 3.0, 0.01), "powf sqrt via powf");
+    assert(approx_equal(powf(E, 1.0), E, 0.01), "powf e^1");
+    assert(approx_equal(powf(E, 2.0), E*E, 0.05), "powf e^2");
+    assert(approx_equal(powf(10.0, -1.0), 0.1, 0.01), "powf 10^-1");
 }
