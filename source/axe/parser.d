@@ -3087,7 +3087,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     else if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
                     {
                         // Variable assignment
-                        if (!currentScope.isDeclared(identName))
+                        if (!funcScope.isDeclared(identName))
                         {
                             enforce(false, "Undeclared variable: " ~ identName);
                         }
