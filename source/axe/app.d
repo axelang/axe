@@ -22,6 +22,7 @@ void main(string[] args)
         writeln("  -r            run the built executable after compilation");
         writeln("  -tokens       print lexer tokens and exit");
         writeln("  -ast          print the parsed AST and exit");
+        writeln("  -dll          build shared instead of standalone executable");
         writeln("  --release     build in release mode");
         writeln("  -I<path>      pass an include directory to the C compiler");
         writeln("  --version, -v show axe version and exit");

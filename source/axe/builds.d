@@ -21,13 +21,13 @@ bool hasParallelBlocks(ASTNode node)
 {
     if (node.nodeType == "ParallelFor")
         return true;
-    
+
     foreach (child; node.children)
     {
         if (hasParallelBlocks(child))
             return true;
     }
-    
+
     return false;
 }
 
@@ -108,7 +108,7 @@ bool handleMachineArgs(string[] args)
             string ext = isAxec ? ".axec" : ".axe";
             std.file.write(replace(name, ext, ".c"), cCode);
             bool needsOpenMP = hasParallelBlocks(ast);
-            
+            bool makeDll = args.canFind("-dll");
             string[] clangCmd;
 
             if (args.canFind("--release"))
@@ -122,12 +122,12 @@ bool handleMachineArgs(string[] args)
                 clangCmd = [
                     "clang", replace(name, ext, ".c"), "-Wno-everything", "-Os"
                 ];
-                version(Windows)
+                version (Windows)
                 {
                     clangCmd ~= "-ldbghelp";
                 }
             }
-            
+
             if (needsOpenMP)
             {
                 clangCmd ~= ["-fopenmp"];
@@ -141,7 +141,24 @@ bool handleMachineArgs(string[] args)
                 }
             }
 
-            clangCmd ~= ["-o", replace(name, ext, ".exe")];
+            if (makeDll)
+            {
+                clangCmd ~= ["-shared"];
+                auto extension = ".so";
+                version (Windows)
+                {
+                    extension = ".dll";
+                }
+                version (OSX)
+                {
+                    extension = ".dylib";
+                }
+                clangCmd ~= ["-o", replace(name, ext, extension)];
+            }
+            else
+            {
+                clangCmd ~= ["-o", replace(name, ext, ".exe")];
+            }
 
             auto e = execute(clangCmd);
             if (e[0] != 0)
@@ -158,18 +175,25 @@ bool handleMachineArgs(string[] args)
             }
             if (args.canFind("-r"))
             {
-                string exePath = replace(name, ext, ".exe");
-                auto runResult = execute([exePath]);
-
-                if (runResult.status != 0)
+                if (makeDll)
                 {
-                    stderr.writeln("Program exited with code ", runResult.status);
-                    return false;
+                    stderr.writeln("Note: -r (run) is ignored when building a DLL.");
                 }
-
-                if (runResult.output.length > 0)
+                else
                 {
-                    stdout.write(runResult.output);
+                    string exePath = replace(name, ext, ".exe");
+                    auto runResult = execute([exePath]);
+
+                    if (runResult.status != 0)
+                    {
+                        stderr.writeln("Program exited with code ", runResult.status);
+                        return false;
+                    }
+
+                    if (runResult.output.length > 0)
+                    {
+                        stdout.write(runResult.output);
+                    }
                 }
             }
         }
