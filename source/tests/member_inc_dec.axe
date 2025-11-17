@@ -1,0 +1,12 @@
+model Counter {
+    value: i32,
+}
+
+main {
+    mut val counter: Counter;
+    counter.value = 5;
+    counter.value++;
+    println counter.value;
+    counter.value--;
+    println counter.value;
+}
