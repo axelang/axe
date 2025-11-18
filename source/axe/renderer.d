@@ -182,7 +182,6 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
     string[] dimensionParams;
     string[] otherParams;
 
-    // Collect all dimension parameter names referenced by arrays
     bool[string] referencedDimensions;
     foreach (info; paramInfos)
     {
@@ -195,7 +194,6 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
         }
     }
 
-    // Track indices for reordering
     int[] dimensionIndices;
     int[] otherIndices;
 
@@ -211,11 +209,9 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
     {
         if (info.isArray)
         {
-            // Convert int[n][m] to VLA syntax: int arrayName[n][m]
             auto bracketPos = info.type.indexOf('[');
             string baseType = info.type[0 .. bracketPos].strip();
 
-            // Array references like "ref i32[]" should not add an extra pointer
             while (baseType.startsWith("ref "))
             {
                 baseType = baseType[4 .. $].strip();
@@ -225,7 +221,6 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
                 baseType = baseType[4 .. $].strip();
             }
 
-            // Apply type mapping to the base type
             baseType = mapAxeTypeToC(baseType);
 
             if (info.dimNames.length > 0)
@@ -353,7 +348,6 @@ string generateC(ASTNode ast)
                     if (importName.length > 0 && !(importName[0] >= 'A' && importName[0] <= 'Z'))
                     {
                         g_functionPrefixes[importName] = modulePrefix ~ "_" ~ importName;
-                        // Also add as model name for type mapping
                         g_modelNames[importName] = modulePrefix ~ "_" ~ importName;
                     }
                 }
@@ -368,10 +362,8 @@ string generateC(ASTNode ast)
                 // Store the model name mapping
                 // Extract base name from prefixed name (e.g., "stdlib_arena_Arena" -> "Arena")
                 string baseName = modelNode.name;
-                // Check if it's a prefixed name (contains underscore and starts with stdlib_)
                 if (modelNode.name.canFind("_") && modelNode.name.startsWith("stdlib_"))
                 {
-                    // Find the last underscore to get the base name
                     auto lastUnderscore = modelNode.name.lastIndexOf('_');
                     if (lastUnderscore >= 0)
                     {
@@ -592,12 +584,10 @@ string generateC(ASTNode ast)
 
         if (callName.canFind("."))
         {
-            // Handle method calls (e.g., Arena.create -> stdlib_arena_Arena_create)
             auto parts = callName.split(".");
             string modelName = parts[0].strip();
             string methodName = parts[1].strip();
 
-            // Look up the prefixed model name
             if (modelName in g_modelNames)
             {
                 string prefixedModelName = g_modelNames[modelName];
@@ -605,7 +595,6 @@ string generateC(ASTNode ast)
             }
             else
             {
-                // Fallback: just replace dot with underscore
                 callName = callName.replace(".", "_");
             }
         }
@@ -615,7 +604,6 @@ string generateC(ASTNode ast)
         }
         else if (currentFunction.canFind("stdlib_arena_"))
         {
-            // Prefix calls within stdlib modules
             callName = "stdlib_arena_" ~ callName;
         }
 
@@ -658,7 +646,6 @@ string generateC(ASTNode ast)
 
                     foreach (paramName, paramValue; paramMap)
                     {
-                        // Use {{param}} syntax for explicit macro parameter substitution
                         import std.string : replace;
 
                         string pattern = "{{" ~ paramName ~ "}}";
@@ -667,14 +654,12 @@ string generateC(ASTNode ast)
                             writeln("  DEBUG: Found pattern '", pattern, "' in code");
                             writeln("  DEBUG: Replacing '", pattern, "' with '", paramValue, "'");
                             string beforeReplace = expandedCode;
-                            // replace() in std.string replaces all occurrences
                             expandedCode = expandedCode.replace(pattern, paramValue);
                             if (beforeReplace == expandedCode)
                             {
                                 writeln("  DEBUG: WARNING - replacement didn't change code!");
                             }
                         }
-                        // Also support exact match for backward compatibility (but prefer {{param}})
                 else if (expandedCode == paramName)
                         {
                             writeln("  DEBUG: Exact match (legacy) - replacing '", paramName, "' with '", paramValue, "'");
@@ -688,7 +673,6 @@ string generateC(ASTNode ast)
                 }
                 else
                 {
-                    // Handle non-RawC children (e.g., other AST nodes from macro body)
                     cCode ~= generateC(child);
                 }
             }
@@ -761,7 +745,6 @@ string generateC(ASTNode ast)
 
     case "ArrayDeclaration":
         auto arrayNode = cast(ArrayDeclarationNode) ast;
-        // Map the element type to C type (e.g., i32 -> int32_t)
         debug writeln("DEBUG ArrayDeclaration: elementType='", arrayNode.elementType, "' name='", arrayNode.name, "'");
         string mappedElementType = mapAxeTypeToC(arrayNode.elementType);
         debug writeln("DEBUG ArrayDeclaration: mappedElementType='", mappedElementType, "'");
@@ -826,7 +809,6 @@ string generateC(ASTNode ast)
         import std.string : indexOf, count;
         import std.conv : to;
 
-        // Extract array part first, then map the base type to C
         if (declNode.typeName.length > 0)
         {
             auto bracketPos = declNode.typeName.indexOf('[');
@@ -1173,11 +1155,17 @@ string generateC(ASTNode ast)
 
     case "Enum":
         auto enumNode = cast(EnumNode) ast;
+
+        if (enumNode.name in g_generatedTypedefs)
+            return "";
+
+        g_generatedTypedefs[enumNode.name] = true;
+
         cCode ~= "typedef enum {\n";
         foreach (i, value; enumNode.values)
         {
             cCode ~= "    " ~ value;
-            if (i < enumNode.values.length - 1)
+            if (i < cast(int)enumNode.values.length - 1)
                 cCode ~= ",";
             cCode ~= "\n";
         }
