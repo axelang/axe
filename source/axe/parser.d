@@ -4854,9 +4854,12 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
             pos++;
 
-        if (pos < tokens.length && tokens[pos].type == TokenType.DOT)
+        // Build full left side including chained member access and array indices
+        string fullLeftSide = identName;
+
+        // Handle any number of member accesses: obj.field, obj.field.subfield, etc.
+        while (pos < tokens.length && tokens[pos].type == TokenType.DOT)
         {
-            // Could be: obj.field = value, obj.field[index] = value, OR Model.method(...)
             pos++; // Skip '.'
             enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
                 "Expected field name or method name after '.'");
@@ -4866,11 +4869,10 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
 
-            // Check if this is a method call: Model.method(...)
+            // Check if this is a namespaced function call like Model.method(...)
             if (pos < tokens.length && tokens[pos].type == TokenType.LPAREN)
             {
-                // This is a namespaced function call
-                string namespacedFunction = identName ~ "." ~ memberName;
+                string namespacedFunction = fullLeftSide ~ "." ~ memberName;
 
                 pos++;
                 string[] args;
@@ -4927,8 +4929,10 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 return new FunctionCallNode(namespacedFunction, args.join(", "));
             }
 
-            // Otherwise, check for array access on the field: obj.field[index]
-            string fullLeftSide = identName ~ "." ~ memberName;
+            // Otherwise treat it as part of the left-hand side chain
+            fullLeftSide ~= "." ~ memberName;
+
+            // Handle array access on this member: obj.field[index]
             while (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
             {
                 pos++; // Skip '['
@@ -4948,77 +4952,47 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 fullLeftSide ~= "[" ~ indexExpr ~ "]";
             }
 
-            if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+        }
+
+        // At this point fullLeftSide may be a simple identifier or a chained member/array access
+
+        // Handle assignment to the built left-hand side
+        if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
+        {
+            if (!currentScope.isDeclared(identName))
             {
-                // Check if the object is declared (could be a function parameter or local variable)
-                // Note: Function parameters are registered in the scope, so this should work
-                if (!currentScope.isDeclared(identName))
-                {
-                    enforce(false, "Undeclared variable: " ~ identName);
-                }
-                bool isVarMutable = currentScope.isMutable(identName);
-                debug writeln("DEBUG: Member access check for '", identName, "': isMutable=", isVarMutable);
-                if (!isVarMutable)
-                {
-                    enforce(false, "Cannot assign to member '" ~ memberName ~
-                            "' of immutable variable '" ~ identName ~ "'");
-                }
-
-                pos++;
-                string value = "";
-                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
-                {
-                    if (value.length > 0 && tokens[pos].type != TokenType.LPAREN &&
-                        tokens[pos].type != TokenType.RPAREN && tokens[pos].type != TokenType.COMMA)
-                    {
-                        value ~= " ";
-                    }
-                    if (tokens[pos].type == TokenType.STR)
-                        value ~= "\"" ~ tokens[pos].value ~ "\"";
-                    else
-                        value ~= tokens[pos].value;
-                    pos++;
-                }
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                    "Expected ';' after field assignment");
-                pos++;
-                // Use AssignmentNode with the full left side expression
-                return new AssignmentNode(fullLeftSide, value.strip());
+                enforce(false, "Undeclared variable: " ~ identName);
             }
-            else if (pos < tokens.length && tokens[pos].type == TokenType.INCREMENT)
+
+            bool isVarMutable = currentScope.isMutable(identName);
+            debug writeln("DEBUG: Member/variable access check for '", identName, "': isMutable=", isVarMutable);
+            if (!isVarMutable)
             {
-                // Member increment: obj.member++
-                if (!currentScope.isDeclared(identName))
-                    enforce(false, "Undeclared variable: " ~ identName);
-
-                if (!currentScope.isMutable(identName))
-                    enforce(false, "Cannot increment member of immutable variable: " ~ identName);
-
-                pos++; // Skip '++'
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                    "Expected ';' after member increment");
-                pos++;
-
-                return new MemberIncrementDecrementNode(identName, memberName, true);
+                enforce(false, "Cannot assign to '" ~ fullLeftSide ~ "' because base variable '" ~ identName ~
+                        "' is immutable");
             }
-            else if (pos < tokens.length && tokens[pos].type == TokenType.DECREMENT)
+
+            pos++;
+            string value = "";
+            while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
             {
-                // Member decrement: obj.member--
-                if (!currentScope.isDeclared(identName))
-                    enforce(false, "Undeclared variable: " ~ identName);
-
-                if (!currentScope.isMutable(identName))
-                    enforce(false, "Cannot decrement member of immutable variable: " ~ identName);
-
-                pos++; // Skip '--'
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                    "Expected ';' after member decrement");
+                if (value.length > 0 && tokens[pos].type != TokenType.LPAREN &&
+                    tokens[pos].type != TokenType.RPAREN && tokens[pos].type != TokenType.COMMA)
+                {
+                    value ~= " ";
+                }
+                if (tokens[pos].type == TokenType.STR)
+                    value ~= "\"" ~ tokens[pos].value ~ "\"";
+                else
+                    value ~= tokens[pos].value;
                 pos++;
-
-                return new MemberIncrementDecrementNode(identName, memberName, false);
             }
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                "Expected ';' after assignment");
+            pos++;
+            return new AssignmentNode(fullLeftSide, value.strip());
         }
         else if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
         {
@@ -5116,7 +5090,7 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
         }
         else if (pos < tokens.length && tokens[pos].type == TokenType.INCREMENT)
         {
-            // Increment: x++
+            // Increment: x++ or obj.field++ / obj.field.subfield++
             if (!currentScope.isDeclared(identName))
             {
                 enforce(false, "Undeclared variable: " ~ identName);
@@ -5129,11 +5103,11 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                 "Expected ';' after increment");
             pos++;
-            return new IncrementDecrementNode(identName, true);
+            return new IncrementDecrementNode(fullLeftSide, true);
         }
         else if (pos < tokens.length && tokens[pos].type == TokenType.DECREMENT)
         {
-            // Decrement: x--
+            // Decrement: x-- or obj.field-- / obj.field.subfield--
             if (!currentScope.isDeclared(identName))
             {
                 enforce(false, "Undeclared variable: " ~ identName);
@@ -5146,11 +5120,11 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
                 "Expected ';' after decrement");
             pos++;
-            return new IncrementDecrementNode(identName, false);
+            return new IncrementDecrementNode(fullLeftSide, false);
         }
         else if (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=")
         {
-            // Variable assignment - check if variable is declared
+            // Simple variable assignment (no member or array access encountered)
             if (!currentScope.isDeclared(identName))
             {
                 enforce(false, "Undeclared variable: " ~ identName);

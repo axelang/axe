@@ -463,7 +463,7 @@ string generateC(ASTNode ast)
             foreach (field; unionNode.fields)
             {
                 string cType = mapAxeTypeToC(field.type);
-                cCode ~= "        " ~ cType ~ " " ~ field.name ~ "_value;\n";
+                cCode ~= "        " ~ cType ~ " " ~ field.name ~ ";\n";
             }
             cCode ~= "    };\n";
             cCode ~= "} " ~ unionName ~ ";\n\n";
