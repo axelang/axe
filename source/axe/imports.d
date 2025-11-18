@@ -780,11 +780,12 @@ void renameFunctionCalls(ASTNode node, string[string] nameMap)
                 auto dotPattern = regex("\\b" ~ modelMethod ~ "\\s*\\(");
                 debug writeln("    DEBUG: Trying regex pattern '\\b", modelMethod, "\\s*\\(' on '",
                     declNode.initializer, "'");
-                string newInit = replaceAll(declNode.initializer, dotPattern, newName ~ "(");
-                if (newInit != declNode.initializer)
+                string regexInit = replaceAll(declNode.initializer, dotPattern, newName ~ "(");
+                if (regexInit != declNode.initializer)
                 {
-                    debug writeln("    DEBUG: Regex matched! Replaced '", declNode.initializer, "' -> '", newInit, "'");
-                    declNode.initializer = newInit;
+                    debug writeln("    DEBUG: Regex matched! Replaced '", declNode.initializer,
+                        "' -> '", regexInit, "'");
+                    declNode.initializer = regexInit;
                 }
             }
         }
