@@ -1,7 +1,9 @@
 use stdlib/io (
-    print_i32
+    print_i32,
+    print_long
 );
 
+/// Represents the current date and time
 model DateTime {
     year: i32;
     month: i32;
@@ -10,8 +12,10 @@ model DateTime {
     minute: i32;
     second: i32;
     millisecond: i32;
+    epoch_ms: i64;
 }
 
+/// Suspends the current thread for the specified number of milliseconds
 def wait(ms: i32) {
     platform posix {
         raw {
@@ -25,12 +29,14 @@ def wait(ms: i32) {
     }
 }
 
+/// Returns the current date and time
 def now(): DateTime {
     platform posix {
         raw {
-            struct tm;
-            time_t t;
-            time(&t);
+            struct timeval tv;
+            gettimeofday(&tv, NULL);            
+            long long epoch_ms = (long long)tv.tv_sec * 1000 + (long long)tv.tv_usec / 1000;
+            time_t t = tv.tv_sec;
             struct tm *tm = localtime(&t);
             stdlib_time_DateTime dt;
             dt.year = tm->tm_year + 1900;
@@ -39,7 +45,8 @@ def now(): DateTime {
             dt.hour = tm->tm_hour;
             dt.minute = tm->tm_min;
             dt.second = tm->tm_sec;
-            dt.millisecond = 0;
+            dt.millisecond = (int)(tv.tv_usec / 1000);
+            dt.epoch_ms = epoch_ms;
             return dt;
         }
     }
@@ -47,6 +54,15 @@ def now(): DateTime {
         raw {
             SYSTEMTIME st;
             GetLocalTime(&st);
+            FILETIME ft;
+            GetSystemTimeAsFileTime(&ft);
+            ULARGE_INTEGER uli;
+            uli.LowPart = ft.dwLowDateTime;
+            uli.HighPart = ft.dwHighDateTime;
+            long long win_time_100ns = uli.QuadPart;
+            long long unix_time_100ns = win_time_100ns - 116444736000000000LL;
+            long long epoch_ms = unix_time_100ns / 10000;
+
             stdlib_time_DateTime dt;
             dt.year = st.wYear;
             dt.month = st.wMonth;
@@ -55,11 +71,18 @@ def now(): DateTime {
             dt.minute = st.wMinute;
             dt.second = st.wSecond;
             dt.millisecond = st.wMilliseconds;
+            dt.epoch_ms = epoch_ms;
             return dt;
         }
     }
 }
 
+/// Simple and accurate epoch-based difference calculation
+def difference(dt1: DateTime, dt2: DateTime): i64 {
+    return dt2.epoch_ms - dt1.epoch_ms;
+}
+
+/// Prints the date and time in the format "YYYY-MM-DD HH:MM:SS.mmm" with optional newline
 def print_time(dt: DateTime, newline: bool) {
     print_i32(dt.year);
     print "-";
@@ -82,7 +105,10 @@ def print_time(dt: DateTime, newline: bool) {
 test {
     print "Started waiting at:\t";
     print_time(now(), true);
+    val start: DateTime = now();
     wait(1000);
     print "Done waiting at:\t";
     print_time(now(), true);
+    println "Difference: ";
+    print_long(difference(start, now()));
 }
