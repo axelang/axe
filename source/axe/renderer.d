@@ -1471,7 +1471,6 @@ string generateC(ASTNode ast)
             cCode ~= generateC(child);
         }
 
-        // Add implicit break at end of case
         string breakIndent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
         cCode ~= breakIndent ~ "break;\n";
         loopLevel--;
