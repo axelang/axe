@@ -198,6 +198,53 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
 
             foreach (importChild; importProgram.children)
             {
+                if (importChild.nodeType == "ExternalImport")
+                {
+                    auto extNode = cast(ExternalImportNode) importChild;
+                    string key = "__external_import__" ~ extNode.headerFile;
+                    if (key !in g_addedNodeNames)
+                    {
+                        g_addedNodeNames[key] = true;
+                        newChildren ~= importChild;
+                    }
+                    continue;
+                }
+                else if (importChild.nodeType == "Platform")
+                {
+                    auto platformNode = cast(PlatformNode) importChild;
+
+                    PlatformNode platformImports = null;
+                    foreach (pChild; platformNode.children)
+                    {
+                        if (pChild.nodeType == "ExternalImport")
+                        {
+                            if (platformImports is null)
+                            {
+                                platformImports = new PlatformNode(platformNode.platform);
+                            }
+                            platformImports.children ~= pChild;
+                        }
+                    }
+
+                    if (platformImports !is null)
+                    {
+                        string headerKey;
+                        foreach (pChild; platformImports.children)
+                        {
+                            auto extChild = cast(ExternalImportNode) pChild;
+                            if (headerKey.length > 0)
+                                headerKey ~= ",";
+                            headerKey ~= extChild.headerFile;
+                        }
+                        string key = "__platform_external_imports__" ~ platformImports.platform ~ "__" ~ headerKey;
+                        if (key !in g_addedNodeNames)
+                        {
+                            g_addedNodeNames[key] = true;
+                            newChildren ~= platformImports;
+                        }
+                    }
+                }
+
                 if (importChild.nodeType == "Function")
                 {
                     auto funcNode = cast(FunctionNode) importChild;
