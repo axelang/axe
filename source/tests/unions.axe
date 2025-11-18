@@ -1,0 +1,18 @@
+model SomeModel {
+    some_attrib: i32;
+    some_other_attrib: union {
+        a: i32;
+        b: f32;
+    }
+
+    def create(): SomeModel {
+        mut val result: SomeModel;
+        result.some_attrib = 0;
+        return result;
+    }
+}
+
+main {
+    mut val sm: SomeModel = SomeModel.create();
+    sm.some_other_attrib.a = 42;
+}
