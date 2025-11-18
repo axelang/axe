@@ -1,0 +1,8 @@
+def add_ints(nums: i32...): i32 {
+    return nums[0] + nums[1];
+}
+
+
+main {
+    println add_ints(1, 2);
+}

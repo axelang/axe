@@ -46,6 +46,7 @@ private int[string] g_refDepths;
 private bool[string] g_isMutable;
 private string[string] g_arrayWidthVars;
 private int[][string] g_functionParamReordering;
+private bool[][string] g_functionIsVariadic;
 private MacroNode[string] g_macros;
 private bool[string] g_pointerFields;
 private string[string] g_varType;
@@ -122,6 +123,7 @@ struct ParamInfo
     bool isArray;
     int dimensions;
     string[] dimNames;
+    bool isVariadic = false;
 }
 
 /** 
@@ -135,18 +137,22 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
     import std.algorithm : count;
     import std.regex : regex, matchAll;
 
-    foreach (param; funcNode.params)
+    foreach (i, param; funcNode.params)
     {
         debug writeln("DEBUG: Processing param: '", param, "'");
+
+        // Check if this parameter is variadic
+        bool isVariadic = funcNode.isVariadic[i];
+
         auto lastSpace = param.lastIndexOf(' ');
         while (lastSpace > 0)
         {
             int openBrackets = 0;
-            for (size_t i = 0; i < lastSpace; i++)
+            for (size_t j = 0; j < lastSpace; j++)
             {
-                if (param[i] == '[')
+                if (param[j] == '[')
                     openBrackets++;
-                if (param[i] == ']')
+                if (param[j] == ']')
                     openBrackets--;
             }
             if (openBrackets == 0)
@@ -159,21 +165,41 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
             string paramType = param[0 .. lastSpace].strip();
             string paramName = param[lastSpace + 1 .. $].strip();
 
-            ParamInfo info;
-            info.type = paramType;
-            info.name = paramName;
-            info.isArray = paramType.canFind('[');
-            if (info.isArray)
+            if (isVariadic)
             {
-                info.dimensions = cast(int) paramType.count('[');
+                // For variadic parameters, add two ParamInfo entries: one for the array and one for the count
+                ParamInfo arrayInfo;
+                arrayInfo.type = paramType;
+                arrayInfo.name = paramName;
+                arrayInfo.isArray = true;
+                arrayInfo.isVariadic = true;
+                paramInfos ~= arrayInfo;
 
-                auto dimPattern = regex(r"\[([^\]]+)\]");
-                foreach (match; matchAll(paramType, dimPattern))
-                {
-                    info.dimNames ~= match[1].strip();
-                }
+                ParamInfo countInfo;
+                countInfo.type = "int"; // Count parameter
+                countInfo.name = paramName ~ "_count";
+                countInfo.isArray = false;
+                countInfo.isVariadic = false;
+                paramInfos ~= countInfo;
             }
-            paramInfos ~= info;
+            else
+            {
+                ParamInfo info;
+                info.type = paramType;
+                info.name = paramName;
+                info.isArray = paramType.canFind('[');
+                if (info.isArray)
+                {
+                    info.dimensions = cast(int) paramType.count('[');
+
+                    auto dimPattern = regex(r"\[([^\]]+)\]");
+                    foreach (match; matchAll(paramType, dimPattern))
+                    {
+                        info.dimNames ~= match[1].strip();
+                    }
+                }
+                paramInfos ~= info;
+            }
         }
     }
 
@@ -209,7 +235,7 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
 
     foreach (info; paramInfos)
     {
-        if (info.isArray)
+        if (info.isArray && !info.isVariadic)
         {
             // Convert int[n][m] to VLA syntax: int arrayName[n][m]
             auto bracketPos = info.type.indexOf('[');
@@ -241,6 +267,12 @@ string[] computeReorderedCParams(FunctionNode funcNode, out int[] reorderMap, ou
             {
                 otherParams ~= baseType ~ "* " ~ info.name;
             }
+        }
+        else if (info.isVariadic)
+        {
+            // For variadic parameters, generate as T* param (pointer to array)
+            string baseType = mapAxeTypeToC(info.type);
+            otherParams ~= baseType ~ "* " ~ info.name;
         }
         else
         {
@@ -459,6 +491,7 @@ string generateC(ASTNode ast)
                         string[] processedParams = computeReorderedCParams(funcNode, reorderMap, paramInfos);
                         cCode ~= processedParams.join(", ");
                         g_functionParamReordering[funcNode.name] = reorderMap;
+                        g_functionIsVariadic[funcNode.name] = funcNode.isVariadic;
 
                         foreach (info; paramInfos)
                         {
@@ -487,6 +520,7 @@ string generateC(ASTNode ast)
                             string[] processedParams = computeReorderedCParams(methodFunc, reorderMap, paramInfos);
                             cCode ~= processedParams.join(", ");
                             g_functionParamReordering[methodFunc.name] = reorderMap;
+                            g_functionIsVariadic[methodFunc.name] = methodFunc.isVariadic;
                         }
                         cCode ~= ");\n";
                     }

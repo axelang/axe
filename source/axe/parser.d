@@ -390,15 +390,25 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
 
     ASTNode currentScopeNode = ast;
 
-    /** 
+    /**
+     * Struct to hold function parameter information
+     */
+    struct FunctionParams
+    {
+        string[] params;
+        bool[] isVariadic;
+    }
+
+    /**
      * Parses function arguments from the current position in the token stream.
      * 
      * Returns: 
-     *   string[] = Array of arguments (e.g., ["int a", "char b"])
+     *   FunctionParams = Struct containing parameter strings and variadic flags
      */
-    string[] parseArgs()
+    FunctionParams parseArgs()
     {
         string[] args;
+        bool[] isVariadicFlags;
         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
             pos++;
 
@@ -456,6 +466,17 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                         size_t savedPos = pos;
                         string baseType = parseType();
 
+                        // Check for variadic syntax "..."
+                        bool isVariadic = false;
+                        if (pos < tokens.length - 2 &&
+                            tokens[pos].type == TokenType.DOT &&
+                            tokens[pos + 1].type == TokenType.DOT &&
+                            tokens[pos + 2].type == TokenType.DOT)
+                        {
+                            isVariadic = true;
+                            pos += 3; // Consume the three dots
+                        }
+
                         if (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
                         {
                             pos = savedPos;
@@ -476,25 +497,28 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                                     fullType ~= "[]";
                             }
 
-                            debug writeln("DEBUG parseArgs: fullType='", fullType, "' paramName='", paramName, "' isMutable=", isMutable);
+                            debug writeln("DEBUG parseArgs: fullType='", fullType, "' paramName='", paramName, "' isMutable=", isMutable, "' isVariadic=", isVariadic);
                             // Prefix with "mut " if parameter is mutable
                             string mutPrefix = isMutable ? "mut " : "";
                             string paramStr = mutPrefix ~ fullType ~ " " ~ paramName;
                             debug writeln("DEBUG parseArgs: storing param as '", paramStr, "'");
                             args ~= paramStr;
+                            isVariadicFlags ~= isVariadic;
                         }
                         else
                         {
                             // Prefix with "mut " if parameter is mutable
                             string mutPrefix = isMutable ? "mut " : "";
                             string paramStr = mutPrefix ~ refPrefix ~ baseType ~ " " ~ paramName;
-                            debug writeln("DEBUG parseArgs: storing param as '", paramStr, "' (non-array, isMutable=", isMutable, ")");
+                            debug writeln("DEBUG parseArgs: storing param as '", paramStr, "' (non-array, isMutable=", isMutable, ", isVariadic=", isVariadic, ")");
                             args ~= paramStr;
+                            isVariadicFlags ~= isVariadic;
                         }
                     }
                     else
                     {
                         args ~= paramName;
+                        isVariadicFlags ~= false;
                     }
 
                     if (pos < tokens.length && tokens[pos].type == TokenType.COMMA)
@@ -512,7 +536,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
             pos++;
         }
 
-        return args;
+        return FunctionParams(args, isVariadicFlags);
     }
 
     while (pos < tokens.length)
@@ -563,7 +587,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     string funcName = tokens[pos].value;
                     pos++;
 
-                    string[] params = parseArgs();
+                    FunctionParams funcParams = parseArgs();
                     string returnType = "void";
 
                     if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
@@ -586,7 +610,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                             returnType = "ref " ~ returnType;
                     }
 
-                    auto funcNode = new FunctionNode(funcName, params, returnType);
+                    auto funcNode = new FunctionNode(funcName, funcParams.params, funcParams.isVariadic, returnType);
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                         pos++;
 
@@ -598,7 +622,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     ASTNode funcScopeNode = funcNode;
 
                     // Register function parameters in the scope
-                    foreach (param; params)
+                    foreach (param; funcParams.params)
                     {
                         import std.string : split, strip;
 
@@ -688,7 +712,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     pos++;
 
                     // Parse method parameters
-                    string[] params = parseArgs();
+                    FunctionParams funcParams = parseArgs();
                     string returnType = "void";
 
                     // Check for return type annotation
@@ -714,7 +738,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
 
                     // Create function with namespaced name: ModelName_methodName
                     string namespacedName = modelName ~ "_" ~ methodName;
-                    auto funcNode = new FunctionNode(namespacedName, params, returnType);
+                    auto funcNode = new FunctionNode(namespacedName, funcParams.params, funcParams.isVariadic, returnType);
 
                     while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                         pos++;
@@ -726,7 +750,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     Scope methodScope = new Scope();
 
                     // Register method parameters in the scope
-                    foreach (param; params)
+                    foreach (param; funcParams.params)
                     {
                         // Extract parameter name from "type name" format
                         import std.string : split, strip;
@@ -3119,7 +3143,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
             string currentFuncName = tokens[pos].value;
             pos++;
 
-            string[] params = parseArgs();
+            FunctionParams funcParams = parseArgs();
             string returnType = "void";
 
             // Check for return type annotation
@@ -3144,9 +3168,9 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                     returnType = "ref " ~ returnType;
             }
 
-            auto funcNode = new FunctionNode(currentFuncName, params, returnType);
-            debug writeln("DEBUG: Function '", currentFuncName, "' has ", params.length, " parameters:");
-            foreach (p; params)
+            auto funcNode = new FunctionNode(currentFuncName, funcParams.params, funcParams.isVariadic, returnType);
+            debug writeln("DEBUG: Function '", currentFuncName, "' has ", funcParams.params.length, " parameters:");
+            foreach (p; funcParams.params)
                 debug writeln("  DEBUG: param='", p, "'");
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
                 pos++;
@@ -3160,7 +3184,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
             ASTNode funcScopeNode = funcNode;
 
             // Register function parameters in the scope
-            foreach (param; params)
+            foreach (param; funcParams.params)
             {
                 import std.string : split, strip;
 

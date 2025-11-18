@@ -201,6 +201,7 @@ class FunctionNode : ASTNode
 {
     string name;
     string[] params;
+    bool[] isVariadic;
     string returnType;
 
     this(string name, string[] params, string returnType = "void")
@@ -208,6 +209,16 @@ class FunctionNode : ASTNode
         super("Function");
         this.name = name;
         this.params = params;
+        this.returnType = returnType;
+        this.isVariadic = new bool[params.length];
+    }
+
+    this(string name, string[] params, bool[] isVariadic, string returnType = "void")
+    {
+        super("Function");
+        this.name = name;
+        this.params = params;
+        this.isVariadic = isVariadic;
         this.returnType = returnType;
     }
 }
