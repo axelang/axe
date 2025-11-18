@@ -76,8 +76,84 @@ def write_file(path: string, contents: string): bool {
     return ok;
 }
 
+use external("sys/stat.h");
+use external("sys/types.h");
+
+/// Determine if a path is a directory.
+def is_directory(path: string): bool {
+    mut val out: bool = false;
+
+    platform posix {
+        raw {
+            struct stat sb;
+            if (stat(path.data, &sb) == 0) {
+                out = S_ISDIR(sb.st_mode);
+            }
+        }
+    }
+
+    platform windows {
+        raw {
+            struct _stat sb;
+            if (_stat(path.data, &sb) == 0) {
+                out = (sb.st_mode & _S_IFDIR) != 0;
+            }
+        }
+    }
+
+    return out;
+}
+
+/// Determine if a path is a regular file.
+def is_file(path: string): bool {
+    mut val out: bool = false;
+
+    platform posix {
+        raw {
+            struct stat sb;
+            if (stat(path.data, &sb) == 0) {
+                out = S_ISREG(sb.st_mode);
+            }
+        }
+    }
+
+    platform windows {
+        raw {
+            struct _stat sb;
+            if (_stat(path.data, &sb) == 0) {
+                out = (sb.st_mode & _S_IFREG) != 0;
+            }
+        }
+    }
+
+    return out;
+}
+
+/// Determine if a path is a symbolic link.
+/// This always returns false on Windows.
+def is_symbolic_link(path: string): bool {
+    mut val out: bool = false;
+
+    platform posix {
+        raw {
+            struct stat sb;
+            if (lstat(path.data, &sb) == 0) {
+                out = S_ISLNK(sb.st_mode);
+            }
+        }
+    }
+
+    platform windows {
+        return false;
+    }
+    return out;
+}
+
 test {
-    assert(exec(string.create("echo test")) == 0, "exec should run successfully");
+    assert(exec("echo test") == 0, "exec should run successfully");
     assert(write_file(string.create("testfile.txt"), string.create("hello")), "write_file should succeed");
     assert(file_exists(string.create("testfile.txt")), "file should exist after writing");
+    assert(is_file(string.create("testfile.txt")), "testfile.txt should be a file");
+    assert(is_directory(string.create(".")), "current directory should be a directory");
+    assert(!is_symbolic_link(string.create("testfile.txt")), "testfile.txt should not be a symbolic link");
 }
