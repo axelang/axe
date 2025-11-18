@@ -44,6 +44,30 @@ def println_float(value: f32) {
     }
 }
 
+def println_double(value: f64) {
+    raw {
+        printf("%.10f\n", value);
+    }
+}
+
+def print_double(value: f64) {
+    raw {
+        printf("%.10f", value);
+    }
+}
+
+def println_long(value: i64) {
+    raw {
+        printf("%ld\n", value);
+    }
+}
+
+def print_long(value: i64) {
+    raw {
+        printf("%ld", value);
+    }
+}
+
 /// Print out some int with no newline
 def print_i32(value: i32) {
     raw {
