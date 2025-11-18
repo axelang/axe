@@ -104,7 +104,8 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         string originalCallName = modelNode.name ~ "_" ~ methodName;
                         string prefixedCallName = currentModulePrefix ~ "_" ~ modelNode.name ~ "_" ~ methodName;
                         localFunctions[originalCallName] = prefixedCallName;
-                        debug writeln("DEBUG: Added local function '", originalCallName, "' -> '", prefixedCallName, "'");
+                        debug writeln("DEBUG: Added local function '", originalCallName, "' -> '",
+                            prefixedCallName, "'");
                     }
                 }
             }
@@ -126,7 +127,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             if (useNode.moduleName.startsWith("stdlib/"))
             {
                 string moduleName = useNode.moduleName[7 .. $];
-                
+
                 if (baseDir.endsWith("stdlib") || baseDir.endsWith("stdlib/"))
                 {
                     modulePath = buildPath(baseDir, moduleName ~ ".axec");
@@ -135,7 +136,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 {
                     modulePath = buildPath(baseDir, "stdlib", moduleName ~ ".axec");
                 }
-                
+
                 if (!exists(modulePath))
                 {
                     string homeDir = getUserHomeDir();
@@ -171,7 +172,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             auto importAst = parse(importTokens, importIsAxec, false);
             string importBaseDir = dirName(modulePath);
             importAst = processImports(importAst, importBaseDir, importIsAxec, modulePath, false);
-            
+
             auto importProgram = cast(ProgramNode) importAst;
 
             if (!modulePath.canFind("stdlib") && importProgram !is null)
@@ -267,7 +268,8 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                             auto methodFunc = cast(FunctionNode) method;
                             if (methodFunc !is null)
                             {
-                                string prefixedMethodName = sanitizedModuleName ~ "_" ~ methodFunc.name;
+                                string prefixedMethodName = sanitizedModuleName ~ "_" ~ methodFunc
+                                    .name;
                                 moduleFunctionMap[methodFunc.name] = prefixedMethodName;
                             }
                         }
@@ -294,7 +296,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     {
                         resolvedImports[funcNode.name] = true;
                     }
-                    
+
                     // Always add functions from imported modules (including transitive dependencies)
                     // But only rename if explicitly imported
                     if (useNode.imports.canFind(funcNode.name))
@@ -319,12 +321,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                 if (existingFunc.name == funcNode.name)
                                 {
                                     alreadyAdded = true;
-                                    debug writeln("DEBUG: Skipping duplicate transitive function: ", funcNode.name);
+                                    debug writeln("DEBUG: Skipping duplicate transitive function: ", funcNode
+                                            .name);
                                     break;
                                 }
                             }
                         }
-                        
+
                         if (!alreadyAdded)
                         {
                             debug writeln("DEBUG: Adding transitive function: ", funcNode.name);
@@ -347,7 +350,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     {
                         resolvedImports[modelNode.name] = true;
                     }
-                    
+
                     // Always add models from imported modules (including transitive dependencies)
                     // But only rename if explicitly imported
                     if (useNode.imports.canFind(modelNode.name))
@@ -393,17 +396,18 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                 if (existingModel.name == modelNode.name)
                                 {
                                     alreadyAdded = true;
-                                    debug writeln("DEBUG: Skipping duplicate transitive model: ", modelNode.name);
+                                    debug writeln("DEBUG: Skipping duplicate transitive model: ", modelNode
+                                            .name);
                                     break;
                                 }
                             }
                         }
-                        
+
                         if (!alreadyAdded)
                         {
                             isTransitiveDependency[modelNode.name] = true;
                             debug writeln("DEBUG: Adding transitive model: ", modelNode.name);
-                            
+
                             foreach (method; modelNode.methods)
                             {
                                 auto methodFunc = cast(FunctionNode) method;
@@ -413,7 +417,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                     renameTypeReferences(methodFunc, moduleModelMap);
                                 }
                             }
-                            
+
                             newChildren ~= modelNode;
                         }
                     }
@@ -447,7 +451,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                 }
                             }
                         }
-                        
+
                         if (!alreadyAdded)
                         {
                             newChildren ~= macroNode;
@@ -481,13 +485,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             if (child.nodeType == "Model" && currentModulePrefix.length > 0)
             {
                 auto modelNode = cast(ModelNode) child;
-                
+
                 if (modelNode.name in isTransitiveDependency)
                 {
                     newChildren ~= child;
                     continue;
                 }
-                
+
                 string originalModelName = modelNode.name;
                 string prefixedModelName = currentModulePrefix ~ "_" ~ originalModelName;
                 string[string] modelTypeMap = importedModels.dup;
@@ -523,13 +527,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             else if (child.nodeType == "Model")
             {
                 auto modelNode = cast(ModelNode) child;
-                
+
                 if (modelNode.name in isTransitiveDependency)
                 {
                     newChildren ~= child;
                     continue;
                 }
-                
+
                 foreach (method; modelNode.methods)
                 {
                     renameFunctionCalls(method, importedFunctions);
