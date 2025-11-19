@@ -80,7 +80,7 @@ def generate_docs_for_file(path: string): bool {
 
     mut val markdown: string = string.create("");
 
-    markdown = append_line(markdown, concat(string.create("# " ), path));
+    markdown = append_line(markdown, concat(string.create("# "), path));
 
     mut val current_doc: string = string.create("");
     mut val pos: usize = 0;
@@ -199,5 +199,4 @@ main {
         return 1;
     }
     Arena.destroy(ref_of(arena));
-    return 0;
 }

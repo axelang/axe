@@ -26,7 +26,7 @@ model string {
             if (result.data != NULL) {
                 memcpy(result.data, data, len + 1);
                 result.len = len;
-                result.cap = len;
+                result.cap = len + 1;
             }
         }
         return result;
@@ -139,15 +139,30 @@ def compare(a: string, b: string): i32 {
     return 0;
 }
 
-/// Concatenates source string to destination. Modifies dest in place.
+/// Concatenates source string to destination. Returns a new string.
 def concat(dest: string, src: string): string {
-    mut val result: string = string.create(dest.cap + src.cap);
+    mut val result: string;
     raw {
-        strcpy((char*)result.data, (const char*)dest.data);
-        strcat((char*)result.data, (const char*)src.data);
-        result.len = dest.len + src.len;
-        result.cap = dest.cap + src.cap;
+        result.data = NULL;
+        result.len  = 0;
+        result.cap  = 0;
+
+        size_t new_len = (size_t)(dest.len + src.len);
+        result.data = (char*)malloc(new_len + 1);
+
+        if (result.data != NULL) {
+            if (dest.len > 0) {
+                memcpy(result.data, dest.data, dest.len);
+            }
+            if (src.len > 0) {
+                memcpy(result.data + dest.len, src.data, src.len);
+            }
+            ((char*)result.data)[new_len] = '\0';
+            result.len = new_len;
+            result.cap = new_len + 1;
+        }
     }
+
     return result;
 }
 
