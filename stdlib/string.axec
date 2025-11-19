@@ -128,7 +128,20 @@ def is_alnum(c: i32): i32 {
     return result;
 }
 
-/// Converts string to uppercase
+/// Convert some string to titlecase.
+def to_title_case(s: string): string {
+    mut val result: string = string.create("");
+    for mut val i = 0; i < s.len; i++ {
+        if (i == 0 || is_alpha(s.data[i - 1]) == 0) {
+            result.data[i] = to_upper_chr(s.data[i]);
+        } else {
+            result.data[i] = to_lower_chr(s.data[i]);
+        }
+    }
+    return result;
+}
+
+/// Converts string to uppercase.
 def to_upper(s: string): string {
     mut val result: string = string.create("");
     for mut val i = 0; i < s.len; i++ {
@@ -137,7 +150,7 @@ def to_upper(s: string): string {
     return result;
 }
 
-/// Converts string to lowercase
+/// Converts string to lowercase.
 def to_lower(s: string): string {
     mut val result: string = string.create("");
     for mut val i = 0; i < s.len; i++ {
