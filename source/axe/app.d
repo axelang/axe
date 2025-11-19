@@ -16,6 +16,7 @@ import axe.gstate;
 
 void main(string[] args)
 {
+    GlobalState.quietMode = !args.canFind("--loud") && !args.canFind("-l");
     if (args.canFind("--version") || args.canFind("-v") || args.canFind("--about"))
     {
         writeln(ver ~ "\n" ~ about);

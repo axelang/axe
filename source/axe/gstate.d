@@ -2,7 +2,7 @@ module axe.gstate;
 
 static class GlobalState
 {
-    static bool quietMode = true;
+    static bool quietMode = false;
 }
 
 /** 
