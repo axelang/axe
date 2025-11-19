@@ -176,7 +176,9 @@ Token[] lex(string source)
         case '\'':
             size_t cend = source.indexOf('\'', pos + 1);
             enforce(cend != -1, "Unterminated character literal");
-            enforce(cend == pos + 2, "Character literals must contain exactly one character");
+            auto clen = cend - (pos + 1);
+            enforce(clen >= 1 && clen <= 10,
+                "Character literals must contain between 1 and 10 characters");
             tokens ~= Token(TokenType.CHAR, source[pos + 1 .. cend]);
             pos = cend + 1;
             break;
@@ -391,7 +393,8 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.DEFAULT, "default");
                 pos += 7;
             }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "def")
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "def" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.DEF, "def");
                 pos += 3;

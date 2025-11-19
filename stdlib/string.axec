@@ -356,6 +356,51 @@ def fmt(fmt_string: string, args: string[]): string {
     return result;
 }
 
+/// Returns the index of the first occurrence of character `c` in `s` at or after `start`.
+/// Returns -1 if the character is not found.
+def find_char_from(s: string, c: char, start: usize): i32 {
+    mut val index: i32 = -1;
+    raw {
+        if (start >= s.len) {
+            index = -1;
+        } else {
+            for (size_t i = (size_t)start; i < (size_t)s.len; i++) {
+                if (s.data[i] == c) {
+                    index = (int)i;
+                    break;
+                }
+            }
+        }
+    }
+    return index;
+}
+
+/// Returns a substring of `s` starting at `start` with the given `length`.
+/// If `start` is beyond the end of the string or `length` is zero, an empty string is returned.
+/// The function clamps the requested range to the bounds of the source string.
+def substr(s: string, start: usize, length: usize): string {
+    mut val result: string = string.create("");
+    raw {
+        if (start >= s.len || length == 0) {
+            return result;
+        }
+        size_t max_len = (size_t)(s.len - start);
+        size_t copy_len = (size_t)length;
+        if (copy_len > max_len) {
+            copy_len = max_len;
+        }
+        char *buf = (char*)malloc(copy_len + 1);
+        if (!buf) {
+            return result;
+        }
+        memcpy(buf, s.data + start, copy_len);
+        buf[copy_len] = '\0';
+        result = stdlib_string_string_create(buf);
+        free(buf);
+    }
+    return result;
+}
+
 test {    
     assert(is_alpha(65) != 0, "65 (A) should be alphabetic");
     assert(is_digit(48) != 0, "48 (0) should be a digit");

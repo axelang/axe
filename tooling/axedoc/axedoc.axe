@@ -1,0 +1,201 @@
+use stdlib/string (
+    string,
+    concat,
+    find_char_from,
+    substr
+);
+
+use stdlib/os (
+    read_file,
+    write_file,
+    is_file
+);
+
+use stdlib/regex (
+    match
+);
+
+use stdlib/io (
+    println_str,
+    print_str
+);
+
+def trim_leading_whitespace(s: string): string {
+    mut val i: usize = 0;
+    loop {
+        if i >= s.len {
+            break;
+        }
+        if s.data[i] == ' ' or s.data[i] == '\t' {
+            i = i + 1;
+        } else {
+            break;
+        }
+    }
+    return substr(s, i, s.len - i);
+}
+
+def make_markdown_path(path: string): string {
+    mut val dot_index: i32 = -1;
+    mut val i: usize = 0;
+    loop {
+        if i >= path.len {
+            break;
+        }
+        if path.data[i] == '.' {
+            dot_index = (i32)i;
+        }
+        i = i + 1;
+    }
+
+    mut val base: string;
+    if dot_index == -1 {
+        base = path;
+    } else {
+        base = substr(path, 0, (usize)dot_index);
+    }
+
+    return concat(base, string.create(".md"));
+}
+
+def append_line(target: string, line: string): string {
+    mut val result: string = target;
+    result = concat(result, line);
+    result = concat(result, string.create("\n"));
+    return result;
+}
+
+def generate_docs_for_file(path: string): bool {
+    if !is_file(path) {
+        print_str(string.create("axedoc: not a file: "));
+        println_str(path);
+        return false;
+    }
+
+    val source: string = read_file(path);
+
+    val def_pattern: string = string.create("^\\s*def ");
+    val model_pattern: string = string.create("^\\s*model ");
+    val doc_pattern: string = string.create("^\\s*///");
+
+    mut val markdown: string = string.create("");
+
+    markdown = append_line(markdown, concat(string.create("# " ), path));
+
+    mut val current_doc: string = string.create("");
+    mut val pos: usize = 0;
+
+    loop {
+        if pos >= source.len {
+            break;
+        }
+
+        mut val nl_index: i32 = find_char_from(source, '\n', pos);
+        mut val line: string;
+
+        if nl_index == -1 {
+            line = substr(source, pos, source.len - pos);
+            pos = source.len;
+        } else {
+            line = substr(source, pos, (usize)nl_index - pos);
+            pos = (usize)nl_index + 1;
+        }
+
+        val trimmed: string = trim_leading_whitespace(line);
+
+        mut val is_doc: bool = false;
+        if trimmed.len >= 3 {
+            if trimmed.data[0] == '/' and trimmed.data[1] == '/' and trimmed.data[2] == '/' {
+                is_doc = true;
+            }
+        }
+
+        if is_doc {
+            mut val content_start: usize = 3;
+            loop {
+                if content_start >= trimmed.len {
+                    break;
+                }
+                if trimmed.data[content_start] == ' ' or trimmed.data[content_start] == '\t' {
+                    content_start = content_start + 1;
+                } else {
+                    break;
+                }
+            }
+
+            val doc_line: string = substr(trimmed, content_start, trimmed.len - content_start);
+
+            if current_doc.len == 0 {
+                current_doc = doc_line;
+            } else {
+                current_doc = append_line(current_doc, doc_line);
+            }
+
+            continue;
+        }
+
+        mut val is_def_sig: bool = false;
+        mut val is_model_sig: bool = false;
+
+        if match(def_pattern, trimmed) {
+            is_def_sig = true;
+        } elif match(model_pattern, trimmed) {
+            is_model_sig = true;
+        }
+
+        if is_def_sig or is_model_sig {
+            markdown = append_line(markdown, string.create(""));
+
+            mut val heading_prefix: string;
+            if is_model_sig {
+                heading_prefix = string.create("## model ");
+            } else {
+                heading_prefix = string.create("## def ");
+            }
+
+            mut val signature_text: string = trimmed;
+
+            if is_model_sig and trimmed.len > 6 {
+                signature_text = substr(trimmed, 6, trimmed.len - 6);
+            } elif is_def_sig and trimmed.len > 4 {
+                signature_text = substr(trimmed, 4, trimmed.len - 4);
+            }
+
+            mut val heading: string = heading_prefix;
+            heading = concat(heading, signature_text);
+            markdown = append_line(markdown, heading);
+
+            if current_doc.len > 0 {
+                markdown = append_line(markdown, string.create(""));
+                markdown = concat(markdown, current_doc);
+                markdown = append_line(markdown, string.create(""));
+                current_doc = string.create("");
+            }
+
+            continue;
+        }
+    }
+
+    val out_path: string = make_markdown_path(path);
+    val ok: bool = write_file(out_path, markdown);
+
+    if !ok {
+        print_str(string.create("axedoc: failed to write: "));
+        println_str(out_path);
+    }
+
+    return ok;
+}
+
+main {
+    val args: string[] = os.args;
+    if args.len < 2 {
+        println_str(string.create("Usage: axedoc <file>"));
+        return 1;
+    }
+    val path: string = args[1];
+    if !generate_docs_for_file(path) {
+        return 1;
+    }
+    return 0;
+}
