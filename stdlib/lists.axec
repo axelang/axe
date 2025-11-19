@@ -29,7 +29,7 @@ macro make_list(
         len: i32;
         cap: i32;
 
-        def new_list(arena: ref Arena, capacity: i32): ref name {
+        def create(arena: ref Arena, capacity: i32): ref name {
             mut val lst: ref name;
             raw {
                 lst = ({{name}}*)stdlib_arena_Arena_alloc(arena, sizeof({{name}}));
@@ -84,7 +84,7 @@ make_list(StringList, stdlib_string_string, string.create(""), stdlib_string_str
 
 test {
     mut val arena: Arena = Arena.create(65536);
-    mut val my_list: ref IntList = IntList.new_list(ref_of(arena), 4);
+    mut val my_list: ref IntList = IntList.create(ref_of(arena), 4);
 
     IntList.push(my_list, ref_of(arena), 10);
     IntList.push(my_list, ref_of(arena), 20);
