@@ -416,6 +416,53 @@ def substr(s: string, start: usize, length: usize): string {
     return result;
 }
 
+/// Checks if string has prefix.
+def has_prefix(s: string, prefix: string): bool {
+    if prefix.len == 0 {
+        return true;
+    }
+    if prefix.len > s.len {
+        return false;
+    }
+
+    mut i: usize = 0;
+    loop {
+        if i >= prefix.len {
+            break;
+        }
+        if s.data[i] != prefix.data[i] {
+            return false;
+        }
+        i = i + 1;
+    }
+
+    return true;
+}
+
+/// Checks if string has suffix.
+def has_suffix(s: string, suffix: string): bool {
+    if suffix.len == 0 {
+        return true;
+    }
+    if suffix.len > s.len {
+        return false;
+    }
+
+    mut i: usize = 0;
+    mut start: usize = s.len - suffix.len;
+    loop {
+        if i >= suffix.len {
+            break;
+        }
+        if s.data[start + i] != suffix.data[i] {
+            return false;
+        }
+        i = i + 1;
+    }
+
+    return true;
+}
+
 /// Removes prefix from string.
 def trim_prefix(s: string, prefix: string): string {
     if prefix.len == 0 or prefix.len > s.len {
@@ -607,4 +654,14 @@ test {
     val str12: string = string.create("  hello world   \t\n");
     val str13: string = rstrip(str12);
     assert(compare(str13, string.create("  hello world")) == 0, "rstrip should remove trailing whitespace only");
+
+    val base: string = string.create("foobar");
+    assert(has_prefix(base, string.create("foo")), "has_prefix should detect valid prefix");
+    assert(!has_prefix(base, string.create("bar")), "has_prefix should reject non-prefix");
+    assert(has_suffix(base, string.create("bar")), "has_suffix should detect valid suffix");
+    assert(!has_suffix(base, string.create("foo")), "has_suffix should reject non-suffix");
+    assert(has_prefix(base, string.create("")), "empty prefix should always match");
+    assert(has_suffix(base, string.create("")), "empty suffix should always match");
+    assert(!has_prefix(base, string.create("foobarbaz")), "longer prefix should not match");
+    assert(!has_suffix(base, string.create("foobarbaz")), "longer suffix should not match");
 }
