@@ -950,13 +950,9 @@ void renameTypeReferences(ASTNode node, string[string] typeMap)
         import std.regex : regex, replaceAll;
 
         // Replace type names in raw C code blocks
-        // We need to be careful to only replace whole words (type names)
+        // We need to try hard to only replace whole words (type names)
         foreach (oldType, newType; typeMap)
         {
-            // Match type name as a whole word, accounting for common C patterns:
-            // - Type declarations: "String*"
-            // - Casts: "(String*)"
-            // - sizeof: "sizeof(String)"
             auto wordPattern = regex("\\b" ~ oldType ~ "\\b");
             rawNode.code = replaceAll(rawNode.code, wordPattern, newType);
         }
@@ -991,4 +987,31 @@ unittest
 
     assert(convertToModelMethodPattern("Model_method") == r"Model\s*\.\s*method");
     assert(convertToModelMethodPattern("Arena_create") == r"Arena\s*\.\s*create");
+}
+
+unittest
+{
+    import std.string : indexOf;
+
+    string expr1 = "my_func(10)";
+    string expr2 = "x + my_func(10)";
+    string expr3 = "my_func(10) + x";
+    string expr4 = "foo(bar(baz(5)))";
+
+    assert(expr1.indexOf("(") >= 0, "Should find function call");
+    assert(expr2.indexOf("my_func") >= 0, "Should find function call in expression");
+    assert(expr3.indexOf("my_func") >= 0, "Should find function call in expression");
+    assert(expr4.indexOf("(") >= 0, "Should find nested function calls");
+}
+
+unittest
+{
+    assert(convertToModelMethodPattern("List_push") == r"List\s*\.\s*push");
+    assert(convertToModelMethodPattern("Arena_alloc") == r"Arena\s*\.\s*alloc");
+
+    import std.regex : regex, matchFirst;
+
+    auto pattern = regex("^" ~ convertToModelMethodPattern("List_push") ~ "$");
+    assert(matchFirst("List.push", pattern), "Should match List.push");
+    assert(matchFirst("List . push", pattern), "Should match List . push");
 }
