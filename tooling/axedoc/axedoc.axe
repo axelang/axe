@@ -1,27 +1,7 @@
-use stdlib/string (
-    string,
-    concat,
-    find_char_from,
-    substr,
-    trim_prefix,
-    trim_suffix
-);
-
-use stdlib/os (
-    read_file,
-    write_file,
-    is_file,
-    get_cmdline_args
-);
-
-use stdlib/regex (
-    match
-);
-
-use stdlib/io (
-    println_str,
-    print_str
-);
+use stdlib/string (string, concat, find_char_from, substr, trim_prefix, trim_suffix);
+use stdlib/os (read_file, write_file, is_file, get_cmdline_args);
+use stdlib/regex (match);
+use stdlib/io (println_str, print_str);
 
 def trim_leading_whitespace(s: string): string {
     mut i: usize = 0;
