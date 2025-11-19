@@ -457,6 +457,44 @@ def trim_suffix(s: string, suffix: string): string {
     return substr(s, 0, s.len - suffix.len);
 }
 
+/// String trailing and leading whitespace.
+def strip(s: string): string {
+    if s.len == 0 {
+        return s;
+    }
+
+    mut start: usize = 0;
+    loop {
+        if start >= s.len {
+            break;
+        }
+        val ch: char = s.data[start];
+        if ch == ' ' or ch == '\t' or ch == '\r' or ch == '\n' {
+            start++;
+        } else {
+            break;
+        }
+    }
+
+    if start >= s.len {
+        return string.create("");
+    }
+
+    mut end: usize = s.len;
+    loop {
+        if end == 0 {
+            break;
+        }
+        val ch: char = s.data[end - 1];
+        if ch == ' ' or ch == '\t' or ch == '\r' or ch == '\n' {
+            end--;
+        } else {
+            break;
+        }
+    }
+    return substr(s, start, end - start);
+}
+
 test {    
     assert(is_alpha(65) != 0, "65 (A) should be alphabetic");
     assert(is_digit(48) != 0, "48 (0) should be a digit");
@@ -506,4 +544,7 @@ test {
     val str7: string = trim_suffix(str6, string.create(" world"));
     assert(compare(str7, string.create("hello")) == 0, "trim_suffix should remove suffix");
 
+    val str8: string = string.create("  \thello world   ");
+    val str9: string = strip(str8);
+    assert(compare(str9, string.create("hello world")) == 0, "strip should remove leading and trailing whitespace");
 }
