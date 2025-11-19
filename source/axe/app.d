@@ -10,9 +10,9 @@ module axe.app;
 
 import axe.builds;
 import axe.meta;
+import axe.gstate;
 import std.stdio;
 import std.algorithm;
-import axe.gstate;
 
 void main(string[] args)
 {
