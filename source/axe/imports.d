@@ -530,7 +530,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 string prefixedModelName = currentModulePrefix ~ "_" ~ originalModelName;
                 string[string] modelTypeMap = importedModels.dup;
                 modelTypeMap[originalModelName] = prefixedModelName;
-                // modelNode.name = prefixedModelName; // Removed to keep base names in local unit
+                modelNode.name = prefixedModelName;
 
                 foreach (method; modelNode.methods)
                 {
@@ -542,11 +542,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         {
                             methodName = methodName[originalModelName.length + 1 .. $];
                         }
-                        // methodFunc.name = prefixedModelName ~ "_" ~ methodName; // Removed to keep base names
-                        methodFunc.name = originalModelName ~ "_" ~ methodName;
-
-                        // renameFunctionCalls(method, importedFunctions); // Removed
-                        // renameTypeReferences(method, modelTypeMap); // Removed
+                        methodFunc.name = prefixedModelName ~ "_" ~ methodName;
                     }
                 }
 
@@ -569,16 +565,22 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     continue;
                 }
 
+                string[string] localTypeMap = importedModels.dup;
+                foreach (modelName, prefixedName; localModels)
+                {
+                    localTypeMap[modelName] = prefixedName;
+                }
+
                 foreach (method; modelNode.methods)
                 {
                     renameFunctionCalls(method, importedFunctions);
-                    renameTypeReferences(method, importedModels);
+                    renameTypeReferences(method, localTypeMap);
                 }
 
                 foreach (ref field; modelNode.fields)
                 {
-                    if (field.type in importedModels)
-                        field.type = importedModels[field.type];
+                    if (field.type in localTypeMap)
+                        field.type = localTypeMap[field.type];
                 }
 
                 renameFunctionCalls(child, importedFunctions);
