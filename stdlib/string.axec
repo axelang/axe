@@ -140,10 +140,15 @@ def compare(a: string, b: string): i32 {
 }
 
 /// Concatenates source string to destination. Modifies dest in place.
-def concat(dest: string, src: string): void {
+def concat(dest: string, src: string): string {
+    mut val result: string = string.create(dest.cap + src.cap);
     raw {
-        strcat((char*)dest.data, (const char*)src.data);
+        strcpy((char*)result.data, (const char*)dest.data);
+        strcat((char*)result.data, (const char*)src.data);
+        result.len = dest.len + src.len;
+        result.cap = dest.cap + src.cap;
     }
+    return result;
 }
 
 /// Finds first occurrence of character in string. Returns pointer or 0.
@@ -385,4 +390,11 @@ test {
 
     assert(compare(test_string, test_string2) == 0, "test_string and test_string2 should be equal");
     assert(compare(to_lower(string.create("HELLO WORLD")), string.create("hello world")) == 0, "to_lower should convert to lowercase");
+
+    
+    val str1: string = string.create("hello");
+    val str2: string = string.create(" world");
+    val str3: string = concat(str1, str2);
+    assert(compare(str3, string.create("hello world")) == 0, "concat should concatenate strings");
+
 }
