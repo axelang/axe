@@ -85,7 +85,7 @@ def sqrt(value: f64): f64 {
     if value <= 0.0 { return 0.0; }
     if value < 0.0000001 { return 0.00001; }
 
-    mut val x: f64 = 0.0;
+    mut x: f64 = 0.0;
 
     if value >= 1.0 {
         x = value * 0.5;
@@ -93,8 +93,8 @@ def sqrt(value: f64): f64 {
         x = 1.0;
     }
 
-    for mut val i = 0; i < 50; i++ {
-        mut val last: f64 = x;
+    for mut i = 0; i < 50; i++ {
+        mut last: f64 = x;
         x = 0.5 * (x + value / x);
         if approx_equal(last, x, 0.0000000000001) { break; }
     }
@@ -103,9 +103,9 @@ def sqrt(value: f64): f64 {
 
 /// Integer exponent (exponentiation by squaring)
 def pow(base: f64, exp: i32): f64 {
-    mut val result: f64 = 1.0;
-    mut val b: f64 = base;
-    mut val e: i32 = exp;
+    mut result: f64 = 1.0;
+    mut b: f64 = base;
+    mut e: i32 = exp;
 
     if e < 0 {
         b = 1.0 / b;
@@ -132,7 +132,7 @@ def exp(x: f64): f64 {
         return 1.0 / exp(-x);
     }
 
-    mut val n: i32 = 0;
+    mut n: i32 = 0;
     loop {
         if x > 1.0 {
             x = x * 0.5;
@@ -142,14 +142,14 @@ def exp(x: f64): f64 {
         }
     }
 
-    mut val sum: f64 = 1.0;
-    mut val term: f64 = 1.0;
-    for mut val k = 1; k < 25; k++ {
+    mut sum: f64 = 1.0;
+    mut term: f64 = 1.0;
+    for mut k = 1; k < 25; k++ {
         term = term * x / k;
         sum = sum + term;
     }
 
-    for mut val i = 0; i < n; i++ {
+    for mut i = 0; i < n; i++ {
         sum = sum * sum;
     }
     return sum;
@@ -160,10 +160,10 @@ def exp(x: f64): f64 {
 def ln(x: f64): f64 {
     if x <= 0.0 { return 0.0; }
 
-    mut val y: f64 = x - 1.0;
-    for mut val i = 0; i < 25; i++ {
-        mut val last: f64 = y;
-        mut val ey: f64 = exp(y);
+    mut y: f64 = x - 1.0;
+    for mut i = 0; i < 25; i++ {
+        mut last: f64 = y;
+        mut ey: f64 = exp(y);
         y = y - (ey - x) / ey;
         if approx_equal(last, y, 0.0000001) { break; }
     }
@@ -173,11 +173,11 @@ def ln(x: f64): f64 {
 /// Sine (reduced angle)
 def sin(x: f64): f64 {
     x = reduce_angle(x);
-    mut val term: f64 = x;
-    mut val sum: f64 = x;
-    mut val x2: f64 = x * x;
-    mut val n: i32 = 1;
-    for mut val i = 1; i < 10; i++ {
+    mut term: f64 = x;
+    mut sum: f64 = x;
+    mut x2: f64 = x * x;
+    mut n: i32 = 1;
+    for mut i = 1; i < 10; i++ {
         term = -term * x2 / ((2 * n) * (2 * n + 1));
         sum = sum + term;
         n = n + 1;
@@ -188,11 +188,11 @@ def sin(x: f64): f64 {
 /// Cosine
 def cos(x: f64): f64 {
     x = reduce_angle(x);
-    mut val term: f64 = 1.0;
-    mut val sum: f64 = 1.0;
-    mut val x2: f64 = x * x;
-    mut val n: i32 = 1;
-    for mut val i = 1; i < 10; i++ {
+    mut term: f64 = 1.0;
+    mut sum: f64 = 1.0;
+    mut x2: f64 = x * x;
+    mut n: i32 = 1;
+    for mut i = 1; i < 10; i++ {
         term = -term * x2 / ((2 * n - 1) * (2 * n));
         sum = sum + term;
         n = n + 1;
@@ -215,11 +215,11 @@ def asin(x: f64): f64 {
         return -HALF_PI + asin(sqrt(1.0 - x*x));
     }
 
-    mut val term: f64 = x;
-    mut val sum: f64 = x;
-    mut val x2: f64 = x * x;
+    mut term: f64 = x;
+    mut sum: f64 = x;
+    mut x2: f64 = x * x;
 
-    for mut val n = 0; n < 15; n++ {
+    for mut n = 0; n < 15; n++ {
         term = term * ((2.0*n + 1.0)*(2.0*n + 1.0))/((2.0*n + 2.0)*(2.0*n + 3.0)) * x2;
         sum = sum + term;
     }
@@ -234,11 +234,11 @@ def acos(x: f64): f64 {
 
 /// Arctangent
 def atan(x: f64): f64 {
-    mut val term: f64 = x;
-    mut val sum: f64 = x;
-    mut val x2: f64 = x * x;
-    mut val sign: f64 = -1.0;
-    for mut val n = 3; n < 20; n += 2 {
+    mut term: f64 = x;
+    mut sum: f64 = x;
+    mut x2: f64 = x * x;
+    mut sign: f64 = -1.0;
+    for mut n = 3; n < 20; n += 2 {
         term = term * x2;
         sum = sum + sign * term / n;
         sign = -sign;
