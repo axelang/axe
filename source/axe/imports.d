@@ -253,7 +253,15 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     }
                 }
 
-                if (importChild.nodeType == "Function")
+                if (importChild.nodeType == "Use")
+                {
+                    // Propagate use-statements from imported modules so that later
+                    // compilation stages (like C codegen) can still see stdlib
+                    // imports such as `use stdlib/io(print_str)` and generate
+                    // correct function prefixes (e.g. stdlib_io_print_str).
+                    newChildren ~= importChild;
+                }
+                else if (importChild.nodeType == "Function")
                 {
                     auto funcNode = cast(FunctionNode) importChild;
                     if (useNode.imports.canFind(funcNode.name))
@@ -543,6 +551,15 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                             methodName = methodName[originalModelName.length + 1 .. $];
                         }
                         methodFunc.name = prefixedModelName ~ "_" ~ methodName;
+
+                        string[string] localTypeMap = importedModels.dup;
+                        foreach (modelName, prefixedName; localModels)
+                        {
+                            localTypeMap[modelName] = prefixedName;
+                        }
+
+                        renameFunctionCalls(methodFunc, importedFunctions);
+                        renameTypeReferences(methodFunc, localTypeMap);
                     }
                 }
 
