@@ -105,7 +105,6 @@ string generateAsm(ASTNode ast)
             case "Println":
                 {
                     auto printlnNode = cast(PrintlnNode) child;
-                    // Concatenate all string literal messages
                     string combinedMsg = "";
                     foreach (i, msg; printlnNode.messages)
                     {
@@ -113,7 +112,6 @@ string generateAsm(ASTNode ast)
                         {
                             combinedMsg ~= msg;
                         }
-                        // Note: expressions in assembly would need more complex handling
                     }
                     asmCode ~= `
                     section .data
@@ -175,7 +173,6 @@ string generateAsm(ASTNode ast)
                     case "Println":
                         {
                             auto printlnNode = cast(PrintlnNode) loopChild;
-                            // Concatenate all string literal messages
                             string combinedMsg = "";
                             foreach (i, msg; printlnNode.messages)
                             {
@@ -183,7 +180,6 @@ string generateAsm(ASTNode ast)
                                 {
                                     combinedMsg ~= msg;
                                 }
-                                // Note: expressions in assembly would need more complex handling
                             }
                             asmCode ~= `
                             section .data
@@ -299,7 +295,6 @@ string generateAsm(ASTNode ast)
             case "Println":
                 {
                     auto printlnNode = cast(PrintlnNode) child;
-                    // Concatenate all string literal messages
                     string combinedMsg = "";
                     foreach (i, msg; printlnNode.messages)
                     {
@@ -307,7 +302,6 @@ string generateAsm(ASTNode ast)
                         {
                             combinedMsg ~= msg;
                         }
-                        // Note: expressions in assembly would need more complex handling
                     }
                     asmCode ~= `
                     section .data
@@ -428,7 +422,6 @@ string generateAsm(ASTNode ast)
                     case "Println":
                         {
                             auto printlnNode = cast(PrintlnNode) loopChild;
-                            // Concatenate all string literal messages
                             string combinedMsg = "";
                             foreach (i, msg; printlnNode.messages)
                             {
@@ -436,7 +429,6 @@ string generateAsm(ASTNode ast)
                                 {
                                     combinedMsg ~= msg;
                                 }
-                                // Note: expressions in assembly would need more complex handling
                             }
                             asmCode ~= `
                             section .data
@@ -540,7 +532,6 @@ string generateAsm(ASTNode ast)
             case "Println":
                 {
                     auto printlnNode = cast(PrintlnNode) child;
-                    // Concatenate all string literal messages
                     string combinedMsg = "";
                     foreach (i, msg; printlnNode.messages)
                     {
@@ -548,7 +539,6 @@ string generateAsm(ASTNode ast)
                         {
                             combinedMsg ~= msg;
                         }
-                        // Note: expressions in assembly would need more complex handling
                     }
                     asmCode ~= `
                     section .data
