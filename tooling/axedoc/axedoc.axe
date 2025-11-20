@@ -1,7 +1,7 @@
-use stdlib/string (string, concat, find_char_from, substr, trim_prefix, trim_suffix, strip, lstrip, compare);
-use stdlib/os (read_file, write_file, is_file, get_cmdline_args, list_files_recursive);
-use stdlib/regex (match);
-use stdlib/io (println_str, print_str, println_i32);
+use std/string (string, concat, find_char_from, substr, trim_prefix, trim_suffix, strip, lstrip, compare);
+use std/os (read_file, write_file, is_file, get_cmdline_args, list_files_recursive);
+use std/regex (match);
+use std/io (println_str, print_str, println_i32);
 
 def make_markdown_path(path: string): string {
     mut dot_index: i32 = -1;
