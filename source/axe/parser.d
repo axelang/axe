@@ -106,6 +106,28 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
         {
             typeName = tokens[pos].value;
             pos++;
+            
+            // Handle array syntax: type[] or type[size]
+            while (pos < tokens.length && tokens[pos].type == TokenType.LBRACKET)
+            {
+                typeName ~= "[";
+                pos++;
+
+                // Parse array size if present
+                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACKET)
+                {
+                    typeName ~= tokens[pos].value;
+                    pos++;
+                }
+
+                if (pos < tokens.length && tokens[pos].type == TokenType.RBRACKET)
+                {
+                    typeName ~= "]";
+                    pos++;
+                }
+            }
+            
+            // Handle pointer syntax: type*
             while (pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "*")
             {
                 typeName ~= "*";
@@ -4893,9 +4915,11 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                                 .type);
                         if (initializer.length > 0 && tokens[pos].type != TokenType.LPAREN &&
                             tokens[pos].type != TokenType.RPAREN && tokens[pos].type != TokenType
-                            .COMMA)
+                            .COMMA && tokens[pos].type != TokenType.LBRACKET && tokens[pos]
+                            .type != TokenType.RBRACKET && tokens[pos].type != TokenType.LBRACE &&
+                            tokens[pos].type != TokenType.RBRACE)
                         {
-                            // Add space before token (except for parens and commas)
+                            // Add space before token (except for parens, commas, brackets, and braces)
                             initializer ~= " ";
                         }
                         if (tokens[pos].type == TokenType.STR)

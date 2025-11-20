@@ -129,6 +129,11 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.OPERATOR, ">=");
                 pos += 2;
             }
+            else if (pos + 1 < source.length && source[pos + 1] == '>')
+            {
+                tokens ~= Token(TokenType.OPERATOR, ">>");
+                pos += 2;
+            }
             else
             {
                 tokens ~= Token(TokenType.OPERATOR, ">");
@@ -140,6 +145,11 @@ Token[] lex(string source)
             if (pos + 1 < source.length && source[pos + 1] == '=')
             {
                 tokens ~= Token(TokenType.OPERATOR, "<=");
+                pos += 2;
+            }
+            else if (pos + 1 < source.length && source[pos + 1] == '<')
+            {
+                tokens ~= Token(TokenType.OPERATOR, "<<");
                 pos += 2;
             }
             else
@@ -164,6 +174,26 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.SLASH, "/");
                 pos++;
             }
+            break;
+
+        case '&':
+            tokens ~= Token(TokenType.OPERATOR, "&");
+            pos++;
+            break;
+
+        case '|':
+            tokens ~= Token(TokenType.OPERATOR, "|");
+            pos++;
+            break;
+
+        case '^':
+            tokens ~= Token(TokenType.OPERATOR, "^");
+            pos++;
+            break;
+
+        case '~':
+            tokens ~= Token(TokenType.OPERATOR, "~");
+            pos++;
             break;
 
         case '"':
@@ -538,6 +568,20 @@ Token[] lex(string source)
             {
                 tokens ~= Token(TokenType.XOR, "xor");
                 pos += 3;
+            }
+            else if (source[pos] == '0' && pos + 1 < source.length && 
+                     (source[pos + 1] == 'x' || source[pos + 1] == 'X'))
+            {
+                // Handle hex literals: 0x1A, 0xFF, 0x90befffa, etc.
+                size_t start = pos;
+                pos += 2; // Skip '0x'
+                while (pos < source.length && ((source[pos] >= '0' && source[pos] <= '9') ||
+                       (source[pos] >= 'a' && source[pos] <= 'f') ||
+                       (source[pos] >= 'A' && source[pos] <= 'F')))
+                {
+                    pos++;
+                }
+                tokens ~= Token(TokenType.IDENTIFIER, source[start .. pos]);
             }
             else if (source[pos].isAlphaNum() || source[pos] == '_')
             {
