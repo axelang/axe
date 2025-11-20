@@ -4684,7 +4684,6 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
 
         auto platformNode = new PlatformNode(platformName);
 
-        // Parse statements inside the platform block
         while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
         {
             auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode, isAxec);
@@ -4717,7 +4716,6 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
         while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
             pos++;
 
-        // Check if this is a for-in loop
         bool isForIn = false;
         size_t tempPos = pos;
         while (tempPos < tokens.length && tokens[tempPos].type == TokenType.WHITESPACE)
