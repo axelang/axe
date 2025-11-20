@@ -1,10 +1,8 @@
 # Axe
 
-<p style="text-align: center;"><img src="docs/axe/docs/assets/axe.png" width="256"></p>
-
 Axe is a compiled programming language with a focus on type safety, ease of concurrency, and performance. 
 
-It began as a re-engineering of Scar, though evolved into its own entity later on. Axe provides a clean syntax for systems programming with modern language features.
+It began as a re-engineering of Scar, though evolved into its own entity later on. Axe provides a clean syntax for systems programming with modern and parallel language features.
 
 ```axe
 model Person {
