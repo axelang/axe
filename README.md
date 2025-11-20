@@ -99,8 +99,8 @@ def idx(x: i32, y: i32, width: i32): i32 {
 
 /// Print the grid (1-D array)
 def print_grid(grid: ref i32[], width: i32, height: i32) {
-    for mut val y = 0; y < height; y++ {
-        for mut val x = 0; x < width; x++ {
+    for mut y = 0; y < height; y++ {
+        for mut x = 0; x < width; x++ {
             if grid[idx(x, y, width)] == 1 {
                 print "■";
             } else {
@@ -113,10 +113,10 @@ def print_grid(grid: ref i32[], width: i32, height: i32) {
 
 /// Count live neighbors around (x, y)
 def count_neighbors(grid: ref i32[], x: i32, y: i32, width: i32, height: i32): i32 {
-    mut val count: i32 = 0;
+    mut count: i32 = 0;
 
-    for mut val dy = -1; dy <= 1; dy++ {
-        for mut val dx = -1; dx <= 1; dx++ {
+    for mut dy = -1; dy <= 1; dy++ {
+        for mut dx = -1; dx <= 1; dx++ {
             if dx == 0 and dy == 0 {
                 continue;
             }
@@ -137,8 +137,8 @@ def count_neighbors(grid: ref i32[], x: i32, y: i32, width: i32, height: i32): i
 
 /// Compute next generation
 def next_generation(grid: ref i32[], new_grid: ref i32[], width: i32, height: i32) {
-    for mut val y = 0; y < height; y++ {
-        for mut val x = 0; x < width; x++ {
+    for mut y = 0; y < height; y++ {
+        for mut x = 0; x < width; x++ {
 
             val i = idx(x, y, width);
             val neighbors = count_neighbors(grid, x, y, width, height);
@@ -162,7 +162,7 @@ def next_generation(grid: ref i32[], new_grid: ref i32[], width: i32, height: i3
 
 /// Copy new_grid back into grid
 def copy_grid(src: ref i32[], dst: ref i32[], size: i32) {
-    for mut val i = 0; i < size; i++ {
+    for mut i = 0; i < size; i++ {
         dst[i] = src[i];
     }
 }
@@ -172,10 +172,10 @@ main {
     val height: i32 = 20;
     val size: i32 = width * height;
 
-    mut val grid: i32[size];
-    mut val new_grid: i32[size];
+    mut grid: i32[size];
+    mut new_grid: i32[size];
 
-    for mut val i = 0; i < size; i++ {
+    for mut i = 0; i < size; i++ {
         grid[i] = 0;
         new_grid[i] = 0;
     }
@@ -188,7 +188,7 @@ main {
 
     println "Conway's Game of Life\n";
 
-    for mut val gen = 0; gen < 20; gen++ {
+    for mut gen = 0; gen < 20; gen++ {
         print "Generation ";
         println gen;
         println "";
