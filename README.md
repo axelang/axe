@@ -12,10 +12,12 @@ model Person {
     age: i32;
 }
 
-parallel for mut i = 0; i < 10; i++ {
-    mut person = new Person(name: "Alice", age: 30);
-    println person.name;
-    do_some_other_stuff();
+main {
+    parallel for mut i = 0; i < 10; i++ {
+        mut person = new Person(name: "Alice", age: 30);
+        println person.name;
+        do_some_other_stuff();
+    }
 }
 ```
 ## Features
