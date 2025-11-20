@@ -10,6 +10,7 @@ module axe.renderer;
 
 import axe.structs;
 import axe.gstate;
+import axe.imports;
 import std.string;
 import std.array;
 import std.exception;
@@ -477,6 +478,11 @@ string generateC(ASTNode ast)
         foreach (header; globalExternalHeaders)
         {
             cCode ~= "#include <" ~ header ~ ">\n";
+        }
+
+        if (hasImportedModule("stdlib/net") || hasImportedModule("net.axec"))
+        {
+            cCode ~= "#include <curl/curl.h>\n";
         }
 
         foreach (platformName, headers; platformExternalHeaders)

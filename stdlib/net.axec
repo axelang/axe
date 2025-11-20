@@ -1,0 +1,544 @@
+use stdlib/string (
+    string
+);
+
+use stdlib/errors (
+    error,
+    panic
+);
+
+use stdlib/io (
+    println_str
+);
+
+use external("curl/curl.h");
+
+/// HTTP response model containing status code, headers, and body
+model HttpResponse {
+    status_code: i32;
+    body: string;
+    headers: string;
+    success: bool;
+}
+
+
+/// Memory struct for curl write callback
+model MemoryStruct {
+    memory: char*;
+    size: usize;
+}
+
+/// Internal write callback function for curl - grows buffer as needed
+def write_callback(contents: char*, size: usize, nmemb: usize, userp: char*): usize {
+    mut realsize: usize = 0;
+    raw {
+        realsize = size * nmemb;
+        MemoryStruct *mem = (MemoryStruct *)userp;
+        
+        char *ptr = (char*)realloc(mem->memory, mem->size + realsize + 1);
+        if (ptr == NULL) {
+            return 0;
+        }
+        
+        mem->memory = ptr;
+        memcpy(&(mem->memory[mem->size]), contents, realsize);
+        mem->size += realsize;
+        mem->memory[mem->size] = 0;
+    }
+    return realsize;
+}
+
+/// Initialize the cURL library globally
+def curl_init() {
+    raw {
+        curl_global_init(CURL_GLOBAL_ALL);
+    }
+}
+
+/// Cleanup the cURL library globally
+def curl_cleanup() {
+    raw {
+        curl_global_cleanup();
+    }
+}
+
+/// Perform an HTTP GET request
+def http_get(url: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct body_chunk;
+            body_chunk.memory = (char*)malloc(1);
+            body_chunk.size = 0;
+            
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&body_chunk);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.body.data = body_chunk.memory;
+                response.body.len = body_chunk.size;
+                response.body.cap = body_chunk.size + 1;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+            } else {
+                free(body_chunk.memory);
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Perform an HTTP POST request with data
+def http_post(url: string, data: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct body_chunk;
+            body_chunk.memory = (char*)malloc(1);
+            body_chunk.size = 0;
+            
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_POST, 1L);
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.data);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&body_chunk);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.body.data = body_chunk.memory;
+                response.body.len = body_chunk.size;
+                response.body.cap = body_chunk.size + 1;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+            } else {
+                free(body_chunk.memory);
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Perform an HTTP PUT request with data
+def http_put(url: string, data: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct body_chunk;
+            body_chunk.memory = (char*)malloc(1);
+            body_chunk.size = 0;
+            
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.data);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&body_chunk);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.body.data = body_chunk.memory;
+                response.body.len = body_chunk.size;
+                response.body.cap = body_chunk.size + 1;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+            } else {
+                free(body_chunk.memory);
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Perform an HTTP DELETE request
+def http_delete(url: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct body_chunk;
+            body_chunk.memory = (char*)malloc(1);
+            body_chunk.size = 0;
+            
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&body_chunk);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.body.data = body_chunk.memory;
+                response.body.len = body_chunk.size;
+                response.body.cap = body_chunk.size + 1;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+            } else {
+                free(body_chunk.memory);
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Perform an HTTP PATCH request with data
+def http_patch(url: string, data: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct body_chunk;
+            body_chunk.memory = (char*)malloc(1);
+            body_chunk.size = 0;
+            
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PATCH");
+            curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.data);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&body_chunk);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.body.data = body_chunk.memory;
+                response.body.len = body_chunk.size;
+                response.body.cap = body_chunk.size + 1;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+            } else {
+                free(body_chunk.memory);
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Perform an HTTP HEAD request (retrieves headers only)
+def http_head(url: string): HttpResponse {
+    mut response: HttpResponse;
+    
+    raw {
+        response.status_code = 0;
+        response.success = false;
+        response.body.data = NULL;
+        response.body.len = 0;
+        response.body.cap = 0;
+        response.headers.data = NULL;
+        response.headers.len = 0;
+        response.headers.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            MemoryStruct header_chunk;
+            header_chunk.memory = (char*)malloc(1);
+            header_chunk.size = 0;
+            
+            curl_easy_setopt(curl, CURLOPT_URL, url.data);
+            curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
+            curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_callback);
+            curl_easy_setopt(curl, CURLOPT_HEADERDATA, (void *)&header_chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+            
+            CURLcode res = curl_easy_perform(curl);
+            
+            if (res == CURLE_OK) {
+                long response_code;
+                curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+                response.status_code = (int32_t)response_code;
+                response.success = true;
+                
+                response.headers.data = header_chunk.memory;
+                response.headers.len = header_chunk.size;
+                response.headers.cap = header_chunk.size + 1;
+                
+                // HEAD has no body
+                response.body.data = (char*)malloc(1);
+                response.body.data[0] = '\0';
+                response.body.len = 0;
+                response.body.cap = 1;
+            } else {
+                free(header_chunk.memory);
+            }
+            
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return response;
+}
+
+/// Download a file from a URL and save it to disk
+def download_file(url: string, output_path: string): bool {
+    mut success: bool = false;
+    
+    raw {
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            FILE *fp = fopen(output_path.data, "wb");
+            if (fp) {
+                curl_easy_setopt(curl, CURLOPT_URL, url.data);
+                curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+                curl_easy_setopt(curl, CURLOPT_USERAGENT, "axe-stdlib/1.0");
+                
+                CURLcode res = curl_easy_perform(curl);
+                
+                if (res == CURLE_OK) {
+                    success = true;
+                }
+                
+                fclose(fp);
+            }
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return success;
+}
+
+/// URL encode a string (percent encoding for URLs)
+def url_encode(input: string): string {
+    mut result: string;
+    
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            char *encoded = curl_easy_escape(curl, input.data, input.len);
+            if (encoded) {
+                size_t len = strlen(encoded);
+                result.data = (char*)malloc(len + 1);
+                if (result.data) {
+                    memcpy(result.data, encoded, len + 1);
+                    result.len = len;
+                    result.cap = len + 1;
+                }
+                curl_free(encoded);
+            }
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return result;
+}
+
+/// URL decode a string (decode percent-encoded URLs)
+def url_decode(input: string): string {
+    mut result: string;
+    
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        CURL *curl = curl_easy_init();
+        if (curl) {
+            int outlength;
+            char *decoded = curl_easy_unescape(curl, input.data, input.len, &outlength);
+            if (decoded) {
+                result.data = (char*)malloc(outlength + 1);
+                if (result.data) {
+                    memcpy(result.data, decoded, outlength);
+                    result.data[outlength] = '\0';
+                    result.len = outlength;
+                    result.cap = outlength + 1;
+                }
+                curl_free(decoded);
+            }
+            curl_easy_cleanup(curl);
+        }
+    }
+    
+    return result;
+}
+
+/// Check if a response status code indicates success (2xx)
+def is_success_status(status_code: i32): bool {
+    return status_code >= 200 && status_code < 300;
+}
+
+/// Check if a response status code indicates a redirect (3xx)
+def is_redirect_status(status_code: i32): bool {
+    return status_code >= 300 && status_code < 400;
+}
+
+/// Check if a response status code indicates a client error (4xx)
+def is_client_error_status(status_code: i32): bool {
+    return status_code >= 400 && status_code < 500;
+}
+
+/// Check if a response status code indicates a server error (5xx)
+def is_server_error_status(status_code: i32): bool {
+    return status_code >= 500 && status_code < 600;
+}
+
+/// Free the memory allocated for an HttpResponse
+def free_response(response: HttpResponse) {
+    raw {
+        if (response.body.data != NULL) {
+            free(response.body.data);
+        }
+        if (response.headers.data != NULL) {
+            free(response.headers.data);
+        }
+    }
+}
+
+test {
+    
+}

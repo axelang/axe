@@ -232,6 +232,36 @@ bool handleMachineArgs(string[] args)
                 }
             }
 
+            if (hasImportedModule("stdlib/net") || hasImportedModule("net.axec"))
+            {
+                import std.file : thisExePath;
+
+                string exePath = thisExePath();
+                string toolchainRoot = dirName(exePath);
+                string curlInclude = buildPath(toolchainRoot, "external", "curl", "include");
+
+                clangCmd ~= ["-DCURL_STATICLIB", "-I" ~ curlInclude];
+
+                version (Windows)
+                {
+                    string curlLib = buildPath(toolchainRoot, "external", "x64-windows", "libcurl.lib").replace("\\", "/");
+                    string zlibLib = buildPath(toolchainRoot, "external", "x64-windows", "zlib.lib").replace("\\", "/");
+                    clangCmd ~= [curlLib, zlibLib];
+                    clangCmd ~= ["-lws2_32", "-lwldap32", "-ladvapi32", "-lcrypt32"];
+                    clangCmd ~= ["-lnormaliz", "-liphlpapi", "-lsecur32", "-lbcrypt"];
+                }
+                version (Linux)
+                {
+                    string curlLib = buildPath(toolchainRoot, "external", "x64-linux", "libcurl.a");
+                    clangCmd ~= [curlLib, "-lssl", "-lcrypto", "-lz"];
+                }
+                version (OSX)
+                {
+                    string curlLib = buildPath(toolchainRoot, "external", "x64-macos", "libcurl.a");
+                    clangCmd ~= [curlLib, "-lssl", "-lcrypto", "-lz"];
+                }
+            }
+
             string[] externalHeaders;
             collectExternalHeaders(ast, externalHeaders);
             foreach (header; externalHeaders)

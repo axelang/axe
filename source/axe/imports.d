@@ -33,6 +33,19 @@ void resetProcessedModules()
 }
 
 /**
+ * Check if a specific stdlib module was imported during compilation
+ */
+bool hasImportedModule(string moduleName)
+{
+    foreach (key; g_processedModules.byKey())
+    {
+        if (key.canFind(moduleName))
+            return true;
+    }
+    return false;
+}
+
+/**
  * Process use statements and merge imported ASTs, recursively handling transitive dependencies
  */
 ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentFilePath = "",
