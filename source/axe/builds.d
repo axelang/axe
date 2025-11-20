@@ -267,6 +267,34 @@ bool handleMachineArgs(string[] args)
                 }
             }
 
+            if (hasImportedModule("std/json") || hasImportedModule("json.axec"))
+            {
+                import std.file : thisExePath;
+
+                string exePath = thisExePath();
+                string toolchainRoot = dirName(exePath);
+                string yyjsonInclude = buildPath(toolchainRoot, "external", "yyjson", "include");
+
+                clangCmd ~= ["-I" ~ yyjsonInclude];
+
+                version (Windows)
+                {
+                    string yyjsonLib = buildPath(toolchainRoot, "external", "x64-windows", "yyjson.lib")
+                        .replace("\\", "/");
+                    clangCmd ~= [yyjsonLib];
+                }
+                version (Linux)
+                {
+                    string yyjsonLib = buildPath(toolchainRoot, "external", "x64-linux", "libyyjson.a");
+                    clangCmd ~= [yyjsonLib];
+                }
+                version (OSX)
+                {
+                    string yyjsonLib = buildPath(toolchainRoot, "external", "x64-macos", "libyyjson.a");
+                    clangCmd ~= [yyjsonLib];
+                }
+            }
+
             string[] externalHeaders;
             collectExternalHeaders(ast, externalHeaders);
             foreach (header; externalHeaders)

@@ -1,0 +1,372 @@
+use std/string (
+    string
+);
+
+use external("yyjson.h");
+
+/// JSON value types
+val JSON_TYPE_NULL: i32 = 0;
+val JSON_TYPE_BOOL: i32 = 1;
+val JSON_TYPE_NUM: i32 = 2;
+val JSON_TYPE_STR: i32 = 3;
+val JSON_TYPE_ARR: i32 = 4;
+val JSON_TYPE_OBJ: i32 = 5;
+
+/// Parse a JSON string and return a document
+def parse(json_str: string): char* {
+    mut doc: char* = nil;
+    raw {
+        doc = (char*)yyjson_read(json_str.data, json_str.len, 0);
+    }
+    return doc;
+}
+
+/// Free a JSON document
+def free_doc(doc: char*) {
+    raw {
+        if (doc != NULL) {
+            yyjson_doc_free((yyjson_doc*)doc);
+        }
+    }
+}
+
+/// Get the root value from a JSON document
+def get_root(doc: char*): char* {
+    mut root: char* = nil;
+    raw {
+        if (doc != NULL) {
+            root = (char*)yyjson_doc_get_root((yyjson_doc*)doc);
+        }
+    }
+    return root;
+}
+
+/// Check if a value is null
+def is_null(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_null((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Check if a value is a boolean
+def is_bool(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_bool((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Check if a value is a number
+def is_num(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_num((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Check if a value is a string
+def is_str(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_str((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Check if a value is an array
+def is_array(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_arr((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Check if a value is an object
+def is_object(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_is_obj((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get boolean value
+def get_bool(value: char*): bool {
+    mut result: bool = false;
+    raw {
+        if (value != NULL) {
+            result = yyjson_get_bool((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get integer value
+def get_int(value: char*): i32 {
+    mut result: i32 = 0;
+    raw {
+        if (value != NULL) {
+            result = yyjson_get_int((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get 64-bit integer value
+def get_int64(value: char*): i64 {
+    mut result: i64 = 0;
+    raw {
+        if (value != NULL) {
+            result = yyjson_get_sint((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get floating point value
+def get_real(value: char*): f64 {
+    mut result: f64 = 0.0;
+    raw {
+        if (value != NULL) {
+            result = yyjson_get_real((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get string value
+def get_str(value: char*): string {
+    mut result: string;
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        if (value != NULL) {
+            const char* str = yyjson_get_str((yyjson_val*)value);
+            if (str != NULL) {
+                size_t len = yyjson_get_len((yyjson_val*)value);
+                result.data = (char*)malloc(len + 1);
+                if (result.data != NULL) {
+                    memcpy(result.data, str, len);
+                    result.data[len] = '\0';
+                    result.len = len;
+                    result.cap = len + 1;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+/// Get the length of an array or object
+def get_len(value: char*): usize {
+    mut result: usize = 0;
+    raw {
+        if (value != NULL) {
+            result = yyjson_get_len((yyjson_val*)value);
+        }
+    }
+    return result;
+}
+
+/// Get a value from an object by key
+def obj_get(obj: char*, key: string): char* {
+    mut result: char* = nil;
+    raw {
+        if (obj != NULL && key.data != NULL) {
+            result = (char*)yyjson_obj_get((yyjson_val*)obj, key.data);
+        }
+    }
+    return result;
+}
+
+/// Get a value from an array by index
+def arr_get(arr: char*, idx: usize): char* {
+    mut result: char* = nil;
+    raw {
+        if (arr != NULL) {
+            result = (char*)yyjson_arr_get((yyjson_val*)arr, idx);
+        }
+    }
+    return result;
+}
+
+/// Get the first element in an array
+def arr_get_first(arr: char*): char* {
+    mut result: char* = nil;
+    raw {
+        if (arr != NULL) {
+            result = (char*)yyjson_arr_get_first((yyjson_val*)arr);
+        }
+    }
+    return result;
+}
+
+/// Get the last element in an array
+def arr_get_last(arr: char*): char* {
+    mut result: char* = nil;
+    raw {
+        if (arr != NULL) {
+            result = (char*)yyjson_arr_get_last((yyjson_val*)arr);
+        }
+    }
+    return result;
+}
+
+/// Serialize a JSON document to a string
+def stringify(doc: char*): string {
+    mut result: string;
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        if (doc != NULL) {
+            size_t len;
+            char* json = yyjson_write((yyjson_doc*)doc, 0, &len);
+            if (json != NULL) {
+                result.data = json;
+                result.len = len;
+                result.cap = len + 1;
+            }
+        }
+    }
+    return result;
+}
+
+/// Serialize a JSON value to a string
+def stringify_val(value: char*): string {
+    mut result: string;
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        if (value != NULL) {
+            size_t len;
+            char* json = yyjson_val_write((yyjson_val*)value, 0, &len);
+            if (json != NULL) {
+                result.data = json;
+                result.len = len;
+                result.cap = len + 1;
+            }
+        }
+    }
+    return result;
+}
+
+/// Serialize with pretty formatting
+def stringify_pretty(doc: char*): string {
+    mut result: string;
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        if (doc != NULL) {
+            size_t len;
+            char* json = yyjson_write((yyjson_doc*)doc, YYJSON_WRITE_PRETTY, &len);
+            if (json != NULL) {
+                result.data = json;
+                result.len = len;
+                result.cap = len + 1;
+            }
+        }
+    }
+    return result;
+}
+
+/// Read JSON from a file
+def read_file(path: string): char* {
+    mut doc: char* = nil;
+    raw {
+        if (path.data != NULL) {
+            doc = (char*)yyjson_read_file(path.data, 0, NULL, NULL);
+        }
+    }
+    return doc;
+}
+
+/// Write JSON to a file
+def write_file(path: string, doc: char*): bool {
+    mut success: bool = false;
+    raw {
+        if (path.data != NULL && doc != NULL) {
+            success = yyjson_write_file(path.data, (yyjson_doc*)doc, 0, NULL, NULL);
+        }
+    }
+    return success;
+}
+
+test {
+    mut json_str: string = string.create("{\"name\":\"John\",\"age\":30,\"active\":true}");
+    mut doc: char* = parse(json_str);
+    
+    assert doc != nil, "Should parse valid JSON";
+    
+    if doc != nil {
+        mut root: char* = get_root(doc);
+        assert root != nil, "Should get root value";
+        assert is_object(root), "Root should be an object";
+        
+        mut name_val: char* = obj_get(root, string.create("name"));
+        assert name_val != nil, "Should find 'name' key";
+        assert is_str(name_val), "name should be a string";
+        
+        mut name: string = get_str(name_val);
+        assert name.len > 0, "Should get string value";
+        
+        mut age_val: char* = obj_get(root, string.create("age"));
+        assert age_val != nil, "Should find 'age' key";
+        assert is_num(age_val), "age should be a number";
+        
+        mut age: i32 = get_int(age_val);
+        assert age == 30, "age should be 30";
+        
+        mut active_val: char* = obj_get(root, string.create("active"));
+        assert active_val != nil, "Should find 'active' key";
+        assert is_bool(active_val), "active should be a boolean";
+        
+        mut active: bool = get_bool(active_val);
+        assert active, "active should be true";
+        
+        free_doc(doc);
+    }
+    
+    mut arr_str: string = string.create("[1,2,3,4,5]");
+    mut arr_doc: char* = parse(arr_str);
+    
+    assert arr_doc != nil, "Should parse JSON array";
+    
+    if arr_doc != nil {
+        mut arr_root: char* = get_root(arr_doc);
+        assert is_array(arr_root), "Root should be an array";
+        
+        mut len: usize = get_len(arr_root);
+        assert len == 5, "Array should have 5 elements";
+        
+        mut first: char* = arr_get(arr_root, 0);
+        assert is_num(first), "First element should be a number";
+        assert get_int(first) == 1, "First element should be 1";
+        
+        free_doc(arr_doc);
+    }
+}

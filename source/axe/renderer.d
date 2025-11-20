@@ -485,6 +485,11 @@ string generateC(ASTNode ast)
             cCode ~= "#include <curl/curl.h>\n";
         }
 
+        if (hasImportedModule("std/json") || hasImportedModule("json.axec"))
+        {
+            cCode ~= "#include <yyjson.h>\n";
+        }
+
         foreach (platformName, headers; platformExternalHeaders)
         {
             if (platformName == "windows")

@@ -197,8 +197,26 @@ Token[] lex(string source)
             break;
 
         case '"':
-            size_t ending = source.indexOf('"', pos + 1);
-            enforce(ending != -1, "Unterminated string");
+            size_t ending = pos + 1;
+            while (ending < source.length)
+            {
+                if (source[ending] == '"')
+                {
+                    break;
+                }
+                else if (source[ending] == '\\' && ending + 1 < source.length)
+                {
+                    ending += 2;
+                }
+                else
+                {
+                    ending++;
+                }
+            }
+
+            import std.conv;
+
+            enforce(ending < source.length, "Unterminated string at position " ~ pos.to!string);
             tokens ~= Token(TokenType.STR, source[pos + 1 .. ending]);
             pos = ending + 1;
             break;
@@ -581,15 +599,15 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.XOR, "xor");
                 pos += 3;
             }
-            else if (source[pos] == '0' && pos + 1 < source.length && 
-                     (source[pos + 1] == 'x' || source[pos + 1] == 'X'))
+            else if (source[pos] == '0' && pos + 1 < source.length &&
+                (source[pos + 1] == 'x' || source[pos + 1] == 'X'))
             {
                 // Handle hex literals: 0x1A, 0xFF, 0x90befffa, etc.
                 size_t start = pos;
                 pos += 2; // Skip '0x'
                 while (pos < source.length && ((source[pos] >= '0' && source[pos] <= '9') ||
-                       (source[pos] >= 'a' && source[pos] <= 'f') ||
-                       (source[pos] >= 'A' && source[pos] <= 'F')))
+                        (source[pos] >= 'a' && source[pos] <= 'f') ||
+                        (source[pos] >= 'A' && source[pos] <= 'F')))
                 {
                     pos++;
                 }
