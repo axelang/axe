@@ -1382,8 +1382,7 @@ string generateC(ASTNode ast)
         string processedArrayName = processExpression(forInNode.arrayName);
         bool isPointer = (forInNode.arrayName in g_isPointerVar && 
                           g_isPointerVar[forInNode.arrayName] == "true");
-        string accessor = isPointer ? "->" : ".";
-        
+        string accessor = isPointer ? "->" : ".";        
         string loopHeader = "for (int32_t " ~ indexVar ~ " = 0; " ~ indexVar ~ " < " ~ 
                             processedArrayName ~ accessor ~ "len; " ~ indexVar ~ "++) {\n";
         cCode ~= loopHeader;
