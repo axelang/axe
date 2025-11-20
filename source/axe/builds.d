@@ -244,11 +244,16 @@ bool handleMachineArgs(string[] args)
 
                 version (Windows)
                 {
-                    string curlLib = buildPath(toolchainRoot, "external", "x64-windows", "libcurl.lib").replace("\\", "/");
+                    string curlLib = buildPath(toolchainRoot, "external", "x64-windows", "libcurl.lib")
+                        .replace("\\", "/");
                     string zlibLib = buildPath(toolchainRoot, "external", "x64-windows", "zlib.lib").replace("\\", "/");
                     clangCmd ~= [curlLib, zlibLib];
-                    clangCmd ~= ["-lws2_32", "-lwldap32", "-ladvapi32", "-lcrypt32"];
-                    clangCmd ~= ["-lnormaliz", "-liphlpapi", "-lsecur32", "-lbcrypt"];
+                    clangCmd ~= [
+                        "-lws2_32", "-lwldap32", "-ladvapi32", "-lcrypt32"
+                    ];
+                    clangCmd ~= [
+                        "-lnormaliz", "-liphlpapi", "-lsecur32", "-lbcrypt"
+                    ];
                 }
                 version (Linux)
                 {
