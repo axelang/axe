@@ -1,4 +1,4 @@
-site_name: My Docs
+site_name: Axe Programming Language
 theme:
   name: material
   palette:
@@ -7,3 +7,16 @@ theme:
 nav:
   - Home: index.md
   - Types: types.md
+  - Standard Library:
+    - Arena: stdlib/arena.md
+    - Errors: stdlib/errors.md
+    - String: stdlib/string.md
+    - Memory: stdlib/memory.md
+    - IO: stdlib/io.md
+    - Math: stdlib/math.md
+    - Networking: stdlib/net.md
+    - Time: stdlib/time.md
+    - Terminal: stdlib/term.md
+    - Regex: stdlib/regex.md
+    - Typecons: stdlib/typecons.md
+    - Lists: stdlib/lists.md
