@@ -617,11 +617,9 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             else if (child.nodeType == "Test" && currentModulePrefix.length > 0)
             {
                 string[string] localTypeMap = importedModels.dup;
-
-                // This is terrible. 
-                // TODO: We need to remove this when we have a better solution.
                 string[string] localNameMap = importedFunctions.dup;
-                if (currentFilePath.canFind("stdlib/string.axec"))
+                string normalizedFilePath = currentFilePath.replace("\\", "/");
+                if (normalizedFilePath.canFind("stdlib/") && currentModulePrefix.length > 0)
                 {
                     foreach (modelMethod, prefixedName; localFunctions)
                     {
