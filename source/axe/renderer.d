@@ -3927,4 +3927,68 @@ unittest
         assert(!cCode.canFind("void use("), "Should not treat Use as a function");
         assert(!cCode.canFind("struct use"), "Should not treat Use as a model");
     }
+
+    {
+        auto tokens = lex("main { for mut i = 0 to 10 { println i; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("For-to syntax test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("for (int i = 0; (i<10); i++)"), 
+            "Should desugar 'for mut i = 0 to 10' to C for loop");
+    }
+
+    {
+        auto tokens = lex("main { for mut i = 5 to 15 { println i; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("For-to syntax with non-zero start test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("for (int i = 5; (i<15); i++)"), 
+            "Should handle non-zero start value in for-to loop");
+    }
+
+    {
+        auto tokens = lex("main { mut val sum: i32 = 0; parallel for mut i = 0 to 100 { sum = sum + i; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Parallel for without reduction test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("#pragma omp parallel for"), 
+            "Should generate OpenMP pragma for parallel for");
+        assert(cCode.canFind("for (int i = 0; (i<100); i++)"), 
+            "Should generate correct for loop in parallel for");
+    }
+
+    {
+        auto tokens = lex("main { mut val sum: i32 = 0; parallel for mut i = 0 to 100 reduce(+:sum) { sum = sum + i; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Parallel for with reduction clause test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("#pragma omp parallel for reduction(+:sum)"), 
+            "Should generate OpenMP pragma with reduction clause");
+        assert(cCode.canFind("for (int i = 0; (i<100); i++)"), 
+            "Should generate correct for loop in parallel for with reduction");
+    }
+
+    {
+        auto tokens = lex("main { mut val sum: i32 = 0; mut val prod: i32 = 1; parallel for mut i = 1 to 10 reduce(+:sum, *:prod) { sum = sum + i; prod = prod * i; } }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Parallel for with multiple reduction clauses test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("#pragma omp parallel for reduction(+:sum, *:prod)"), 
+            "Should generate OpenMP pragma with multiple reduction clauses");
+    }
 }
