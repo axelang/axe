@@ -1,0 +1,6 @@
+use stdlib/io;
+use stdlib/string;
+
+main {
+    println_str(string.create("Wow its usable"));
+}
