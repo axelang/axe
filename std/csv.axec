@@ -6,6 +6,10 @@ use std/lists (
     StringList
 );
 
+use std/arena (
+    Arena
+);
+
 /// CSV row model - represents a single row of CSV data
 model CsvRow {
     fields: StringList;
@@ -14,9 +18,10 @@ model CsvRow {
 
 /// CSV document model - represents an entire CSV file
 model CsvDocument {
-    rows: CsvRow*;
+    rows: ref CsvRow;
     row_count: usize;
     row_capacity: usize;
+    arena: ref Arena;
 }
 
 /// CSV parser options
@@ -37,13 +42,14 @@ def default_options(): CsvOptions {
     return opts;
 }
 
-/// Create a new empty CSV document
-def create_document(): CsvDocument {
+/// Create a new empty CSV document with arena allocator
+def create_document(arena: ref Arena): CsvDocument {
     mut doc: CsvDocument;
     raw {
         doc.rows = NULL;
         doc.row_count = 0;
         doc.row_capacity = 0;
+        doc.arena = arena;
     }
     return doc;
 }
@@ -60,15 +66,20 @@ def create_row(): CsvRow {
     return row;
 }
 
-/// Add a field to a CSV row
-def add_field(row: CsvRow*, field: string) {
+/// Add a field to a CSV row (using arena allocation)
+def add_field(row: ref CsvRow, field: string, arena: ref Arena) {
     raw {
         if (row == NULL) return;
         
         if (row->fields.len >= row->fields.cap) {
             size_t new_cap = row->fields.cap == 0 ? 4 : row->fields.cap * 2;
-            string* new_data = (string*)realloc(row->fields.data, new_cap * sizeof(string));
+            string* new_data = (string*)std_arena_Arena_alloc(arena, new_cap * sizeof(string));
             if (new_data == NULL) return;
+            
+            if (row->fields.data != NULL) {
+                memcpy(new_data, row->fields.data, row->fields.len * sizeof(string));
+            }
+            
             row->fields.data = new_data;
             row->fields.cap = new_cap;
         }
@@ -79,15 +90,20 @@ def add_field(row: CsvRow*, field: string) {
     }
 }
 
-/// Add a row to a CSV document
-def add_row(doc: CsvDocument*, row: CsvRow) {
+/// Add a row to a CSV document (using arena allocation)
+def add_row(doc: ref CsvDocument, row: CsvRow) {
     raw {
         if (doc == NULL) return;
         
         if (doc->row_count >= doc->row_capacity) {
             size_t new_cap = doc->row_capacity == 0 ? 8 : doc->row_capacity * 2;
-            CsvRow* new_rows = (CsvRow*)realloc(doc->rows, new_cap * sizeof(CsvRow));
+            CsvRow* new_rows = (CsvRow*)std_arena_Arena_alloc(doc->arena, new_cap * sizeof(CsvRow));
             if (new_rows == NULL) return;
+            
+            if (doc->rows != NULL) {
+                memcpy(new_rows, doc->rows, doc->row_count * sizeof(CsvRow));
+            }
+            
             doc->rows = new_rows;
             doc->row_capacity = new_cap;
         }
@@ -98,8 +114,8 @@ def add_row(doc: CsvDocument*, row: CsvRow) {
 }
 
 /// Get a row from a CSV document by index
-def get_row(doc: CsvDocument*, index: usize): CsvRow* {
-    mut result: CsvRow* = nil;
+def get_row(doc: ref CsvDocument, index: usize): ref CsvRow {
+    mut result: ref CsvRow = nil;
     raw {
         if (doc != NULL && index < doc->row_count) {
             result = &doc->rows[index];
@@ -109,7 +125,7 @@ def get_row(doc: CsvDocument*, index: usize): CsvRow* {
 }
 
 /// Get a field from a CSV row by index
-def get_field(row: CsvRow*, index: usize): string {
+def get_field(row: ref CsvRow, index: usize): string {
     mut result: string;
     raw {
         result.data = NULL;
@@ -123,14 +139,14 @@ def get_field(row: CsvRow*, index: usize): string {
     return result;
 }
 
-/// Parse a CSV string into a document
-def parse(csv_data: string, options: CsvOptions): CsvDocument {
-    mut doc: CsvDocument = create_document();
+/// Parse a CSV string into a document (using arena allocation)
+def parse(csv_data: string, options: CsvOptions, arena: ref Arena): CsvDocument {
+    mut doc: CsvDocument = create_document(arena);
     mut current_row: CsvRow = create_row();
     mut current_field: string;
     
     raw {
-        current_field.data = (char*)malloc(1024);
+        current_field.data = (char*)std_arena_Arena_alloc(arena, 1024);
         current_field.len = 0;
         current_field.cap = 1024;
         if (current_field.data == NULL) return doc;
@@ -147,8 +163,9 @@ def parse(csv_data: string, options: CsvOptions): CsvDocument {
                     if (i + 1 < csv_data.len && csv_data.data[i + 1] == options.quote_char) {
                         if (field_pos >= current_field.cap - 1) {
                             size_t new_cap = current_field.cap * 2;
-                            char* new_data = (char*)realloc(current_field.data, new_cap);
+                            char* new_data = (char*)std_arena_Arena_alloc(arena, new_cap);
                             if (new_data == NULL) break;
+                            memcpy(new_data, current_field.data, field_pos);
                             current_field.data = new_data;
                             current_field.cap = new_cap;
                         }
@@ -170,12 +187,12 @@ def parse(csv_data: string, options: CsvOptions): CsvDocument {
                 current_field.len = field_pos;
                 
                 string field_copy;
-                field_copy.data = (char*)malloc(field_pos + 1);
+                field_copy.data = (char*)std_arena_Arena_alloc(arena, field_pos + 1);
                 if (field_copy.data != NULL) {
                     memcpy(field_copy.data, current_field.data, field_pos + 1);
                     field_copy.len = field_pos;
                     field_copy.cap = field_pos + 1;
-                    add_field(&current_row, field_copy);
+                    add_field(&current_row, field_copy, arena);
                 }
                 
                 field_pos = 0;
@@ -192,12 +209,12 @@ def parse(csv_data: string, options: CsvOptions): CsvDocument {
                 current_field.len = field_pos;
                 
                 string field_copy;
-                field_copy.data = (char*)malloc(field_pos + 1);
+                field_copy.data = (char*)std_arena_Arena_alloc(arena, field_pos + 1);
                 if (field_copy.data != NULL) {
                     memcpy(field_copy.data, current_field.data, field_pos + 1);
                     field_copy.len = field_pos;
                     field_copy.cap = field_pos + 1;
-                    add_field(&current_row, field_copy);
+                    add_field(&current_row, field_copy, arena);
                 }
                 
                 if (current_row.field_count > 0) {
@@ -211,8 +228,9 @@ def parse(csv_data: string, options: CsvOptions): CsvDocument {
             
             if (field_pos >= current_field.cap - 1) {
                 size_t new_cap = current_field.cap * 2;
-                char* new_data = (char*)realloc(current_field.data, new_cap);
+                char* new_data = (char*)std_arena_Arena_alloc(arena, new_cap);
                 if (new_data == NULL) break;
+                memcpy(new_data, current_field.data, field_pos);
                 current_field.data = new_data;
                 current_field.cap = new_cap;
             }
@@ -224,32 +242,30 @@ def parse(csv_data: string, options: CsvOptions): CsvDocument {
             current_field.len = field_pos;
             
             string field_copy;
-            field_copy.data = (char*)malloc(field_pos + 1);
+            field_copy.data = (char*)std_arena_Arena_alloc(arena, field_pos + 1);
             if (field_copy.data != NULL) {
                 memcpy(field_copy.data, current_field.data, field_pos + 1);
                 field_copy.len = field_pos;
                 field_copy.cap = field_pos + 1;
-                add_field(&current_row, field_copy);
+                add_field(&current_row, field_copy, arena);
             }
             
             if (current_row.field_count > 0) {
                 add_row(&doc, current_row);
             }
         }
-        
-        free(current_field.data);
     }
     
     return doc;
 }
 
-/// Parse CSV with default options (comma delimiter)
-def parse_simple(csv_data: string): CsvDocument {
-    return parse(csv_data, default_options());
+/// Parse CSV with default options (comma delimiter) using arena allocation
+def parse_simple(csv_data: string, arena: ref Arena): CsvDocument {
+    return parse(csv_data, default_options(), arena);
 }
 
-/// Convert a CSV document back to a string
-def to_string(doc: CsvDocument*, options: CsvOptions): string {
+/// Convert a CSV document back to a string (using arena allocation)
+def to_string(doc: ref CsvDocument, options: CsvOptions): string {
     mut result: string;
     
     raw {
@@ -260,7 +276,7 @@ def to_string(doc: CsvDocument*, options: CsvOptions): string {
         if (doc == NULL || doc->row_count == 0) return result;
         
         size_t estimated_size = doc->row_count * 100;
-        result.data = (char*)malloc(estimated_size);
+        result.data = (char*)std_arena_Arena_alloc(doc->arena, estimated_size);
         if (result.data == NULL) return result;
         result.cap = estimated_size;
         
@@ -285,8 +301,9 @@ def to_string(doc: CsvDocument*, options: CsvOptions): string {
                 size_t needed = field.len + (needs_quotes ? field.len + 10 : 5);
                 while (pos + needed >= result.cap) {
                     size_t new_cap = result.cap * 2;
-                    char* new_data = (char*)realloc(result.data, new_cap);
+                    char* new_data = (char*)std_arena_Arena_alloc(doc->arena, new_cap);
                     if (new_data == NULL) return result;
+                    memcpy(new_data, result.data, pos);
                     result.data = new_data;
                     result.cap = new_cap;
                 }
@@ -322,36 +339,11 @@ def to_string(doc: CsvDocument*, options: CsvOptions): string {
     return result;
 }
 
-/// Free memory allocated for a CSV document
-def free_document(doc: CsvDocument*) {
-    raw {
-        if (doc == NULL) return;
-        
-        for (size_t i = 0; i < doc->row_count; i++) {
-            CsvRow* row = &doc->rows[i];
-            if (row->fields.data != NULL) {
-                for (size_t j = 0; j < row->field_count; j++) {
-                    if (row->fields.data[j].data != NULL) {
-                        free(row->fields.data[j].data);
-                    }
-                }
-                free(row->fields.data);
-            }
-        }
-        
-        if (doc->rows != NULL) {
-            free(doc->rows);
-        }
-        
-        doc->rows = NULL;
-        doc->row_count = 0;
-        doc->row_capacity = 0;
-    }
-}
-
 test {
+    mut arena: Arena = Arena.create(65536);
+    
     mut csv_str: string = string.create("name,age,city\nJohn,30,NYC\nJane,25,LA\n");
-    mut doc: CsvDocument = parse_simple(csv_str);
+    mut doc: CsvDocument = parse_simple(csv_str, ref_of(arena));
     
     assert doc.row_count == 3, "Should parse 3 rows";
     
@@ -373,7 +365,7 @@ test {
     assert age.len == 2, "Age should be '30'";
     
     mut quoted_csv: string = string.create("\"Smith, John\",30,\"New York, NY\"\n");
-    mut quoted_doc: CsvDocument = parse_simple(quoted_csv);
+    mut quoted_doc: CsvDocument = parse_simple(quoted_csv, ref_of(arena));
     
     assert quoted_doc.row_count == 1, "Should parse 1 row with quoted fields";
     
@@ -385,6 +377,5 @@ test {
     mut regenerated: string = to_string(&doc, opts);
     assert regenerated.len > 0, "Should generate CSV string";
     
-    free_document(&doc);
-    free_document(&quoted_doc);
+    Arena.destroy(&arena);
 }
