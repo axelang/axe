@@ -1967,17 +1967,14 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
                     braceDepth--;
                     if (braceDepth == 0)
                     {
-                        // Consume the matching closing '}' and stop
                         pos++;
                         break;
                     }
-                    // Still inside the body; keep this '}'
                     bodyTokens ~= t;
                     pos++;
                     continue;
                 }
 
-                // Any other token is part of the macro body
                 bodyTokens ~= t;
                 pos++;
             }
@@ -1985,7 +1982,6 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
             enforce(braceDepth == 0, "Expected '}' after macro body");
             macroNode.bodyTokens = bodyTokens;
 
-            // Parse the macro body to populate children (e.g., RawCNode)
             if (bodyTokens.length > 0)
             {
                 size_t bodyPos = 0;
