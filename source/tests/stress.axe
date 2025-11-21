@@ -1,11 +1,11 @@
-use stdlib/arena (
+use std.arena (
     Arena,
     arena_create,
     arena_destroy,
     arena_alloc
 );
 
-use stdlib/memory (
+use std.memory (
     copy
 );
 

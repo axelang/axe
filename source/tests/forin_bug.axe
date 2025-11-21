@@ -1,6 +1,6 @@
-use stdlib/arena(Arena);
-use stdlib/os(get_cmdline_args);
-use stdlib/io(print_str);
+use std.arena(Arena);
+use std.os(get_cmdline_args);
+use std.io(print_str);
 
 main {
     mut arena: Arena = Arena.create(65536);

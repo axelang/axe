@@ -1,4 +1,3 @@
-
 def cross_platform_func() {
     platform windows {
         parallel for mut i = 0; i < 10; i++ {

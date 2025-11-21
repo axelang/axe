@@ -1,4 +1,3 @@
-
 def some_task() {
     println "hello";
 }

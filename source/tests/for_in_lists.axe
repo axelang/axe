@@ -1,8 +1,8 @@
-use std/arena (
+use std.arena (
     Arena
 );
 
-use std/lists (
+use std.lists (
     IntList
 );
 

@@ -1,8 +1,6 @@
-use stdlib/string(
-    string
-);
+use std.string;
 
-use stdlib/io(
+use std.io(
     println_str
 );
 

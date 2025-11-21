@@ -1,4 +1,4 @@
-use stdlib/string;
+use std.string;
 
 model Person {
     name: string;
