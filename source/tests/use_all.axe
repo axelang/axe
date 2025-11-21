@@ -1,6 +1,6 @@
-use stdlib/io;
-use stdlib/string;
+use std.io;
+use std.string;
 
 main {
-    println_str(string.create("Wow its usable"));
+    println_str(str("Wow its usable"));
 }
