@@ -74,6 +74,7 @@ enum TokenType
     XOR,
     MOD,
     MACRO,
+    OVERLOAD,
     TEST,
     ASSERT,
     PLATFORM,
@@ -120,6 +121,25 @@ abstract class ASTNode
     {
         this.nodeType = type;
         this.children = [];
+    }
+}
+
+class OverloadNode : ASTNode
+{
+    string name;
+    string paramName;
+    string callExpr;
+    string[] typeNames;
+    string[] targetFunctions;
+
+    this(string name, string paramName, string callExpr, string[] typeNames, string[] targetFunctions)
+    {
+        super("Overload");
+        this.name = name;
+        this.paramName = paramName;
+        this.callExpr = callExpr;
+        this.typeNames = typeNames;
+        this.targetFunctions = targetFunctions;
     }
 }
 

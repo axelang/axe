@@ -1675,6 +1675,27 @@ string generateC(ASTNode ast)
         debugWriteln("DEBUG: Stored macro '", macroNode.name, "' with ", macroNode.params.length, " parameters");
         break;
 
+    case "Overload":
+        auto overloadNode = cast(OverloadNode) ast;
+        {
+            string paramName = overloadNode.paramName.length ? overloadNode.paramName : "x";
+            string callExpr = overloadNode.callExpr.length ? overloadNode.callExpr : paramName;
+
+            cCode ~= "#define " ~ overloadNode.name ~ "(" ~ paramName ~ ") _Generic((" ~ callExpr ~ "), \\\n";
+
+            foreach (i, typeName; overloadNode.typeNames)
+            {
+                cCode ~= "    " ~ typeName ~ ": " ~ overloadNode.targetFunctions[i];
+                if (i + 1 < overloadNode.typeNames.length)
+                    cCode ~= ", \\\n";
+                else
+                    cCode ~= " \\\n";
+            }
+
+            cCode ~= "    )(" ~ callExpr ~ ")\n";
+        }
+        break;
+
     case "Model":
         auto modelNode = cast(ModelNode) ast;
         string modelName = canonicalModelCName(modelNode.name);

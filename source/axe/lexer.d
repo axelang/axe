@@ -641,6 +641,12 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.USE, "use");
                 pos += 3;
             }
+            else if (pos + 8 <= source.length && source[pos .. pos + 8] == "overload" &&
+                (pos + 8 >= source.length || !(source[pos + 8].isAlphaNum || source[pos + 8] == '_')))
+            {
+                tokens ~= Token(TokenType.OVERLOAD, "overload");
+                pos += 8;
+            }
             else if (pos + 8 <= source.length && source[pos .. pos + 8] == "external" &&
                 (pos + 8 >= source.length || !(source[pos + 8].isAlphaNum || source[pos + 8] == '_')))
             {

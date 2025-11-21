@@ -1,33 +1,19 @@
 use std.string;
 use std.typecons;
 
-// raw {
-//     #define println(x) _Generic((x), \
-//     string: println_string, \
-//     char*: println_chrptr, \
-//     int: println_int, \
-//     char: println_char \
-//     )(x)
+overload println(x: generic) {
+    string => print_str;
+    char*  => println_chrptr;
+    i32    => println_i32;
+    char   => println_char;
+}(x)
 
-//     #define print(x) _Generic((x), \
-//     string: print_string, \
-//     char*: print_cstring, \
-//     int: print_int, \
-//     char: print_char \
-//     )(x)
-// }
-
-def println(value: char*) {
-    raw {
-        printf("%s\n", value);
-    }
-}
-
-def print(value: char*) {
-    raw {
-        printf("%s", value);
-    }
-}
+overload print(x: generic) {
+    string => print_str;
+    char*  => print_chrptr;
+    i32    => print_i32;
+    char   => print_char;
+}(x)
 
 /// Print out some char
 def print_char(value: char) {

@@ -2044,6 +2044,132 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
             ast.children ~= macroNode;
             continue;
 
+        case TokenType.OVERLOAD:
+            pos++; // Skip 'overload'
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                "Expected overload name after 'overload'");
+            string overloadName = tokens[pos].value;
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
+                "Expected '(' after overload name");
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                "Expected parameter name in overload");
+            string paramName = tokens[pos].value;
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            // Optional ': generic' annotation
+            if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
+            {
+                pos++;
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                    "Expected type after ':' in overload parameter");
+                // We currently ignore the specific type name (e.g., 'generic')
+                pos++;
+            }
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                "Expected ')' after overload parameter");
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                "Expected '{' after overload header");
+            pos++;
+
+            string[] typeNames;
+            string[] targetFuncs;
+
+            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+            {
+                while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                    pos++;
+                if (pos < tokens.length && tokens[pos].type == TokenType.RBRACE)
+                    break;
+
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                    "Expected type name in overload mapping");
+                string typeName = tokens[pos].value;
+                pos++;
+
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.OPERATOR && tokens[pos].value == "=>",
+                    "Expected '=>' in overload mapping");
+                pos++;
+
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                    "Expected target function name in overload mapping");
+                string targetName = tokens[pos].value;
+                pos++;
+
+                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                    pos++;
+
+                enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                    "Expected ';' after overload mapping");
+                pos++;
+
+                typeNames ~= typeName;
+                targetFuncs ~= targetName;
+            }
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                "Expected '}' after overload mappings");
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
+                "Expected '(' with call expression after overload block");
+            pos++;
+
+            string callExpr;
+            while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+            {
+                if (tokens[pos].type == TokenType.STR)
+                    callExpr ~= "\"" ~ tokens[pos].value ~ "\"";
+                else if (tokens[pos].type == TokenType.CHAR)
+                    callExpr ~= "'" ~ tokens[pos].value ~ "'";
+                else
+                    callExpr ~= tokens[pos].value;
+                pos++;
+            }
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                "Expected ')' after overload call expression");
+            pos++;
+
+            auto overloadNode = new OverloadNode(overloadName, paramName, callExpr.strip(), typeNames, targetFuncs);
+            ast.children ~= overloadNode;
+            continue;
+
         case TokenType.DEF:
             pos++;
             while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
