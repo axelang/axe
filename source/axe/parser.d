@@ -2891,7 +2891,6 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
 
             if (tokens[pos].type != TokenType.WHITESPACE && tokens[pos].type != TokenType.NEWLINE)
             {
-                // Preserve quotes for string literals
                 if (tokens[pos].type == TokenType.STR)
                     condition ~= "\"" ~ tokens[pos].value ~ "\" ";
                 else
@@ -2945,7 +2944,6 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
     case TokenType.USE:
         pos++; // Skip 'use'
 
-        // Support external imports in statement contexts: use external("header.h");
         if (pos < tokens.length && tokens[pos].type == TokenType.EXTERNAL)
         {
             pos++; // Skip 'external'
