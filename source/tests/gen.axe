@@ -1,0 +1,23 @@
+use std.string;
+use std.io;
+
+main {
+    val s: string = str("hello from string");
+    mut cstr: char* = "hello from cstring";
+    val n: i32 = 42;
+    val ch: char = 'A';
+
+    println s;
+    println cstr;
+    println n;
+    println ch;
+
+    print "no newline ";
+    println " <- after print";
+
+    print n;
+    println " is the answer";
+
+    print ch;
+    println " is a character";
+}

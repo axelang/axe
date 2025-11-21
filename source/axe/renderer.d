@@ -531,6 +531,52 @@ string generateC(ASTNode ast)
             }
         }
 
+        bool hasPrintOverload = false;
+        bool hasPrintlnOverload = false;
+        foreach (child; ast.children)
+        {
+            if (child.nodeType == "Overload")
+            {
+                auto ov = cast(OverloadNode) child;
+                if (ov.name == "print")
+                    hasPrintOverload = true;
+                else if (ov.name == "println")
+                    hasPrintlnOverload = true;
+            }
+        }
+
+        import std.string : startsWith, endsWith;
+
+        if (!hasPrintOverload && ("print" in g_functionPrefixes))
+        {
+            string macroName = g_functionPrefixes["print"]; // e.g. std_io_print
+            if (macroName.startsWith("std_io_") && macroName.endsWith("print"))
+            {
+                string prefix = macroName[0 .. $ - "print".length]; // std_io_
+                cCode ~= "#define " ~ macroName ~ "(x) _Generic((x), \\\n";
+                cCode ~= "    std_string_string: " ~ prefix ~ "print_str, \\\n";
+                cCode ~= "    char*: " ~ prefix ~ "print_chrptr, \\\n";
+                cCode ~= "    int32_t: " ~ prefix ~ "print_i32, \\\n";
+                cCode ~= "    char: " ~ prefix ~ "print_char \\\n";
+                cCode ~= "    )(x)\n";
+            }
+        }
+
+        if (!hasPrintlnOverload && ("println" in g_functionPrefixes))
+        {
+            string macroName = g_functionPrefixes["println"]; // e.g. std_io_println
+            if (macroName.startsWith("std_io_") && macroName.endsWith("println"))
+            {
+                string prefix = macroName[0 .. $ - "println".length]; // std_io_
+                cCode ~= "#define " ~ macroName ~ "(x) _Generic((x), \\\n";
+                cCode ~= "    std_string_string: " ~ prefix ~ "print_str, \\\n";
+                cCode ~= "    char*: " ~ prefix ~ "println_chrptr, \\\n";
+                cCode ~= "    int32_t: " ~ prefix ~ "println_i32, \\\n";
+                cCode ~= "    char: " ~ prefix ~ "println_char \\\n";
+                cCode ~= "    )(x)\n";
+            }
+        }
+
         foreach (child; ast.children)
         {
             if (child.nodeType == "Enum")
@@ -1718,7 +1764,6 @@ string generateC(ASTNode ast)
                 string baseName = overloadNode.targetFunctions[i];
                 string cTargetName = baseName;
 
-                // Apply the same name resolution rules as for normal function calls
                 import std.string : split, strip, indexOf, replace, endsWith;
 
                 if (cTargetName.canFind("."))

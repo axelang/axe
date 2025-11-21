@@ -341,6 +341,17 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 }
             }
 
+            if (useNode.importAll)
+            {
+                import std.algorithm : canFind;
+
+                foreach (name; moduleMacroMap.keys)
+                {
+                    if (!useNode.imports.canFind(name))
+                        useNode.imports ~= name;
+                }
+            }
+
             bool[string] resolvedImports;
 
             foreach (importChild; importProgram.children)
