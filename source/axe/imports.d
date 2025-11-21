@@ -594,13 +594,6 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 }
             }
 
-            writeln("DEBUG imports: Module '", useNode.moduleName, "' requested imports: ", useNode.imports);
-            foreach (resolvedName; resolvedImports.keys)
-            {
-                writeln("DEBUG imports: Resolved symbol '", resolvedName, "' from module '",
-                    useNode.moduleName, "'");
-            }
-
             foreach (importName; useNode.imports)
             {
                 if (importName !in resolvedImports)
