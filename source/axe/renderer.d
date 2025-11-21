@@ -713,8 +713,11 @@ string generateC(ASTNode ast)
         foreach (child; ast.children)
         {
             if (child.nodeType != "Model" && child.nodeType != "ExternalImport" && child.nodeType != "Enum" && child
-                .nodeType != "Use")
+                .nodeType != "Use" && child.nodeType != "Macro")
+            {
+                debugWriteln("DEBUG: Processing top-level node of type '", child.nodeType, "'");
                 cCode ~= generateC(child) ~ "\n";
+            }
         }
         break;
 
@@ -924,6 +927,27 @@ string generateC(ASTNode ast)
                     debugWriteln("  DEBUG: RawC code after substitution: '", expandedCode, "'");
 
                     cCode ~= indent ~ expandedCode ~ "\n";
+                }
+                else if (child.nodeType == "Model")
+                {
+                    auto modelNode = cast(ModelNode) child;
+                    import std.string : replace;
+                    import std.stdio : writeln;
+
+                    foreach (paramName, paramValue; paramMap)
+                    {
+                        modelNode.name = modelNode.name.replace(paramName, paramValue);
+                    }
+
+                    foreach (ref field; modelNode.fields)
+                    {
+                        foreach (paramName, paramValue; paramMap)
+                        {
+                            field.type = field.type.replace(paramName, paramValue);
+                        }
+                    }
+
+                    cCode ~= generateC(child);
                 }
                 else
                 {
@@ -1203,7 +1227,7 @@ string generateC(ASTNode ast)
                     break;
                 }
             }
-            
+
             if (hasInterpolated && printlnNode.messages.length == 1)
             {
                 // Simple case: single interpolated string
@@ -1933,49 +1957,49 @@ string generateC(ASTNode ast)
 string getTypeFormatSpecifier(string varType)
 {
     varType = varType.strip();
-    
+
     while (varType.startsWith("ref "))
         varType = varType[4 .. $].strip();
-    
+
     switch (varType)
     {
-        case "i8":
-        case "i16":
-        case "i32":
-        case "int":
-            return "%d";
-        case "u8":
-        case "u16":
-        case "u32":
-        case "uint":
-        case "byte":
-            return "%u";
-        case "i64":
-        case "long":
-            return "%lld";
-        case "u64":
-        case "ulong":
-        case "usize":
-        case "size":
-            return "%llu";
-        case "f32":
-        case "float":
-            return "%f";
-        case "f64":
-        case "double":
-            return "%lf";
-        case "char":
-            return "%c";
-        case "bool":
-            return "%d";
-        case "string":
-            return "%s";
-        case "char*":
-            return "%s";
-        default:
-            if (varType.endsWith("*"))
-                return "%p";
-            return "%d";
+    case "i8":
+    case "i16":
+    case "i32":
+    case "int":
+        return "%d";
+    case "u8":
+    case "u16":
+    case "u32":
+    case "uint":
+    case "byte":
+        return "%u";
+    case "i64":
+    case "long":
+        return "%lld";
+    case "u64":
+    case "ulong":
+    case "usize":
+    case "size":
+        return "%llu";
+    case "f32":
+    case "float":
+        return "%f";
+    case "f64":
+    case "double":
+        return "%lf";
+    case "char":
+        return "%c";
+    case "bool":
+        return "%d";
+    case "string":
+        return "%s";
+    case "char*":
+        return "%s";
+    default:
+        if (varType.endsWith("*"))
+            return "%p";
+        return "%d";
     }
 }
 
@@ -1985,33 +2009,33 @@ string getTypeFormatSpecifier(string varType)
 string convertToString(string expr, string varType)
 {
     varType = varType.strip();
-    
+
     while (varType.startsWith("ref "))
         varType = varType[4 .. $].strip();
-    
+
     if (varType == "string" || varType.endsWith("_string") || varType == "std_string_string")
     {
         return expr;
     }
-    
+
     if (varType == "char*")
     {
         return expr;
     }
-    
+
     import std.conv : to;
     import std.random : uniform;
-    
+
     string tempVar = "_axe_str_" ~ uniform(0, 999_999).to!string;
     string formatSpec = getTypeFormatSpecifier(varType);
-    
+
     string exprToFormat = expr;
     if (varType == "string")
         exprToFormat = expr ~ ".data";
-    
-    return "({char " ~ tempVar ~ "[64]; snprintf(" ~ tempVar ~ 
-           ", 64, \"" ~ formatSpec ~ "\", " ~ exprToFormat ~ "); " ~ 
-           "std_string_string_create(" ~ tempVar ~ "); })";
+
+    return "({char " ~ tempVar ~ "[64]; snprintf(" ~ tempVar ~
+        ", 64, \"" ~ formatSpec ~ "\", " ~ exprToFormat ~ "); " ~
+        "std_string_string_create(" ~ tempVar ~ "); })";
 }
 
 /**
@@ -2025,24 +2049,24 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
     import std.array : Appender;
     import std.conv : to;
     import std.random : uniform;
-    
+
     string[] parts;
     string[] expressions;
-    
+
     size_t pos = 0;
     string currentPart = "";
-    
+
     while (pos < interpContent.length)
     {
         if (interpContent[pos] == '{' && (pos == 0 || interpContent[pos - 1] != '\\'))
         {
             parts ~= currentPart;
             currentPart = "";
-            
+
             size_t braceStart = pos + 1;
             int braceDepth = 1;
             size_t braceEnd = braceStart;
-            
+
             while (braceEnd < interpContent.length && braceDepth > 0)
             {
                 if (interpContent[braceEnd] == '{')
@@ -2051,16 +2075,17 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
                     braceDepth--;
                 braceEnd++;
             }
-            
+
             if (braceDepth != 0)
             {
                 import std.exception : enforce;
+
                 enforce(false, "Unmatched braces in interpolated string");
             }
-            
+
             string expr = interpContent[braceStart .. braceEnd - 1].strip();
             expressions ~= expr;
-            
+
             pos = braceEnd;
         }
         else
@@ -2069,35 +2094,35 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
             pos++;
         }
     }
-    
+
     parts ~= currentPart;
-    
+
     if (expressions.length == 0)
     {
         return "\"" ~ interpContent ~ "\"";
     }
-    
+
     string resultVar = "_axe_interp_" ~ uniform(0, 999_999).to!string;
     string code = "({";
-    
+
     code ~= "size_t " ~ resultVar ~ "_len = " ~ parts[0].length.to!string;
     foreach (i, expr; expressions)
     {
         string varType = lookupExpressionType(expr);
-        
+
         if (i + 1 < parts.length)
             code ~= " + " ~ parts[i + 1].length.to!string;
-        
+
         if (varType == "string" || varType.endsWith("_string") || varType == "std_string_string")
             code ~= " + (" ~ expr ~ ").len";
         else
             code ~= " + 32";
     }
     code ~= "; ";
-    
+
     code ~= "char* " ~ resultVar ~ " = (char*)malloc(" ~ resultVar ~ "_len + 1); ";
     code ~= "char* " ~ resultVar ~ "_p = " ~ resultVar ~ "; ";
-    
+
     foreach (i, part; parts)
     {
         if (part.length > 0)
@@ -2106,12 +2131,12 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
             code ~= "memcpy(" ~ resultVar ~ "_p, \"" ~ escapedPart ~ "\", " ~ part.length.to!string ~ "); ";
             code ~= resultVar ~ "_p += " ~ part.length.to!string ~ "; ";
         }
-        
+
         if (i < expressions.length)
         {
             string expr = expressions[i];
             string varType = lookupExpressionType(expr);
-            
+
             if (varType == "string" || varType.endsWith("_string") || varType == "std_string_string")
             {
                 code ~= "{ struct std_string_string _s = " ~ expr ~ "; ";
@@ -2122,15 +2147,15 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
             {
                 string formatSpec = getTypeFormatSpecifier(varType);
                 string exprToFormat = expr;
-                
+
                 code ~= "{ int _len = snprintf(" ~ resultVar ~ "_p, 32, \"" ~ formatSpec ~ "\", " ~ exprToFormat ~ "); ";
                 code ~= resultVar ~ "_p += _len; } ";
             }
         }
     }
-    
+
     code ~= "*" ~ resultVar ~ "_p = '\\0'; ";
-    
+
     if (returnStruct)
     {
         string structVar = "_axe_str_struct_" ~ uniform(0, 999_999).to!string;
@@ -2144,7 +2169,7 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
     {
         code ~= resultVar ~ "; })";
     }
-    
+
     return code;
 }
 
@@ -2154,25 +2179,25 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
 string lookupExpressionType(string expr)
 {
     expr = expr.strip();
-    
+
     if (expr in g_varType)
     {
         return g_varType[expr];
     }
-    
+
     if (expr.startsWith("\"") && expr.endsWith("\""))
         return "string";
-    
+
     if (expr.startsWith("'") && expr.endsWith("'"))
         return "char";
-    
+
     if (expr.length > 0 && (expr[0] >= '0' && expr[0] <= '9'))
     {
         if (expr.canFind("."))
             return "f64";
         return "i32";
     }
-    
+
     return "i32";
 }
 
@@ -2234,7 +2259,7 @@ string processExpression(string expr, string context = "")
             argEnd++;
         }
         argEnd--;
-        
+
         if (argEnd > funcNameEnd && argEnd < expr.length && expr[argEnd] == ')')
         {
             import std.stdio : writeln;
@@ -2252,7 +2277,7 @@ string processExpression(string expr, string context = "")
                 for (size_t i = 0; i < argsString.length; i++)
                 {
                     char c = argsString[i];
-                    
+
                     if (i + 16 <= argsString.length && argsString[i .. i + 16] == "__INTERPOLATED__")
                     {
                         inInterpolated = !inInterpolated;
@@ -2260,7 +2285,7 @@ string processExpression(string expr, string context = "")
                         i += 15;
                         continue;
                     }
-                    
+
                     if (c == '"' && (i == 0 || argsString[i - 1] != '\\'))
                         inQuoteArg = !inQuoteArg;
                     else if (!inQuoteArg && c == '(')
@@ -2475,7 +2500,8 @@ string processExpression(string expr, string context = "")
         }
 
         string varName = expr[parenStart .. parenEnd].strip();
-        debugWriteln("DEBUG ref_of: varName = '", varName, "', parenEnd = ", parenEnd, ", expr.length = ", expr.length);
+        debugWriteln("DEBUG ref_of: varName = '", varName, "', parenEnd = ", parenEnd, ", expr.length = ", expr
+                .length);
         debugWriteln("DEBUG ref_of: suffix = '", expr[parenEnd + 1 .. $], "'");
         if (varName.canFind("[") || varName.canFind("."))
         {
@@ -4428,7 +4454,7 @@ unittest
     {
         auto tokens = lex(
             "def task_a() { println \"A\"; } def task_b() { println \"B\"; } " ~
-            "main { parallel { task_a(); task_b(); } }");
+                "main { parallel { task_a(); task_b(); } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4446,8 +4472,8 @@ unittest
     {
         auto tokens = lex(
             "def some_task() { println \"hello\"; } " ~
-            "def some_other_task() { println \"world\"; } " ~
-            "main { parallel { single { some_task(); some_other_task(); } } }");
+                "def some_other_task() { println \"world\"; } " ~
+                "main { parallel { single { some_task(); some_other_task(); } } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 

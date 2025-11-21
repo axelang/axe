@@ -81,6 +81,7 @@ make_list(CharList, char, "", char, print_char);
 make_list(LongList, i64, 0, long, print_i32);
 make_list(DoubleList, f64, 0.0, double, print_i32);
 make_list(StringList, std_string_string, string.create(""), std_string_string, print_str);
+make_list(BoolList, bool, false, bool, print_i32);
 
 test {
     mut arena: Arena = Arena.create(65536);
