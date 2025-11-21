@@ -615,6 +615,10 @@ def strip(s: string): string {
     return substr(s, start, end - start);
 }
 
+def str(data: char*): string {
+    return string.create(data);
+}
+
 test {    
     assert(is_alpha(65) != 0, "65 (A) should be alphabetic");
     assert(is_digit(48) != 0, "48 (0) should be a digit");
@@ -685,4 +689,6 @@ test {
     assert(has_suffix(base, string.create("")), "empty suffix should always match");
     assert(!has_prefix(base, string.create("foobarbaz")), "longer prefix should not match");
     assert(!has_suffix(base, string.create("foobarbaz")), "longer suffix should not match");
+
+    // assert fmt(str("Hello, {}! Today is {}."), [string]{str("Alice"), str("Monday")}) == str("Hello, Alice! Today is Monday."), "fmt should format strings correctly";
 }
