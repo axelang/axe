@@ -474,6 +474,18 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.PLATFORM, "platform");
                 pos += 8;
             }
+            else if (pos + 6 <= source.length && source[pos .. pos + 6] == "opaque" &&
+                (pos + 6 >= source.length || !(source[pos + 6].isAlphaNum || source[pos + 6] == '_')))
+            {
+                tokens ~= Token(TokenType.OPAQUE, "opaque");
+                pos += 6;
+            }
+            else if (pos + 6 <= source.length && source[pos .. pos + 6] == "extern" &&
+                (pos + 6 >= source.length || !(source[pos + 6].isAlphaNum || source[pos + 6] == '_')))
+            {
+                tokens ~= Token(TokenType.EXTERN, "extern");
+                pos += 6;
+            }
             else if (pos + 8 <= source.length && source[pos .. pos + 8] == "parallel" &&
                 (pos + 8 >= source.length || !(source[pos + 8].isAlphaNum || source[pos + 8] == '_')))
             {

@@ -1938,6 +1938,47 @@ string generateC(ASTNode ast)
         cCode ~= "#include <" ~ extImportNode.headerFile ~ ">\n";
         break;
 
+    case "Opaque":
+        auto opaqueNode = cast(OpaqueNode) ast;
+        foreach (typeName; opaqueNode.typeNames)
+        {
+            cCode ~= "typedef struct " ~ typeName ~ " " ~ typeName ~ ";\n";
+        }
+        break;
+
+    case "Extern":
+        auto externNode = cast(ExternNode) ast;
+        
+        g_generatedFunctions[externNode.functionName] = true;
+        
+        // Don't generate the actual extern declaration - these are already declared
+        // in system headers. We just need to track that they exist.
+        // If we wanted to generate declarations for truly external functions,
+        // we'd uncomment the code below:
+
+        /*        
+        string returnType = externNode.returnType.length > 0 ? 
+            mapAxeTypeToC(externNode.returnType) : "void";
+        
+        string[] cParams;
+        foreach (param; externNode.params)
+        {
+            // Parse "name: type" format
+            auto colonPos = param.indexOf(':');
+            if (colonPos > 0)
+            {
+                string paramName = param[0 .. colonPos].strip();
+                string paramType = param[colonPos + 1 .. $].strip();
+                string cType = mapAxeTypeToC(paramType);
+                cParams ~= cType ~ " " ~ paramName;
+            }
+        }
+        
+        cCode ~= "extern " ~ returnType ~ " " ~ externNode.functionName ~ 
+                 "(" ~ cParams.join(", ") ~ ");\n";
+        */
+        break;
+
     case "Assert":
         auto assertNode = cast(AssertNode) ast;
         string condition = processExpression(assertNode.condition);

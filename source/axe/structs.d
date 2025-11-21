@@ -84,6 +84,8 @@ enum TokenType
     TO,
     REDUCE,
     INTERPOLATED_STR,
+    OPAQUE,
+    EXTERN,
 }
 
 /** 
@@ -650,6 +652,32 @@ class ExternalImportNode : ASTNode
     {
         super("ExternalImport");
         this.headerFile = headerFile;
+    }
+}
+
+class OpaqueNode : ASTNode
+{
+    string[] typeNames;
+
+    this(string[] typeNames)
+    {
+        super("Opaque");
+        this.typeNames = typeNames;
+    }
+}
+
+class ExternNode : ASTNode
+{
+    string functionName;
+    string[] params;
+    string returnType;
+
+    this(string functionName, string[] params, string returnType)
+    {
+        super("Extern");
+        this.functionName = functionName;
+        this.params = params;
+        this.returnType = returnType;
     }
 }
 

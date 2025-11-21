@@ -1070,6 +1070,161 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
             debugWriteln("Tracked import: ", moduleName);
             continue;
 
+        case TokenType.OPAQUE:
+            pos++; // Skip 'opaque'
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                "Expected '{' after 'opaque'");
+            pos++; // Skip '{'
+
+            string[] opaqueTypes;
+            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
+            {
+                // Skip whitespace
+                while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                    pos++;
+
+                if (pos >= tokens.length || tokens[pos].type == TokenType.RBRACE)
+                    break;
+
+                if (tokens[pos].type == TokenType.IDENTIFIER)
+                {
+                    opaqueTypes ~= tokens[pos].value;
+                    pos++;
+                }
+                else if (tokens[pos].type == TokenType.COMMA)
+                {
+                    pos++; // Skip comma
+                }
+                else
+                {
+                    enforce(false, "Expected identifier or ',' in opaque declaration");
+                }
+            }
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                "Expected '}' after opaque type list");
+            pos++; // Skip '}'
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                "Expected ';' after opaque declaration");
+            pos++; // Skip ';'
+
+            ast.children ~= new OpaqueNode(opaqueTypes);
+            continue;
+
+        case TokenType.EXTERN:
+            pos++; // Skip 'extern'
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.DEF,
+                "Expected 'def' after 'extern'");
+            pos++; // Skip 'def'
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
+                "Expected function name after 'extern def'");
+            string externFuncName = tokens[pos].value;
+            pos++;
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LPAREN,
+                "Expected '(' after extern function name");
+            pos++; // Skip '('
+
+            string[] externParams;
+            while (pos < tokens.length && tokens[pos].type != TokenType.RPAREN)
+            {
+                // Skip whitespace
+                while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                    pos++;
+
+                if (pos >= tokens.length || tokens[pos].type == TokenType.RPAREN)
+                    break;
+
+                // Parse parameter: name: type
+                string paramStr = "";
+                while (pos < tokens.length && tokens[pos].type != TokenType.COMMA && tokens[pos].type != TokenType.RPAREN)
+                {
+                    if (tokens[pos].type != TokenType.WHITESPACE && tokens[pos].type != TokenType.NEWLINE)
+                    {
+                        paramStr ~= tokens[pos].value;
+                    }
+                    else
+                    {
+                        paramStr ~= " ";
+                    }
+                    pos++;
+                }
+
+                if (paramStr.strip().length > 0)
+                    externParams ~= paramStr.strip();
+
+                if (pos < tokens.length && tokens[pos].type == TokenType.COMMA)
+                    pos++; // Skip comma
+            }
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RPAREN,
+                "Expected ')' after extern parameters");
+            pos++; // Skip ')'
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            string externReturnType = "";
+            if (pos < tokens.length && tokens[pos].type == TokenType.COLON)
+            {
+                pos++; // Skip ':'
+
+                // Skip whitespace
+                while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                    pos++;
+
+                // Parse return type
+                while (pos < tokens.length && tokens[pos].type != TokenType.SEMICOLON)
+                {
+                    if (tokens[pos].type != TokenType.WHITESPACE && tokens[pos].type != TokenType.NEWLINE)
+                    {
+                        externReturnType ~= tokens[pos].value;
+                    }
+                    else if (externReturnType.length > 0)
+                    {
+                        externReturnType ~= " ";
+                    }
+                    pos++;
+                }
+                externReturnType = externReturnType.strip();
+            }
+
+            // Skip whitespace
+            while (pos < tokens.length && (tokens[pos].type == TokenType.WHITESPACE || tokens[pos].type == TokenType.NEWLINE))
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
+                "Expected ';' after extern declaration");
+            pos++; // Skip ';'
+
+            ast.children ~= new ExternNode(externFuncName, externParams, externReturnType);
+            continue;
+
         case TokenType.MAIN:
             // Fall through to IDENTIFIER case which handles main
             goto case TokenType.IDENTIFIER;
@@ -4839,10 +4994,7 @@ void validateTypeNotForbidden(string typeName)
 }
 
 private immutable string[] C_KEYS = [
-    "printf", "fprintf", "sprintf", "snprintf", "vprintf", "vfprintf", "vsprintf",
-    "vsnprintf",
-    "scanf", "fscanf", "sscanf", "vscanf", "vfscanf", "vsscanf",
-    "gets", "getchar", "putchar", "puts",
+    "vsnprintf", "scanf", "fscanf", "sscanf", "vscanf", "vfscanf", "vsscanf",
     "memcpy", "memmove", "memset", "memccpy", "mempcpy",
     "strcpy", "strncpy", "strcat", "strncat", "strlcpy", "strlcat",
     "strtok", "strtok_r", "stpcpy", "stpncpy", "bcopy", "bzero",
