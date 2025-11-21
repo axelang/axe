@@ -13,6 +13,19 @@ use std/io (
 
 use external("curl/curl.h");
 
+platform windows {
+    use external("winsock2.h");
+    use external("ws2tcpip.h");
+}
+
+platform posix {
+    use external("sys/socket.h");
+    use external("netinet/in.h");
+    use external("arpa/inet.h");
+    use external("unistd.h");
+    use external("fcntl.h");
+}
+
 /// HTTP response model containing status code, headers, and body
 model HttpResponse {
     status_code: i32;
@@ -536,6 +549,444 @@ def free_response(response: HttpResponse) {
         if (response.headers.data != NULL) {
             free(response.headers.data);
         }
+    }
+}
+
+// ============================================================================
+// Web Server Support - Cross-platform (Windows & POSIX)
+// ============================================================================
+
+/// HTTP request model containing method, path, headers, and body
+model HttpRequest {
+    method: string;
+    path: string;
+    headers: string;
+    body: string;
+    version: string;
+}
+
+/// HTTP server configuration
+model ServerConfig {
+    port: i32;
+    max_connections: i32;
+    timeout_seconds: i32;
+}
+
+/// Socket handle type (cross-platform)
+model Socket {
+    fd: i32;
+    is_valid: bool;
+}
+
+/// Server instance
+model WebServer {
+    socket: Socket;
+    config: ServerConfig;
+    is_running: bool;
+}
+
+/// Initialize networking subsystem (cross-platform)
+def net_init(): bool {
+    mut success: bool = true;
+    platform windows {
+        raw {
+            WSADATA wsaData;
+            int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+            success = (result == 0);
+        }
+    }
+    return success;
+}
+
+/// Cleanup networking subsystem (cross-platform)
+def net_cleanup() {
+    platform windows {
+        WSACleanup();
+    }
+}
+
+/// Create a server socket and bind to port
+def server_create(port: i32): WebServer {
+    mut server: WebServer;
+    
+    raw {
+        server.config.port = port;
+        server.config.max_connections = 100;
+        server.config.timeout_seconds = 30;
+        server.is_running = false;
+        server.socket.is_valid = false;
+        server.socket.fd = -1;
+        
+        #ifdef _WIN32
+            SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+            if (sock == INVALID_SOCKET) {
+                return server;
+            }
+
+            int opt = 1;
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
+            
+            struct sockaddr_in address;
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = INADDR_ANY;
+            address.sin_port = htons((u_short)port);
+            
+            if (bind(sock, (struct sockaddr*)&address, sizeof(address)) == SOCKET_ERROR) {
+                closesocket(sock);
+                return server;
+            }
+            
+            if (listen(sock, server.config.max_connections) == SOCKET_ERROR) {
+                closesocket(sock);
+                return server;
+            }
+            
+            server.socket.fd = (int32_t)sock;
+            server.socket.is_valid = true;
+        #else
+            int sock = socket(AF_INET, SOCK_STREAM, 0);
+            if (sock < 0) {
+                return server;
+            }
+            
+            int opt = 1;
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+            
+            struct sockaddr_in address;
+            address.sin_family = AF_INET;
+            address.sin_addr.s_addr = INADDR_ANY;
+            address.sin_port = htons((uint16_t)port);
+            
+            if (bind(sock, (struct sockaddr*)&address, sizeof(address)) < 0) {
+                close(sock);
+                return server;
+            }
+            
+            if (listen(sock, server.config.max_connections) < 0) {
+                close(sock);
+                return server;
+            }
+            
+            server.socket.fd = sock;
+            server.socket.is_valid = true;
+        #endif
+        
+        server.is_running = true;
+    }
+    
+    return server;
+}
+
+/// Accept a client connection
+def server_accept(server: WebServer): Socket {
+    mut client: Socket;
+    
+    raw {
+        client.is_valid = false;
+        client.fd = -1;
+        
+        if (!server.socket.is_valid) {
+            return client;
+        }
+        
+        #ifdef _WIN32
+            struct sockaddr_in client_addr;
+            int addr_len = sizeof(client_addr);
+            SOCKET client_sock = accept((SOCKET)server.socket.fd, (struct sockaddr*)&client_addr, &addr_len);
+            
+            if (client_sock != INVALID_SOCKET) {
+                client.fd = (int32_t)client_sock;
+                client.is_valid = true;
+                DWORD timeout = server.config.timeout_seconds * 1000;
+                setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&timeout, sizeof(timeout));
+                setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, (const char*)&timeout, sizeof(timeout));
+            }
+        #else
+            struct sockaddr_in client_addr;
+            socklen_t addr_len = sizeof(client_addr);
+            int client_sock = accept(server.socket.fd, (struct sockaddr*)&client_addr, &addr_len);
+            
+            if (client_sock >= 0) {
+                client.fd = client_sock;
+                client.is_valid = true;
+                struct timeval timeout;
+                timeout.tv_sec = server.config.timeout_seconds;
+                timeout.tv_usec = 0;
+                setsockopt(client_sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+                setsockopt(client_sock, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+            }
+        #endif
+    }
+    
+    return client;
+}
+
+/// Receive data from a socket
+def socket_recv(socket: Socket, buffer_size: i32): string {
+    mut result: string;
+    
+    raw {
+        result.data = NULL;
+        result.len = 0;
+        result.cap = 0;
+        
+        if (!socket.is_valid) {
+            return result;
+        }
+        
+        char* buffer = (char*)malloc(buffer_size);
+        if (!buffer) {
+            return result;
+        }
+        
+        #ifdef _WIN32
+            int bytes_received = recv((SOCKET)socket.fd, buffer, buffer_size - 1, 0);
+        #else
+            ssize_t bytes_received = recv(socket.fd, buffer, buffer_size - 1, 0);
+        #endif
+        
+        if (bytes_received > 0) {
+            buffer[bytes_received] = '\0';
+            result.data = buffer;
+            result.len = bytes_received;
+            result.cap = buffer_size;
+        } else {
+            free(buffer);
+        }
+    }
+    
+    return result;
+}
+
+/// Send data to a socket
+def socket_send(socket: Socket, data: string): bool {
+    mut success: bool = false;
+    
+    raw {
+        if (!socket.is_valid) {
+            return success;
+        }
+        
+        #ifdef _WIN32
+            int bytes_sent = send((SOCKET)socket.fd, data.data, (int)data.len, 0);
+            success = (bytes_sent == (int)data.len);
+        #else
+            ssize_t bytes_sent = send(socket.fd, data.data, data.len, 0);
+            success = (bytes_sent == (ssize_t)data.len);
+        #endif
+    }
+    
+    return success;
+}
+
+/// Close a socket
+def socket_close(socket: Socket) {
+    raw {
+        if (socket.is_valid) {
+            #ifdef _WIN32
+                closesocket((SOCKET)socket.fd);
+            #else
+                close(socket.fd);
+            #endif
+        }
+    }
+}
+
+/// Close the server socket
+def server_close(server: WebServer) {
+    raw {
+        if (server.socket.is_valid) {
+            #ifdef _WIN32
+                closesocket((SOCKET)server.socket.fd);
+            #else
+                close(server.socket.fd);
+            #endif
+        }
+    }
+}
+
+/// Parse HTTP request from raw data
+def parse_http_request(rdata: string): HttpRequest {
+    mut request: HttpRequest;
+    
+    raw {
+        request.method.data = NULL;
+        request.method.len = 0;
+        request.method.cap = 0;
+        request.path.data = NULL;
+        request.path.len = 0;
+        request.path.cap = 0;
+        request.headers.data = NULL;
+        request.headers.len = 0;
+        request.headers.cap = 0;
+        request.body.data = NULL;
+        request.body.len = 0;
+        request.body.cap = 0;
+        request.version.data = NULL;
+        request.version.len = 0;
+        request.version.cap = 0;
+        
+        if (rdata.len == 0) {
+            return request;
+        }
+        
+        char* line_end = strstr(rdata.data, "\r\n");
+        if (!line_end) {
+            return request;
+        }
+        
+        char* method_end = strchr(rdata.data, ' ');
+        if (method_end && method_end < line_end) {
+            size_t method_len = method_end - rdata.data;
+            request.method.data = (char*)malloc(method_len + 1);
+            if (request.method.data) {
+                memcpy(request.method.data, rdata.data, method_len);
+                request.method.data[method_len] = '\0';
+                request.method.len = method_len;
+                request.method.cap = method_len + 1;
+            }
+            
+            char* path_start = method_end + 1;
+            char* path_end = strchr(path_start, ' ');
+            if (path_end && path_end < line_end) {
+                size_t path_len = path_end - path_start;
+                request.path.data = (char*)malloc(path_len + 1);
+                if (request.path.data) {
+                    memcpy(request.path.data, path_start, path_len);
+                    request.path.data[path_len] = '\0';
+                    request.path.len = path_len;
+                    request.path.cap = path_len + 1;
+                }
+                
+                char* version_start = path_end + 1;
+                size_t version_len = line_end - version_start;
+                request.version.data = (char*)malloc(version_len + 1);
+                if (request.version.data) {
+                    memcpy(request.version.data, version_start, version_len);
+                    request.version.data[version_len] = '\0';
+                    request.version.len = version_len;
+                    request.version.cap = version_len + 1;
+                }
+            }
+        }
+        
+        char* headers_end = strstr(rdata.data, "\r\n\r\n");
+        if (headers_end) {
+            char* headers_start = line_end + 2;
+            size_t headers_len = headers_end - headers_start;
+            
+            if (headers_len > 0) {
+                request.headers.data = (char*)malloc(headers_len + 1);
+                if (request.headers.data) {
+                    memcpy(request.headers.data, headers_start, headers_len);
+                    request.headers.data[headers_len] = '\0';
+                    request.headers.len = headers_len;
+                    request.headers.cap = headers_len + 1;
+                }
+            }
+            
+            char* body_start = headers_end + 4;
+            size_t body_len = rdata.len - (body_start - rdata.data);
+            
+            if (body_len > 0) {
+                request.body.data = (char*)malloc(body_len + 1);
+                if (request.body.data) {
+                    memcpy(request.body.data, body_start, body_len);
+                    request.body.data[body_len] = '\0';
+                    request.body.len = body_len;
+                    request.body.cap = body_len + 1;
+                }
+            }
+        }
+    }
+    
+    return request;
+}
+
+/// Create an HTTP response string
+def create_http_response(status_code: i32, content_type: string, body: string): string {
+    mut response: string;
+    
+    raw {
+        response.data = NULL;
+        response.len = 0;
+        response.cap = 0;
+        
+        const char* status_msg = "Unknown";
+        switch (status_code) {
+            case 200: status_msg = "OK"; break;
+            case 201: status_msg = "Created"; break;
+            case 204: status_msg = "No Content"; break;
+            case 301: status_msg = "Moved Permanently"; break;
+            case 302: status_msg = "Found"; break;
+            case 400: status_msg = "Bad Request"; break;
+            case 401: status_msg = "Unauthorized"; break;
+            case 403: status_msg = "Forbidden"; break;
+            case 404: status_msg = "Not Found"; break;
+            case 500: status_msg = "Internal Server Error"; break;
+            case 501: status_msg = "Not Implemented"; break;
+            case 503: status_msg = "Service Unavailable"; break;
+        }
+        
+        char content_len_str[32];
+        snprintf(content_len_str, sizeof(content_len_str), "%zu", (size_t)body.len);
+        
+        size_t response_size = 
+            strlen("HTTP/1.1 ") + 3 + strlen(" ") + strlen(status_msg) + strlen("\r\n") +
+            strlen("Content-Type: ") + content_type.len + strlen("\r\n") +
+            strlen("Content-Length: ") + strlen(content_len_str) + strlen("\r\n") +
+            strlen("Server: axe-std/1.0\r\n") +
+            strlen("Connection: close\r\n") +
+            strlen("\r\n") +
+            body.len;
+        
+        response.data = (char*)malloc(response_size + 1);
+        if (response.data) {
+            char* ptr = response.data;
+            
+            ptr += sprintf(ptr, "HTTP/1.1 %d %s\r\n", status_code, status_msg);
+            ptr += sprintf(ptr, "Content-Type: %.*s\r\n", (int)content_type.len, content_type.data);
+            ptr += sprintf(ptr, "Content-Length: %s\r\n", content_len_str);
+            ptr += sprintf(ptr, "Server: axe-std/1.0\r\n");
+            ptr += sprintf(ptr, "Connection: close\r\n");
+            ptr += sprintf(ptr, "\r\n");
+            
+            if (body.len > 0) {
+                memcpy(ptr, body.data, body.len);
+                ptr += body.len;
+            }
+            
+            response.len = ptr - response.data;
+            response.cap = response_size + 1;
+            response.data[response.len] = '\0';
+        }
+    }
+    
+    return response;
+}
+
+/// Send an HTTP response to a client
+def send_http_response(client: Socket, status_code: i32, content_type: string, body: string): bool {
+    mut response_str: string = create_http_response(status_code, content_type, body);
+    mut success: bool = socket_send(client, response_str);
+    
+    raw {
+        if (response_str.data != NULL) {
+            free(response_str.data);
+        }
+    }
+    
+    return success;
+}
+
+/// Free HTTP request memory
+def free_request(request: HttpRequest) {
+    raw {
+        if (request.method.data != NULL) free(request.method.data);
+        if (request.path.data != NULL) free(request.path.data);
+        if (request.headers.data != NULL) free(request.headers.data);
+        if (request.body.data != NULL) free(request.body.data);
+        if (request.version.data != NULL) free(request.version.data);
     }
 }
 
