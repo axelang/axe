@@ -2869,7 +2869,6 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             pos++;
         }
 
-        // Parse condition (everything until comma)
         string condition = "";
         int parenDepth = 0;
         while (pos < tokens.length)
