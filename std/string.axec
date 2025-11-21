@@ -366,37 +366,6 @@ def double_to_str(value: f64, buffer: char*): char* {
     return buffer;
 }
 
-/// Formats a string using a format string and arguments.
-/// Each `{}` placeholder in `fmt_string` is replaced by the next string in `args`.
-def fmt(fmt_string: string, args: string[]): string {
-    mut result: string = string.create("");
-    mut arg_index: i32 = 0;
-    mut i: i32 = 0;
-
-    loop {
-        if i >= fmt_string.len {
-            break;
-        }
-        if fmt_string.data[i] == '{' and fmt_string.data[i+1] == '}' {
-            mut s: string = args[arg_index];
-            arg_index = arg_index + 1;
-            result = concat(result, s);
-            i = i + 2;
-        } else {
-            raw {
-                char tmp[2];
-                tmp[0] = fmt_string.data[i];
-                tmp[1] = '\0';
-                strcat((char*)result.data, tmp);
-                result.len = (uintptr_t)strlen((const char*)result.data);
-                result.cap = result.len;
-            }
-            i = i + 1;
-        }
-    }
-    return result;
-}
-
 /// Returns the index of the first occurrence of character `c` in `s` at or after `start`.
 /// Returns -1 if the character is not found.
 def find_char_from(s: string, c: char, start: usize): i32 {
