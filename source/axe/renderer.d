@@ -2845,7 +2845,6 @@ string processExpression(string expr, string context = "")
         }
     }
 
-    // Don't process if it's already parenthesized
     if (expr.canFind("(") && expr.endsWith(")"))
     {
         return expr;

@@ -695,5 +695,5 @@ test {
 
     val y = 10;
     
-    print_str(str($"{y}"));
+    print_str(str($"${y}"));
 }

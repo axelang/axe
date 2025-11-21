@@ -1,3 +1,4 @@
 main {
-    println("Hello, world");
+    val x: char* = "hello";
+    val y = ($"Hello, {x} world");
 }

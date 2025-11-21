@@ -228,6 +228,7 @@ Token[] lex(string source)
                     "Unterminated interpolated string at position " ~ pos.to!string);
 
                 string interpContent = source[strStart .. ending];
+                
                 tokens ~= Token(TokenType.INTERPOLATED_STR, interpContent);
 
                 pos = ending + 1;

@@ -136,7 +136,18 @@ bool handleMachineArgs(string[] args)
         if (args.canFind("-tokens"))
             writeln(tokens);
 
-        auto ast = parse(tokens, isAxec);
+        // Derive module name from file path (e.g., std/string.axec -> std.string)
+        string moduleName = "";
+        if (name.canFind("std/") || name.canFind("std\\"))
+        {
+            import std.path : baseName, stripExtension;
+            import std.string : replace;
+            string fileName = baseName(name);
+            string moduleBase = stripExtension(fileName);
+            moduleName = "std." ~ moduleBase;
+        }
+
+        auto ast = parse(tokens, isAxec, true, moduleName);
 
         resetProcessedModules();
         ast = processImports(ast, dirName(name), isAxec, name);

@@ -17,6 +17,7 @@ import axe.gstate;
 
 private string[string] g_typeAliases;
 private MacroDef[string] g_macros;
+private bool[string] g_importedModules;
 
 /**
  * Parses an array of tokens into an abstract syntax tree (AST).
@@ -25,10 +26,11 @@ private MacroDef[string] g_macros;
  *   tokens = Array of tokens to parse
  *   isAxec = Whether the source file is .axec
  *   checkEntryPoint = Whether to validate that the file has an entry point (main/test)
+ *   currentModule = Name of the module being parsed (e.g., "std.string") for auto-import
  * Returns: 
  *   ASTNode = Abstract syntax tree representing the parsed tokens
  */
-ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
+ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, string currentModule = "")
 {
     import std.stdio;
     import std.exception : enforce;
@@ -38,6 +40,12 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
     import axe.structs : Scope;
 
     g_typeAliases.clear();
+
+    if (currentModule.length > 0)
+    {
+        g_importedModules[currentModule] = true;
+        debugWriteln("Auto-imported current module: ", currentModule);
+    }
 
     debug
     {
@@ -997,6 +1005,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
             {
                 pos++; // Skip ';'
                 ast.children ~= new UseNode(moduleName, [], true);
+                g_importedModules[moduleName] = true;
+                debugWriteln("Tracked import: ", moduleName);
                 continue;
             }
 
@@ -1055,6 +1065,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
             }
 
             ast.children ~= new UseNode(moduleName, imports);
+            g_importedModules[moduleName] = true;
+            debugWriteln("Tracked import: ", moduleName);
             continue;
 
         case TokenType.MAIN:
@@ -1341,6 +1353,14 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true)
                             }
                             else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
                             {
+                                debugWriteln("DEBUG: Checking std.string in g_importedModules. Keys: ", g_importedModules.keys);
+                                enforce(("std.string" in g_importedModules) !is null,
+                                    "String interpolation requires 'use std.string;'");
+                                
+                                string rawContent = tokens[pos].value;
+                                enforce(rawContent.canFind("${"),
+                                    "Interpolated string must contain at least one ${} expression. Use a regular string if no interpolation is needed.");
+                                
                                 args ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
                                 lastWasRef = false;
                                 pos++;
@@ -5904,6 +5924,14 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 }
                 else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
                 {
+                    enforce(("std.string" in g_importedModules) !is null,
+                        "String interpolation requires 'use std.string;'");
+                    
+                    string rawContent = tokens[pos].value;
+                    enforce(rawContent.canFind("${"),
+                        "Interpolated string must contain at least one ${} expression. " ~
+                        "Use a regular string if no interpolation is needed.");
+                    
                     currentArg ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
                     lastWasRef = false;
                     pos++;
@@ -6545,6 +6573,20 @@ private PrintlnNode parsePrintlnHelper(ref size_t pos, Token[] tokens)
         }
         else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
         {
+            import std.stdio : writeln;
+            writeln("DEBUG parsePrintlnHelper: g_importedModules keys: ", g_importedModules.keys);
+            auto ptr = ("std.string" in g_importedModules);
+            writeln("DEBUG parsePrintlnHelper: ptr is null: ", (ptr is null));
+            writeln("DEBUG parsePrintlnHelper: ptr value: ", ptr);
+            enforce(ptr !is null,
+                "String interpolation requires 'use std.string;'");
+            
+            string rawContent = tokens[pos].value;
+            writeln("DEBUG parsePrintlnHelper: rawContent = '", rawContent, "'");
+            enforce(rawContent.canFind("${"),
+                "Interpolated string must contain at least one ${} expression. " ~
+                "Use a regular string if no interpolation is needed.");
+            
             string interpContent = "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
             pos++;
             messages ~= interpContent;
@@ -6560,7 +6602,17 @@ private PrintlnNode parsePrintlnHelper(ref size_t pos, Token[] tokens)
                 if (tokens[pos].type == TokenType.STR)
                     expr ~= "\"" ~ tokens[pos].value ~ "\"";
                 else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
+                {
+                    enforce(("std.string" in g_importedModules) !is null,
+                        "String interpolation requires 'use std.string;'");
+                    
+                    string rawContent = tokens[pos].value;
+                    enforce(rawContent.canFind("${"),
+                        "Interpolated string must contain at least one ${} expression. " ~
+                        "Use a regular string if no interpolation is needed.");
+                    
                     expr ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
+                }
                 else if (tokens[pos].type == TokenType.DOT)
                     expr ~= ".";
                 else
@@ -6627,6 +6679,14 @@ private PrintNode parsePrintHelper(ref size_t pos, Token[] tokens)
         }
         else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
         {
+            enforce(("std.string" in g_importedModules) !is null,
+                "String interpolation requires 'use std.string;'");
+            
+            string rawContent = tokens[pos].value;
+            enforce(rawContent.canFind("${"),
+                "Interpolated string must contain at least one ${} expression. " ~
+                "Use a regular string if no interpolation is needed.");
+            
             string interpContent = "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
             pos++;
             messages ~= interpContent;
@@ -6642,7 +6702,17 @@ private PrintNode parsePrintHelper(ref size_t pos, Token[] tokens)
                 if (tokens[pos].type == TokenType.STR)
                     expr ~= "\"" ~ tokens[pos].value ~ "\"";
                 else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
+                {
+                    enforce(("std.string" in g_importedModules) !is null,
+                        "String interpolation requires 'use std.string;'");
+                    
+                    string rawContent = tokens[pos].value;
+                    enforce(rawContent.canFind("${"),
+                        "Interpolated string must contain at least one ${} expression. " ~
+                        "Use a regular string if no interpolation is needed.");
+                    
                     expr ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
+                }
                 else if (tokens[pos].type == TokenType.DOT)
                     expr ~= ".";
                 else

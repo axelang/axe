@@ -199,7 +199,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             string importSource = readText(modulePath);
             auto importTokens = lex(importSource);
             bool importIsAxec = modulePath.endsWith(".axec");
-            auto importAst = parse(importTokens, importIsAxec, false);
+            auto importAst = parse(importTokens, importIsAxec, false, useNode.moduleName);
             string importBaseDir = dirName(modulePath);
             importAst = processImports(importAst, importBaseDir, importIsAxec, modulePath, false);
 
