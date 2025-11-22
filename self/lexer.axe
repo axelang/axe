@@ -70,10 +70,10 @@ enum TokenType {
 }
 
 pub model Token {
-    pub token_type: i32;
+    pub token_type: TokenType;
     pub value: string;
 
-    pub def create(token_type: i32, value: string): Token {
+    pub def create(token_type: TokenType, value: string): Token {
         mut t: Token;
         t.token_type = token_type;
         t.value = value;

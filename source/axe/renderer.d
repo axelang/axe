@@ -53,6 +53,7 @@ private string[string] g_varType;
 private string[string] g_isPointerVar;
 private string[string] g_functionPrefixes;
 private string[string] g_modelNames;
+private string[string] g_enumNames;
 private bool[string] g_generatedTypedefs;
 private bool[string] g_generatedFunctions;
 private bool g_inTopLevel = false;
@@ -346,6 +347,11 @@ string mapAxeTypeToC(string axeType)
     if (axeType in g_typeMappings)
     {
         return g_typeMappings[axeType];
+    }
+
+    if (axeType in g_enumNames)
+    {
+        return g_enumNames[axeType];
     }
 
     if (axeType in g_modelNames)
@@ -1727,7 +1733,7 @@ string generateC(ASTNode ast)
             cCode ~= "\n";
         }
         cCode ~= "} " ~ cEnumName ~ ";\n";
-        g_modelNames[enumNode.name] = cEnumName;
+        g_enumNames[enumNode.name] = cEnumName;
 
         break;
 
