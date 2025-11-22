@@ -1,0 +1,9 @@
+use std.io (println);
+
+main {
+    val ch: char = 'a';
+
+    if ch == 'a' {
+        val x: i32 = 1;
+    }
+}

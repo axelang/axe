@@ -1,0 +1,11 @@
+main {
+    val ch: char = 'a';
+
+    if ch == 'a' {
+        val x: i32 = 1;
+    } elif ch == 'b' {
+        val x: i32 = 2;
+    } else {
+        val x: i32 = 3;
+    }
+}
