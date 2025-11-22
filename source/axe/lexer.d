@@ -621,8 +621,9 @@ Token[] lex(string source)
             }
             else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw")
             {
-                tokens ~= Token(TokenType.RAW, "raw");
+                tokens ~= Token(TokenType.RAW, "raw", line, column);
                 pos += 3;
+                column += 3;
 
                 // Skip whitespace and find opening brace
                 while (pos < source.length && (source[pos] == ' ' || source[pos] == '\t' ||

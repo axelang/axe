@@ -338,7 +338,10 @@ pub def lex(source: string): ref Token[] {
             }
         } elif ch == '"' {
             mut ending: i32 = pos + 1;
-            loop ending < src_len {
+            loop {
+                if !(ending < src_len) {
+                    break;
+                }
                 val end_ch: char = source[ending];
                 if end_ch == '"' {
                     break;
@@ -355,7 +358,10 @@ pub def lex(source: string): ref Token[] {
             pos = ending + 1;
         } elif substring(source, pos, pos + 1) == "'" {
             mut cend: i32 = pos + 1;
-            loop cend < src_len and substring(source, cend, cend + 1) != "'" {
+            loop {
+                if !(cend < src_len and substring(source, cend, cend + 1) != "'") {
+                    break;
+                }
                 cend = cend + 1;
             }
             mut tok: Token;
@@ -762,7 +768,10 @@ pub def lex(source: string): ref Token[] {
 
                     mut brace_depth: i32 = 1;
                     val content_start: i32 = pos;
-                    loop pos < src_len and brace_depth > 0 {
+                    loop {
+                        if !(pos < src_len and brace_depth > 0) {
+                            break;
+                        }
                         if source[pos] == '{' {
                             brace_depth = brace_depth + 1;
                         } elif source[pos] == '}' {

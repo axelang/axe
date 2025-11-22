@@ -3626,9 +3626,13 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 pos++;
             debugWriteln("[VAL case] After whitespace skip, pos=", pos, " token=", tokens[pos]
                     .type);
+            
+            string lineInfo = pos < tokens.length ? " at line " ~ to!string(tokens[pos].line) ~ 
+                ", column " ~ to!string(tokens[pos].column) ~ " but found " ~ to!string(tokens[pos].type) ~ 
+                " with value '" ~ tokens[pos].value ~ "'" : " (unexpected end of file)";
             enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
-                hasValKeyword ? "Expected identifier after 'val'"
-                    : "Expected identifier after 'mut'");
+                hasValKeyword ? "Expected identifier after 'val'" ~ lineInfo
+                    : "Expected identifier after 'mut'" ~ lineInfo);
             string varName = tokens[pos].value;
             debugWriteln("[VAL case] varName=", varName);
             pos++;
