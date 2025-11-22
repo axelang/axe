@@ -4345,6 +4345,22 @@ unittest
     }
 
     {
+        auto tokens = lex("val msg: char* = \"hello\"; main { }");
+        auto ast = parse(tokens);
+        auto cCode = generateC(ast);
+
+        writeln("Top-level char* global initialization test:");
+        writeln(cCode);
+
+        assert(cCode.canFind("const char* msg = \"hello\";"),
+            "Top-level char* should use direct string literal initializer");
+        assert(!cCode.canFind("const char msg["),
+            "Top-level char* should not be converted to char[]");
+        assert(!cCode.canFind("strcpy(msg, \"hello\"") ,
+            "Top-level char* should not use strcpy for initialization");
+    }
+
+    {
         auto tokens = lex("main { if 1 mod 3 == 0 and 2 mod 5 == 0 { put \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
