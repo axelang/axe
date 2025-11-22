@@ -303,7 +303,7 @@ def rm_dir_recursive(path: string): bool {
                     break;
                 }
             }
-            closedir(d);
+            C.closedir(d);
         }
         
         if r == 0 {
@@ -431,7 +431,7 @@ def collect_files_recursive(path: string, result: ref StringList, arena: ref Are
             free(buf);
         }
 
-        closedir(d);
+        C.closedir(d);
     }
 
     platform windows {

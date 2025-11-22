@@ -375,6 +375,24 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         moduleModelMap[enumNode.name] = enumNode.name;
                     }
                 }
+                else if (importChild.nodeType == "Extern")
+                {
+                    // Always propagate extern declarations so that any
+                    // imported functions which call C symbols (like
+                    // snprintf) have their extern prototypes available in
+                    // the merged AST. This also lets later semantic passes
+                    // see that these names are intentionally provided by C.
+                    auto externNode = cast(ExternNode) importChild;
+                    if (externNode !is null)
+                    {
+                        string key = "__extern__" ~ externNode.functionName;
+                        if (key !in g_addedNodeNames)
+                        {
+                            g_addedNodeNames[key] = true;
+                            newChildren ~= externNode;
+                        }
+                    }
+                }
                 else if (importChild.nodeType == "Macro")
                 {
                     auto macroNode = cast(MacroNode) importChild;
@@ -565,6 +583,28 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                 if (!alreadyAdded)
                                 {
                                     newPlatform.children ~= enumNode;
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Extern")
+                        {
+                            auto externNode = cast(ExternNode) pChild;
+                            if (externNode !is null)
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    auto existingExtern = cast(ExternNode) existingChild;
+                                    if (existingExtern !is null && existingExtern.functionName == externNode.functionName)
+                                    {
+                                        alreadyAdded = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    newPlatform.children ~= externNode;
                                 }
                             }
                         }

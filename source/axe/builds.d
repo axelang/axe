@@ -95,12 +95,25 @@ void validateFunctionCalls(ASTNode node, bool[string] declared)
         {
             string name = callNode.functionName;
 
+            // NOTE: C.<name> (and its rewritten form C_<name>) is
+            // reserved for explicit C interop escapes. These are allowed to
+            // bypass the Axe-level undefined function check and will be
+            // handled separately by codegen/runtime.
             import std.string : startsWith;
 
-            if (name.startsWith("C."))
+            bool isCEscape = name.startsWith("C.") || name.startsWith("C_");
+
+            bool isDeclared = false;
+            if (auto p = name in declared)
             {
+                isDeclared = *p;
             }
-            else if (!(name in declared))
+
+            writeln("[validateFunctionCalls] name=", name,
+                " isCEscape=", isCEscape,
+                " isDeclared=", isDeclared);
+
+            if (!isCEscape && !isDeclared)
             {
                 throw new Exception("Undefined function: " ~ name);
             }
