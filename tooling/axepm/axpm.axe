@@ -18,8 +18,8 @@ model AxeMod {
 /// Reads an axe.mod file and parses it
 def read_mod_file(path: string, arena: ref Arena): AxeMod {
     mut module: AxeMod;
-    module.name = string.create("");
-    module.version = string.create("0.1.0");
+    module.name = str("");
+    module.version = str("0.1.0");
     module.dependencies = StringList.create(arena, 10);
     
     val content: string = read_file(path);
@@ -45,11 +45,11 @@ def read_mod_file(path: string, arena: ref Arena): AxeMod {
                     val key: string = strip(substr(stripped, 0, colon_idx));
                     val value: string = strip(substr(stripped, colon_idx + 1, stripped.len - colon_idx - 1));
                     
-                    if compare(key, string.create("name")) == 0 {
+                    if compare(key, str("name")) == 0 {
                         module.name = value;
-                    } elif compare(key, string.create("version")) == 0 {
+                    } elif compare(key, str("version")) == 0 {
                         module.version = value;
-                    } elif compare(key, string.create("dependency")) == 0 {
+                    } elif compare(key, str("dependency")) == 0 {
                         StringList.push(module.dependencies, arena, value);
                     }
                 }
@@ -71,11 +71,11 @@ def read_mod_file(path: string, arena: ref Arena): AxeMod {
                 val key: string = strip(substr(stripped, 0, colon_idx));
                 val value: string = strip(substr(stripped, colon_idx + 1, stripped.len - colon_idx - 1));
                 
-                if compare(key, string.create("name")) == 0 {
+                if compare(key, str("name")) == 0 {
                     module.name = value;
-                } elif compare(key, string.create("version")) == 0 {
+                } elif compare(key, str("version")) == 0 {
                     module.version = value;
-                } elif compare(key, string.create("dependency")) == 0 {
+                } elif compare(key, str("dependency")) == 0 {
                     StringList.push(module.dependencies, arena, value);
                 }
             }
@@ -87,19 +87,19 @@ def read_mod_file(path: string, arena: ref Arena): AxeMod {
 
 /// Writes an AxeMod structure to axe.mod file
 def write_mod_file(module: AxeMod, path: string) {
-    mut content: string = string.create("");
+    mut content: string = str("");
     
-    content = concat(content, string.create("name: "));
+    content = concat(content, str("name: "));
     content = concat(content, module.name);
-    content = concat(content, string.create("\n"));
-    content = concat(content, string.create("version: "));
+    content = concat(content, str("\n"));
+    content = concat(content, str("version: "));
     content = concat(content, module.version);
-    content = concat(content, string.create("\n"));
+    content = concat(content, str("\n"));
     
     for mut i = 0; i < module.dependencies.len; i++ {
-        content = concat(content, string.create("dependency: "));
+        content = concat(content, str("dependency: "));
         content = concat(content, StringList.get(module.dependencies, i));
-        content = concat(content, string.create("\n"));
+        content = concat(content, str("\n"));
     }
     
     write_file(path, content);
@@ -108,32 +108,32 @@ def write_mod_file(module: AxeMod, path: string) {
 /// Gets the current directory name in lowercase
 /// For now, just returns "project" as a default
 def get_current_dir_name(): string {
-    return string.create("project");
+    return str("project");
 }
 
 /// Creates a directory using system command
 def create_dir(path: string) {
-    val mkdir_cmd: string = concat(string.create("mkdir "), path);
+    val mkdir_cmd: string = concat(str("mkdir "), path);
     exec_from_string(mkdir_cmd);
 }
 
 /// Clones a git repository and returns the commit hash
 def git_clone_and_get_hash(url: string, dest_dir: string): string {
-    val clone_cmd: string = concat(string.create("git clone "), url);
-    val clone_cmd2: string = concat(clone_cmd, string.create(" "));
+    val clone_cmd: string = concat(str("git clone "), url);
+    val clone_cmd2: string = concat(clone_cmd, str(" "));
     val clone_cmd3: string = concat(clone_cmd2, dest_dir);
     
     exec_from_string(clone_cmd3);
     
-    val hash_file: string = string.create("deps/.axpm_hash_temp");
-    mut hash_cmd: string = string.create("cd ");
+    val hash_file: string = str("deps/.axpm_hash_temp");
+    mut hash_cmd: string = str("cd ");
     hash_cmd = concat(hash_cmd, dest_dir);
-    hash_cmd = concat(hash_cmd, string.create(" && git rev-parse HEAD > ../"));
+    hash_cmd = concat(hash_cmd, str(" && git rev-parse HEAD > ../"));
     hash_cmd = concat(hash_cmd, hash_file);
     
     exec_from_string(hash_cmd);
     
-    mut hash: string = string.create("");
+    mut hash: string = str("");
     if file_exists(hash_file) {
         hash = read_file(hash_file);
         hash = strip(hash);
@@ -145,7 +145,7 @@ def git_clone_and_get_hash(url: string, dest_dir: string): string {
 
 /// Initializes a new axe.mod file
 def cmd_init(arena: ref Arena) {
-    val mod_path: string = string.create("axe.mod");
+    val mod_path: string = str("axe.mod");
     
     if file_exists(mod_path) {
         println "axe.mod already exists in this directory";
@@ -154,19 +154,19 @@ def cmd_init(arena: ref Arena) {
     
     mut module: AxeMod;
     module.name = get_current_dir_name();
-    module.version = string.create("0.1.0");
+    module.version = str("0.1.0");
     module.dependencies = StringList.create(arena, 10);
     
     write_mod_file(module, mod_path);
     
-    print_str(string.create("Initialized "));
+    print_str(str("Initialized "));
     print_str(module.name);
     println " project with axe.mod";
 }
 
 /// Adds a dependency to the project
 def cmd_add(git_url: string, arena: ref Arena) {
-    val mod_path: string = string.create("axe.mod");
+    val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
         println "No axe.mod file found. Run 'axpm init' first.";
@@ -180,33 +180,33 @@ def cmd_add(git_url: string, arena: ref Arena) {
         repo_name = substr(git_url, last_slash + 1, git_url.len - last_slash - 1);
     }
     
-    if has_suffix(repo_name, string.create(".git")) {
-        repo_name = trim_suffix(repo_name, string.create(".git"));
+    if has_suffix(repo_name, str(".git")) {
+        repo_name = trim_suffix(repo_name, str(".git"));
     }
     
-    val deps_dir: string = string.create("deps");
+    val deps_dir: string = str("deps");
     if !is_directory(deps_dir) {
         create_dir(deps_dir);
     }
     
-    val dest_path: string = concat(string.create("deps/"), repo_name);
+    val dest_path: string = concat(str("deps/"), repo_name);
     
-    print_str(string.create("Cloning "));
+    print_str(str("Cloning "));
     print_str(git_url);
     println "...";
     
     val commit_hash: string = git_clone_and_get_hash(git_url, dest_path);
     
     if commit_hash.len > 0 {
-        val dep_entry: string = concat(git_url, string.create("@"));
+        val dep_entry: string = concat(git_url, str("@"));
         val dep_full: string = concat(dep_entry, commit_hash);
         
         StringList.push(module.dependencies, arena, dep_full);
         write_mod_file(module, mod_path);
         
-        print_str(string.create("Added dependency: "));
+        print_str(str("Added dependency: "));
         print_str(repo_name);
-        print_str(string.create(" ("));
+        print_str(str(" ("));
         print_str(substr(commit_hash, 0, 8));
         println ")";
     } else {
@@ -216,14 +216,14 @@ def cmd_add(git_url: string, arena: ref Arena) {
 
 /// Builds the project by compiling main.axe
 def cmd_build() {
-    val mod_path: string = string.create("axe.mod");
+    val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
         println "No axe.mod file found. Run 'axpm init' first.";
         return;
     }
     
-    val main_file: string = string.create("main.axe");
+    val main_file: string = str("main.axe");
     
     if !file_exists(main_file) {
         println "No main.axe file found in project";
@@ -232,7 +232,7 @@ def cmd_build() {
     
     println "Building project...";
     
-    val build_cmd: string = concat(string.create("axe "), main_file);
+    val build_cmd: string = concat(str("axe "), main_file);
     val exit_code: i32 = exec_from_string(build_cmd);
     
     if exit_code == 0 {
@@ -264,9 +264,9 @@ main {
     
     val command: string = StringList.get(args, 1);
     
-    if compare(command, string.create("init")) == 0 {
+    if compare(command, str("init")) == 0 {
         cmd_init(ref_of(arena));
-    } elif compare(command, string.create("add")) == 0 {
+    } elif compare(command, str("add")) == 0 {
         if args.len < 3 {
             println "Error: 'add' command requires a git URL";
             println "Usage: axpm add <git-url>";
@@ -274,12 +274,12 @@ main {
             val git_url: string = StringList.get(args, 2);
             cmd_add(git_url, ref_of(arena));
         }
-    } elif compare(command, string.create("build")) == 0 {
+    } elif compare(command, str("build")) == 0 {
         cmd_build();
-    } elif compare(command, string.create("help")) == 0 {
+    } elif compare(command, str("help")) == 0 {
         show_help();
     } else {
-        print_str(string.create("Unknown command: "));
+        print_str(str("Unknown command: "));
         println command;
         println "";
         show_help();
