@@ -45,7 +45,7 @@ main {
     
     print("1 | Lex... ");
 
-    mut tokens: TokenList = lexer.lex(source_code);
+    mut tokens: TokenList = lex(source_code);
 
     println("Done");
     
