@@ -1,16 +1,16 @@
-def randomize(): void {
+pub def randomize(): void {
     raw {
         srand(time(NULL));
     }
 }
 
-def random(a: i32, b: i32): i32 {
+pub def random(a: i32, b: i32): i32 {
     raw {
         return rand() % (b - a + 1) + a;
     }
 }
 
-def random_float(a: f32, b: f32): f32 {
+pub def random_float(a: f32, b: f32): f32 {
     raw {
         return (rand() / (float)RAND_MAX) * (b - a) + a;
     }
