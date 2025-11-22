@@ -68,6 +68,14 @@ pub model string {
     }
 }
 
+pub def i32_to_string(value: i32): string {
+    unsafe {
+        mut buffer: char* = C.malloc(12);
+        C.sprintf(buffer, "%d", value);
+        return string.create(buffer);
+    }
+}
+
 /// Returns the length of a string.
 pub def str_len(s: string): usize {
     return s.len;

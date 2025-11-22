@@ -2695,6 +2695,12 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
                     funcNode.children ~= new RawCNode(rawCode);
                     break;
 
+                case TokenType.UNSAFE:
+                    auto stmt = parseStatementHelper(pos, tokens, funcScope, funcScopeNode, isAxec);
+                    if (stmt !is null)
+                        funcNode.children ~= stmt;
+                    break;
+
                 case TokenType.RETURN:
                     auto stmt = parseStatementHelper(pos, tokens, funcScope, funcScopeNode, isAxec);
                     if (stmt !is null)

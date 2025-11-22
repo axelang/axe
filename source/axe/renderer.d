@@ -2582,17 +2582,24 @@ string processExpression(string expr, string context = "")
         string funcName = expr[0 .. funcNameEnd].strip();
         
         import std.string : startsWith, strip;
-        if (funcName.startsWith("C.") || funcName.startsWith("C .") || funcName.startsWith("C  ."))
+        
+        if (funcName.length >= 2 && funcName[0] == 'C')
         {
-            auto dotPos = funcName.indexOf('.');
-            if (dotPos != -1)
+            string afterC = funcName[1 .. $].strip();
+            if (afterC.length > 0 && (afterC[0] == '.' || afterC[0] == '_'))
             {
-                funcName = funcName[dotPos + 1 .. $].strip();
+                auto dotPos = funcName.indexOf('.');
+                auto underscorePos = funcName.indexOf('_');
+                
+                if (dotPos != -1)
+                {
+                    funcName = funcName[dotPos + 1 .. $].strip();
+                }
+                else if (underscorePos != -1)
+                {
+                    funcName = funcName[underscorePos + 1 .. $].strip();
+                }
             }
-        }
-        else if (funcName.startsWith("C_"))
-        {
-            funcName = funcName[2 .. $];
         }
         
         ptrdiff_t argEnd = funcNameEnd + 1;

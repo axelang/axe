@@ -1,6 +1,5 @@
-use std.os (
-    exec
-);
+use std.os;
+use std.string;
 
 def clear_screen() {
     platform windows {
@@ -9,6 +8,14 @@ def clear_screen() {
     platform posix {
         exec("clear");
     }
+}
+
+def color_text(text: string, color_code: i32): string {
+    mut i: string = concat(str("\033["), i32_to_string(color_code));
+    i = concat(i, str("m"));
+    i = concat(i, text);
+    i = concat(i, str("\033[0m"));
+    return i;
 }
 
 test {
