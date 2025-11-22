@@ -88,6 +88,22 @@ void collectDeclaredFunctions(ASTNode node, ref bool[string] declared)
 
 void validateFunctionCalls(ASTNode node, bool[string] declared, string modulePrefix = "")
 {
+    if (node.nodeType == "Model")
+    {
+        auto modelNode = cast(ModelNode) node;
+        if (modelNode !is null)
+        {
+            foreach (method; modelNode.methods)
+            {
+                auto methodFunc = cast(FunctionNode) method;
+                if (methodFunc !is null)
+                {
+                    validateFunctionCalls(methodFunc, declared, modulePrefix);
+                }
+            }
+        }
+    }
+
     if (node.nodeType == "FunctionCall")
     {
         auto callNode = cast(FunctionCallNode) node;
