@@ -106,7 +106,10 @@ pub def lex(source: string): ref Token[] {
     mut pos: i32 = 0;
     val src_len: i32 = source.len;
 
-    loop pos < src_len {
+    loop {
+        if !(pos < src_len) {
+            break;
+        }
         val ch: char = source[pos];
 
         if ch == '*' {
@@ -267,7 +270,10 @@ pub def lex(source: string): ref Token[] {
         } elif ch == '/' {
             if pos + 1 < src_len and source[pos + 1] == '/' {
                 val start: i32 = pos;
-                loop pos < src_len and source[pos] != '\n' {
+                loop {
+                    if !(pos < src_len and source[pos] != '\n') {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -310,7 +316,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 2;
                 val str_start: i32 = pos;
                 mut ending: i32 = pos;
-                loop ending < src_len {
+                loop {
+                    if !(ending < src_len) {
+                        break;
+                    }
                     val end_ch: char = source[ending];
                     if end_ch == '"' and (ending == 0 or source[ending - 1] != '\\') {
                         break;
@@ -407,7 +416,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -424,7 +436,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 5;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -449,7 +464,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -474,7 +492,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 2;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -492,7 +513,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -538,7 +562,10 @@ pub def lex(source: string): ref Token[] {
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
-                loop pos < src_len and is_alphanum(source[pos]) {
+                loop {
+                    if !(pos < src_len and is_alphanum(source[pos])) {
+                        break;
+                    }
                     pos = pos + 1;
                 }
                 mut tok: Token;
@@ -707,8 +734,11 @@ pub def lex(source: string): ref Token[] {
                 tokens = Token[].append(tokens, tok);
                 pos = pos + 3;
 
-                loop pos < src_len and (source[pos] == ' ' or source[pos] == '\t' or
+                loop {
+                    if !pos < src_len and (source[pos] == ' ' or source[pos] == '\t' or
                       source[pos] == '\n' or source[pos] == '\r') {
+                        break;
+                    }
                     if source[pos] == '\n' {
                         mut ntok: Token;
                         ntok.type = TokenType.NEWLINE;
