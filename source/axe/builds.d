@@ -94,7 +94,13 @@ void validateFunctionCalls(ASTNode node, bool[string] declared)
         if (callNode !is null)
         {
             string name = callNode.functionName;
-            if (!(name in declared))
+
+            import std.string : startsWith;
+
+            if (name.startsWith("C."))
+            {
+            }
+            else if (!(name in declared))
             {
                 throw new Exception("Undefined function: " ~ name);
             }
@@ -208,6 +214,7 @@ bool handleMachineArgs(string[] args)
         {
             import std.path : baseName, stripExtension;
             import std.string : replace;
+
             string fileName = baseName(name);
             string moduleBase = stripExtension(fileName);
             moduleName = "std." ~ moduleBase;
