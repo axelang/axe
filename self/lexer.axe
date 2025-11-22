@@ -95,14 +95,14 @@ pub model TokenList {
     pub cap: i32;
 
     pub def append(list: ref TokenList, item: Token): ref TokenList {
-        if (list == nil || list.data == nil) {
+        if list == nil || list.data == nil {
             list = C.malloc(C.sizeof(TokenList));
             list.cap = 16;
             list.len = 0;
             list.data = C.malloc(C.sizeof(Token) * list.cap);
         }
         
-        if (list.len >= list.cap) {
+        if list.len >= list.cap {
             list.cap = list.cap * 2;
             mut new_data: Token* = C.malloc(C.sizeof(Token) * list.cap);
             for mut i = 0; i < list.len; i++ {
@@ -110,7 +110,7 @@ pub model TokenList {
             }
             list.data = new_data;
         }
-        
+
         list.data[list.len] = item;
         list.len++;
         return list;
