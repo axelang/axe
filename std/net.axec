@@ -601,9 +601,7 @@ def net_init(): bool {
 /// Cleanup networking subsystem (cross-platform)
 def net_cleanup() {
     platform windows {
-        raw {
-            WSACleanup();
-        }
+        C.WSACleanup();
     }
 }
 

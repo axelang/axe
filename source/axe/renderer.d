@@ -888,6 +888,13 @@ string generateC(ASTNode ast)
         auto callNode = cast(FunctionCallNode) ast;
         string callName = callNode.functionName;
 
+        import std.string : startsWith;
+
+        if (callName.startsWith("C."))
+        {
+            callName = "C__" ~ callName[2 .. $];
+        }
+
         if (callName.canFind("."))
         {
             auto parts = callName.split(".");
@@ -1060,7 +1067,17 @@ string generateC(ASTNode ast)
         }
 
         string indent = loopLevel > 0 ? "    ".replicate(loopLevel) : "";
-        cCode ~= indent ~ callName ~ "(" ~ processedArgs.join(", ") ~ ");\n";
+
+        // If this is a C escape (internal C__ prefix), strip it so the
+        // generated C calls the raw symbol name (e.g., closedir,
+        // WSACleanup, malloc).
+        string emittedName = callName;
+        if (emittedName.startsWith("C__"))
+        {
+            emittedName = emittedName[3 .. $];
+        }
+
+        cCode ~= indent ~ emittedName ~ "(" ~ processedArgs.join(", ") ~ ");\n";
         break;
 
     case "Assignment":
