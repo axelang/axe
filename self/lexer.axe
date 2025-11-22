@@ -89,6 +89,34 @@ pub model Token {
     pub value: string;
 }
 
+pub model TokenList {
+    pub data: ref Token;
+    pub len: i32;
+    pub cap: i32;
+
+    pub def append(list: ref TokenList, item: Token): ref TokenList {
+        if (list == nil || list.data == nil) {
+            list = C.malloc(C.sizeof(TokenList));
+            list.cap = 16;
+            list.len = 0;
+            list.data = C.malloc(C.sizeof(Token) * list.cap);
+        }
+        
+        if (list.len >= list.cap) {
+            list.cap = list.cap * 2;
+            mut new_data: Token* = C.malloc(C.sizeof(Token) * list.cap);
+            for mut i = 0; i < list.len; i++ {
+                new_data[i] = list.data[i];
+            }
+            list.data = new_data;
+        }
+        
+        list.data[list.len] = item;
+        list.len++;
+        return list;
+    }
+}
+
 def is_alpha(ch: char): bool {
     return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
 }
@@ -101,8 +129,8 @@ def is_alphanum(ch: char): bool {
     return is_alpha(ch) or is_digit(ch) or ch == '_';
 }
 
-pub def lex(source: string): ref Token[] {
-    mut tokens: Token[];
+pub def lex(source: string): ref TokenList {
+    mut tokens: TokenList;
     mut pos: i32 = 0;
     val src_len: i32 = source.len;
 
@@ -117,7 +145,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.STAR_DOT;
                 tok.value = "*.";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif tokens.len > 0 and tokens[tokens.len - 1].type == TokenType.IDENTIFIER {
                 tokens[tokens.len - 1].value = string_concat(tokens[tokens.len - 1].value, "*");
@@ -126,57 +154,57 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.STAR;
                 tok.value = "*";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == ' ' or ch == '\t' or ch == '\r' {
             mut tok: Token;
             tok.type = TokenType.WHITESPACE;
             tok.value = substring(source, pos, pos + 1);
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '\n' {
             mut tok: Token;
             tok.type = TokenType.NEWLINE;
             tok.value = "\\n";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '{' {
             mut tok: Token;
             tok.type = TokenType.LBRACE;
             tok.value = "{";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '}' {
             mut tok: Token;
             tok.type = TokenType.RBRACE;
             tok.value = "}";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == ';' {
             mut tok: Token;
             tok.type = TokenType.SEMICOLON;
             tok.value = ";";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == ':' {
             mut tok: Token;
             tok.type = TokenType.COLON;
             tok.value = ":";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '!' {
             if pos + 1 < src_len and source[pos + 1] == '=' {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "!=";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "!";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '=' {
@@ -184,19 +212,19 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "==";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 1 < src_len and source[pos + 1] == '>' {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "=>";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "=";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '-' {
@@ -204,13 +232,13 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.DECREMENT;
                 tok.value = "--";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.MINUS;
                 tok.value = "-";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '+' {
@@ -218,13 +246,13 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.INCREMENT;
                 tok.value = "++";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.PLUS;
                 tok.value = "+";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '>' {
@@ -232,19 +260,19 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = ">=";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 1 < src_len and source[pos + 1] == '>' {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = ">>";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = ">";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '<' {
@@ -252,19 +280,19 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "<=";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 1 < src_len and source[pos + 1] == '<' {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "<<";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 mut tok: Token;
                 tok.type = TokenType.OPERATOR;
                 tok.value = "<";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '/' {
@@ -279,37 +307,37 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.COMMENT;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             } else {
                 mut tok: Token;
                 tok.type = TokenType.SLASH;
                 tok.value = "/";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 1;
             }
         } elif ch == '&' {
             mut tok: Token;
             tok.type = TokenType.OPERATOR;
             tok.value = "&";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '|' {
             mut tok: Token;
             tok.type = TokenType.OPERATOR;
             tok.value = "|";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '^' {
             mut tok: Token;
             tok.type = TokenType.OPERATOR;
             tok.value = "^";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '~' {
             mut tok: Token;
             tok.type = TokenType.OPERATOR;
             tok.value = "~";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '$' {
             if pos + 1 < src_len and source[pos + 1] == '"' {
@@ -333,7 +361,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.INTERPOLATED_STR;
                 tok.value = interp_content;
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = ending + 1;
             }
         } elif ch == '"' {
@@ -354,7 +382,7 @@ pub def lex(source: string): ref Token[] {
             mut tok: Token;
             tok.type = TokenType.STR;
             tok.value = substring(source, pos + 1, ending);
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = ending + 1;
         } elif substring(source, pos, pos + 1) == "'" {
             mut cend: i32 = pos + 1;
@@ -367,43 +395,43 @@ pub def lex(source: string): ref Token[] {
             mut tok: Token;
             tok.type = TokenType.CHAR;
             tok.value = substring(source, pos + 1, cend);
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = cend + 1;
         } elif ch == '(' {
             mut tok: Token;
             tok.type = TokenType.LPAREN;
             tok.value = "(";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == ')' {
             mut tok: Token;
             tok.type = TokenType.RPAREN;
             tok.value = ")";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == ',' {
             mut tok: Token;
             tok.type = TokenType.COMMA;
             tok.value = ",";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '[' {
             mut tok: Token;
             tok.type = TokenType.LBRACKET;
             tok.value = "[";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == ']' {
             mut tok: Token;
             tok.type = TokenType.RBRACKET;
             tok.value = "]";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == '.' {
             mut tok: Token;
             tok.type = TokenType.DOT;
             tok.value = ".";
-            tokens = Token[].append(tokens, tok);
+            tokens = TokenList.append(tokens, tok);
             pos = pos + 1;
         } elif ch == 'a' {
             if pos + 6 <= src_len and substring(source, pos, pos + 6) == "assert" and 
@@ -411,14 +439,14 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.ASSERT;
                 tok.value = "assert";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "and" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.AND;
                 tok.value = "and";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
@@ -431,14 +459,14 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } elif ch == 'b' {
             if pos + 5 <= src_len and substring(source, pos, pos + 5) == "break" {
                 mut tok: Token;
                 tok.type = TokenType.BREAK;
                 tok.value = "break";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } else {
                 val start: i32 = pos;
@@ -451,7 +479,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } elif ch == 'd' {
             if pos + 7 <= src_len and substring(source, pos, pos + 7) == "default" and
@@ -459,14 +487,14 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.DEFAULT;
                 tok.value = "default";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 7;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "def" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.DEF;
                 tok.value = "def";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
@@ -479,7 +507,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } elif ch == 't' {
             if pos + 4 <= src_len and substring(source, pos, pos + 4) == "test" and
@@ -487,14 +515,14 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.TEST;
                 tok.value = "test";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 2 <= src_len and substring(source, pos, pos + 2) == "to" and
                   (pos + 2 >= src_len or !is_alphanum(source[pos + 2])) {
                 mut tok: Token;
                 tok.type = TokenType.TO;
                 tok.value = "to";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } else {
                 val start: i32 = pos;
@@ -507,7 +535,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } elif ch == 'v' {
             if pos + 3 <= src_len and substring(source, pos, pos + 3) == "val" and
@@ -515,7 +543,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.VAL;
                 tok.value = "val";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
@@ -528,7 +556,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } elif ch == 'm' {
             if pos + 5 <= src_len and substring(source, pos, pos + 5) == "macro" and
@@ -536,35 +564,35 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.MACRO;
                 tok.value = "macro";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } elif pos + 5 <= src_len and substring(source, pos, pos + 5) == "model" and
                   (pos + 5 >= src_len or !is_alphanum(source[pos + 5])) {
                 mut tok: Token;
                 tok.type = TokenType.MODEL;
                 tok.value = "model";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "main" and
                   (pos + 4 >= src_len or !is_alphanum(source[pos + 4])) {
                 mut tok: Token;
                 tok.type = TokenType.MAIN;
                 tok.value = "main";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "mut" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.MUT;
                 tok.value = "mut";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "mod" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.MOD;
                 tok.value = "mod";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } else {
                 val start: i32 = pos;
@@ -577,168 +605,168 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             }
         } else {
             if pos + 4 <= src_len and substring(source, pos, pos + 4) == "main" {
                 mut tok: Token;
                 tok.type = TokenType.MAIN;
                 tok.value = "main";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "pub" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.PUB;
                 tok.value = "pub";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "put" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.PRINT;
                 tok.value = "put";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 8 <= src_len and substring(source, pos, pos + 8) == "platform" and
                   (pos + 8 >= src_len or !is_alphanum(source[pos + 8])) {
                 mut tok: Token;
                 tok.type = TokenType.PLATFORM;
                 tok.value = "platform";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 8;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "opaque" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.OPAQUE;
                 tok.value = "opaque";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "extern" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.EXTERN;
                 tok.value = "extern";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "unsafe" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.UNSAFE;
                 tok.value = "unsafe";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 8 <= src_len and substring(source, pos, pos + 8) == "parallel" and
                   (pos + 8 >= src_len or !is_alphanum(source[pos + 8])) {
                 mut tok: Token;
                 tok.type = TokenType.PARALLEL;
                 tok.value = "parallel";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 8;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "single" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.SINGLE;
                 tok.value = "single";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 5 <= src_len and substring(source, pos, pos + 5) == "posix" and
                   (pos + 5 >= src_len or !is_alphanum(source[pos + 5])) {
                 mut tok: Token;
                 tok.type = TokenType.POSIX;
                 tok.value = "posix";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "loop" {
                 mut tok: Token;
                 tok.type = TokenType.LOOP;
                 tok.value = "loop";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "for" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.FOR;
                 tok.value = "for";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 8 <= src_len and substring(source, pos, pos + 8) == "continue" {
                 mut tok: Token;
                 tok.type = TokenType.CONTINUE;
                 tok.value = "continue";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 8;
             } elif pos + 5 <= src_len and substring(source, pos, pos + 5) == "break" {
                 mut tok: Token;
                 tok.type = TokenType.BREAK;
                 tok.value = "break";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } elif pos + 5 <= src_len and substring(source, pos, pos + 5) == "model" {
                 mut tok: Token;
                 tok.type = TokenType.MODEL;
                 tok.value = "model";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 5;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "new" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.NEW;
                 tok.value = "new";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "elif" {
                 mut tok: Token;
                 tok.type = TokenType.ELIF;
                 tok.value = "elif";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "else" {
                 mut tok: Token;
                 tok.type = TokenType.ELSE;
                 tok.value = "else";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "reduce" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.REDUCE;
                 tok.value = "reduce";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 2 <= src_len and substring(source, pos, pos + 2) == "in" and
                   (pos + 2 >= src_len or !is_alphanum(source[pos + 2])) {
                 mut tok: Token;
                 tok.type = TokenType.IN;
                 tok.value = "in";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 2 <= src_len and substring(source, pos, pos + 2) == "if" and
                   (pos + 2 >= src_len or !is_alphanum(source[pos + 2])) {
                 mut tok: Token;
                 tok.type = TokenType.IF;
                 tok.value = "if";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "return" {
                 mut tok: Token;
                 tok.type = TokenType.RETURN;
                 tok.value = "return";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "ref" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.REF;
                 tok.value = "ref";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "raw" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.RAW;
                 tok.value = "raw";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
 
                 loop {
@@ -750,12 +778,12 @@ pub def lex(source: string): ref Token[] {
                         mut ntok: Token;
                         ntok.type = TokenType.NEWLINE;
                         ntok.value = "\\n";
-                        tokens = Token[].append(tokens, ntok);
+                        tokens = TokenList.append(tokens, ntok);
                     } elif source[pos] == ' ' or source[pos] == '\t' {
                         mut wtok: Token;
                         wtok.type = TokenType.WHITESPACE;
                         wtok.value = substring(source, pos, pos + 1);
-                        tokens = Token[].append(tokens, wtok);
+                        tokens = TokenList.append(tokens, wtok);
                     }
                     pos = pos + 1;
                 }
@@ -764,7 +792,7 @@ pub def lex(source: string): ref Token[] {
                     mut btok: Token;
                     btok.type = TokenType.LBRACE;
                     btok.value = "{";
-                    tokens = Token[].append(tokens, btok);
+                    tokens = TokenList.append(tokens, btok);
                     pos = pos + 1;
 
                     mut brace_depth: i32 = 1;
@@ -789,14 +817,14 @@ pub def lex(source: string): ref Token[] {
                         mut ctok: Token;
                         ctok.type = TokenType.IDENTIFIER;
                         ctok.value = raw_content;
-                        tokens = Token[].append(tokens, ctok);
+                        tokens = TokenList.append(tokens, ctok);
                     }
 
                     if pos < src_len and source[pos] == '}' {
                         mut rbtok: Token;
                         rbtok.type = TokenType.RBRACE;
                         rbtok.value = "}";
-                        tokens = Token[].append(tokens, rbtok);
+                        tokens = TokenList.append(tokens, rbtok);
                         pos = pos + 1;
                     }
                 }
@@ -805,70 +833,70 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.USE;
                 tok.value = "use";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 8 <= src_len and substring(source, pos, pos + 8) == "overload" and
                   (pos + 8 >= src_len or !is_alphanum(source[pos + 8])) {
                 mut tok: Token;
                 tok.type = TokenType.OVERLOAD;
                 tok.value = "overload";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 8;
             } elif pos + 8 <= src_len and substring(source, pos, pos + 8) == "external" and
                   (pos + 8 >= src_len or !is_alphanum(source[pos + 8])) {
                 mut tok: Token;
                 tok.type = TokenType.EXTERNAL;
                 tok.value = "external";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 8;
             } elif pos + 7 <= src_len and substring(source, pos, pos + 7) == "windows" and
                   (pos + 7 >= src_len or !is_alphanum(source[pos + 7])) {
                 mut tok: Token;
                 tok.type = TokenType.WINDOWS;
                 tok.value = "windows";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 7;
             } elif pos + 6 <= src_len and substring(source, pos, pos + 6) == "switch" and
                   (pos + 6 >= src_len or !is_alphanum(source[pos + 6])) {
                 mut tok: Token;
                 tok.type = TokenType.SWITCH;
                 tok.value = "switch";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 6;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "case" and
                   (pos + 4 >= src_len or !is_alphanum(source[pos + 4])) {
                 mut tok: Token;
                 tok.type = TokenType.CASE;
                 tok.value = "case";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 4 <= src_len and substring(source, pos, pos + 4) == "enum" and
                   (pos + 4 >= src_len or !is_alphanum(source[pos + 4])) {
                 mut tok: Token;
                 tok.type = TokenType.ENUM;
                 tok.value = "enum";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 4;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "and" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.AND;
                 tok.value = "and";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif pos + 2 <= src_len and substring(source, pos, pos + 2) == "or" and
                   (pos + 2 >= src_len or !is_alphanum(source[pos + 2])) {
                 mut tok: Token;
                 tok.type = TokenType.OR;
                 tok.value = "or";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 2;
             } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "xor" and
                   (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.XOR;
                 tok.value = "xor";
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
                 pos = pos + 3;
             } elif source[pos] == '0' and pos + 1 < src_len and
                   (source[pos + 1] == 'x' or source[pos + 1] == 'X') {
@@ -890,7 +918,7 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             } elif is_alphanum(ch) or ch == '_' {
                 val start: i32 = pos;
                 loop {
@@ -902,14 +930,14 @@ pub def lex(source: string): ref Token[] {
                 mut tok: Token;
                 tok.type = TokenType.IDENTIFIER;
                 tok.value = substring(source, start, pos);
-                tokens = Token[].append(tokens, tok);
+                tokens = TokenList.append(tokens, tok);
             } else {
                 pos = pos + 1;
             }
         }
     }
 
-    mut filtered: Token[];
+    mut filtered: TokenList;
     mut i: i32 = 0;
     loop {
         if !(i < tokens.len) {
@@ -919,7 +947,7 @@ pub def lex(source: string): ref Token[] {
         if tok.type != TokenType.WHITESPACE and 
            tok.type != TokenType.NEWLINE and 
            tok.type != TokenType.COMMENT {
-            filtered = Token[].append(filtered, tok);
+            filtered = TokenList.append(filtered, tok);
         }
         i = i + 1;
     }
