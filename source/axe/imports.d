@@ -255,6 +255,62 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                             }
                             platformImports.children ~= pChild;
                         }
+
+                        if (pChild.nodeType == "Function")
+                        {
+                            auto funcNode = cast(FunctionNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(funcNode.name))
+                            {
+                                string prefixedName = funcNode.name.startsWith("std_") ? funcNode.name
+                                    : (sanitizedModuleName ~ "_" ~ funcNode.name);
+                                moduleFunctionMap[funcNode.name] = prefixedName;
+                            }
+                        }
+                        else if (pChild.nodeType == "Model")
+                        {
+                            auto modelNode = cast(ModelNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(modelNode.name))
+                            {
+                                string prefixedName = modelNode.name.startsWith("std_") ? modelNode.name
+                                    : (sanitizedModuleName ~ "_" ~ modelNode.name);
+                                moduleModelMap[modelNode.name] = prefixedName;
+
+                                foreach (method; modelNode.methods)
+                                {
+                                    auto methodFunc = cast(FunctionNode) method;
+                                    if (methodFunc !is null)
+                                    {
+                                        string prefixedMethodName = methodFunc.name.startsWith("std_") ? methodFunc.name
+                                            : (sanitizedModuleName ~ "_" ~ methodFunc.name);
+                                        moduleFunctionMap[methodFunc.name] = prefixedMethodName;
+                                    }
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Enum")
+                        {
+                            auto enumNode = cast(EnumNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(enumNode.name))
+                            {
+                                moduleModelMap[enumNode.name] = enumNode.name;
+                            }
+                        }
+                        else if (pChild.nodeType == "Macro")
+                        {
+                            auto macroNode = cast(MacroNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(macroNode.name))
+                            {
+                                moduleMacroMap[macroNode.name] = macroNode.name;
+                            }
+                        }
+                        else if (pChild.nodeType == "Overload")
+                        {
+                            auto overloadNode = cast(OverloadNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(overloadNode.name))
+                            {
+                                moduleMacroMap[overloadNode.name] = overloadNode.name;
+                            }
+                        }
                     }
 
                     if (platformImports !is null)
@@ -278,10 +334,6 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
 
                 if (importChild.nodeType == "Use")
                 {
-                    // Propagate use-statements from imported modules so that later
-                    // compilation stages (like C codegen) can still see std
-                    // imports such as `use std/io(print_str)` and generate
-                    // correct function prefixes (e.g. std_io_print_str).
                     newChildren ~= importChild;
                 }
                 else if (importChild.nodeType == "Function")
@@ -356,6 +408,238 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
 
             foreach (importChild; importProgram.children)
             {
+                if (importChild.nodeType == "Platform")
+                {
+                    auto platformNode = cast(PlatformNode) importChild;
+                    PlatformNode newPlatform = new PlatformNode(platformNode.platform);
+
+                    foreach (pChild; platformNode.children)
+                    {
+                        if (pChild.nodeType == "Function")
+                        {
+                            auto funcNode = cast(FunctionNode) pChild;
+
+                            if (funcNode.name == "main")
+                                continue;
+
+                            if (useNode.importAll || useNode.imports.canFind(funcNode.name))
+                                resolvedImports[funcNode.name] = true;
+
+                            if (useNode.importAll || useNode.imports.canFind(funcNode.name))
+                            {
+                                string originalName = funcNode.name;
+                                string prefixedName = moduleFunctionMap[originalName];
+
+                                funcNode.name = prefixedName;
+                                importedFunctions[originalName] = prefixedName;
+                                renameFunctionCalls(funcNode, moduleFunctionMap);
+                                renameTypeReferences(funcNode, moduleModelMap);
+                                newPlatform.children ~= funcNode;
+                                g_addedNodeNames[prefixedName] = true;
+                            }
+                            else
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    if (existingChild.nodeType == "Function")
+                                    {
+                                        auto existingFunc = cast(FunctionNode) existingChild;
+                                        if (existingFunc.name == funcNode.name)
+                                        {
+                                            alreadyAdded = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    renameFunctionCalls(funcNode, moduleFunctionMap);
+                                    renameTypeReferences(funcNode, moduleModelMap);
+                                    foreach (childNode; funcNode.children)
+                                    {
+                                        renameFunctionCalls(childNode, moduleFunctionMap);
+                                        renameTypeReferences(childNode, moduleModelMap);
+                                    }
+                                    newPlatform.children ~= funcNode;
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Model")
+                        {
+                            auto modelNode = cast(ModelNode) pChild;
+
+                            if (useNode.importAll || useNode.imports.canFind(modelNode.name))
+                            {
+                                resolvedImports[modelNode.name] = true;
+                            }
+
+                            if (useNode.importAll || useNode.imports.canFind(modelNode.name))
+                            {
+                                string prefixedName = moduleModelMap[modelNode.name];
+                                importedModels[modelNode.name] = prefixedName;
+                                auto newModel = new ModelNode(prefixedName, null);
+                                newModel.fields = modelNode.fields;
+
+                                foreach (method; modelNode.methods)
+                                {
+                                    auto methodFunc = cast(FunctionNode) method;
+                                    if (methodFunc !is null)
+                                    {
+                                        string prefixedMethodName = moduleFunctionMap[methodFunc.name];
+                                        auto newMethod = new FunctionNode(prefixedMethodName, methodFunc.params);
+                                        newMethod.returnType = methodFunc.returnType;
+                                        newMethod.children = methodFunc.children;
+
+                                        renameFunctionCalls(newMethod, moduleFunctionMap);
+                                        renameTypeReferences(newMethod, moduleModelMap);
+
+                                        newModel.methods ~= newMethod;
+                                        importedFunctions[methodFunc.name] = prefixedMethodName;
+                                    }
+                                }
+
+                                newPlatform.children ~= newModel;
+                                g_addedNodeNames[prefixedName] = true;
+                            }
+                            else
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    if (existingChild.nodeType == "Model")
+                                    {
+                                        auto existingModel = cast(ModelNode) existingChild;
+                                        if (existingModel.name == modelNode.name)
+                                        {
+                                            alreadyAdded = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    isTransitiveDependency[modelNode.name] = true;
+
+                                    foreach (method; modelNode.methods)
+                                    {
+                                        auto methodFunc = cast(FunctionNode) method;
+                                        if (methodFunc !is null)
+                                        {
+                                            renameFunctionCalls(methodFunc, moduleFunctionMap);
+                                            renameTypeReferences(methodFunc, moduleModelMap);
+                                        }
+                                    }
+
+                                    newPlatform.children ~= modelNode;
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Enum")
+                        {
+                            auto enumNode = cast(EnumNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(enumNode.name))
+                            {
+                                resolvedImports[enumNode.name] = true;
+                                enumNode.name = moduleModelMap[enumNode.name];
+                                newPlatform.children ~= enumNode;
+                            }
+                            else
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    if (existingChild.nodeType == "Enum")
+                                    {
+                                        auto existingEnum = cast(EnumNode) existingChild;
+                                        if (existingEnum.name == enumNode.name)
+                                        {
+                                            alreadyAdded = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    newPlatform.children ~= enumNode;
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Macro")
+                        {
+                            auto macroNode = cast(MacroNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(macroNode.name))
+                            {
+                                resolvedImports[macroNode.name] = true;
+                                macroNode.name = moduleMacroMap[macroNode.name];
+                                newPlatform.children ~= macroNode;
+                            }
+                            else
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    if (existingChild.nodeType == "Macro")
+                                    {
+                                        auto existingMacro = cast(MacroNode) existingChild;
+                                        if (existingMacro.name == macroNode.name)
+                                        {
+                                            alreadyAdded = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    newPlatform.children ~= macroNode;
+                                }
+                            }
+                        }
+                        else if (pChild.nodeType == "Overload")
+                        {
+                            auto overloadNode = cast(OverloadNode) pChild;
+                            if (useNode.importAll || useNode.imports.canFind(overloadNode.name))
+                            {
+                                resolvedImports[overloadNode.name] = true;
+                                overloadNode.name = moduleMacroMap[overloadNode.name];
+                                newPlatform.children ~= overloadNode;
+                            }
+                            else
+                            {
+                                bool alreadyAdded = false;
+                                foreach (existingChild; newPlatform.children)
+                                {
+                                    if (existingChild.nodeType == "Overload")
+                                    {
+                                        auto existingOverload = cast(OverloadNode) existingChild;
+                                        if (existingOverload.name == overloadNode.name)
+                                        {
+                                            alreadyAdded = true;
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                if (!alreadyAdded)
+                                {
+                                    newPlatform.children ~= overloadNode;
+                                }
+                            }
+                        }
+                    }
+
+                    if (newPlatform.children.length > 0)
+                    {
+                        newChildren ~= newPlatform;
+                    }
+
+                    continue;
+                }
+
                 if (importChild.nodeType == "Function")
                 {
                     auto funcNode = cast(FunctionNode) importChild;

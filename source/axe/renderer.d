@@ -351,6 +351,12 @@ string mapAxeTypeToC(string axeType)
         return g_modelNames[axeType];
     }
 
+    // TODO: Remove.
+    if (axeType == "_finddata_t")
+    {
+        return "struct _finddata_t";
+    }
+
     return axeType;
 }
 
