@@ -62,7 +62,7 @@
         },
         {
           "name": "keyword.other.axe",
-          "match": "\\b(def|val|mut|model|macro|raw|overload)\\b"
+          "match": "\\b(pub|def|val|mut|model|macro|raw|overload)\\b"
         },
         {
           "name": "storage.modifier.axe",
