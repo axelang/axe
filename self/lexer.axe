@@ -733,7 +733,8 @@ pub def lex(source: string): ref Token[] {
                 tok.value = "ref";
                 tokens = Token[].append(tokens, tok);
                 pos = pos + 3;
-            } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "raw" {
+            } elif pos + 3 <= src_len and substring(source, pos, pos + 3) == "raw" and
+                  (pos + 3 >= src_len or !is_alphanum(source[pos + 3])) {
                 mut tok: Token;
                 tok.type = TokenType.RAW;
                 tok.value = "raw";

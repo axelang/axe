@@ -574,15 +574,16 @@ Token[] lex(string source)
             else if (pos + 3 <= source.length && source[pos .. pos + 3] == "new" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
-                tokens ~= Token(TokenType.NEW, "new", line, column);
+                tokens ~= Token(TokenType.REF, "ref", line, column);
                 pos += 3;
                 column += 3;
             }
-            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "elif")
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
-                tokens ~= Token(TokenType.ELIF, "elif", line, column);
-                pos += 4;
-                column += 4;
+                tokens ~= Token(TokenType.RAW, "raw", line, column);
+                pos += 3;
+                column += 3;
             }
             else if (pos + 4 <= source.length && source[pos .. pos + 4] == "else")
             {
