@@ -1,0 +1,8 @@
+def hello() {
+    val x = 42;
+    println("Hello from Axe!");
+}
+
+main {
+
+}

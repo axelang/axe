@@ -1,0 +1,33 @@
+// Author: Navid Momtahen (C) 2025
+// License: GPL-3.0
+
+use std.io;
+use std.os;
+use std.string;
+use lexer;
+
+main {
+    val args = get_cmdline_args()
+    
+    if args.length < 2 {
+        println("Usage: axe <source_file>");
+        quit(1);
+    }
+    
+    let source_file = args[1]
+    
+    if !os.file_exists(source_file) {
+        println($"Error: File '{source_file}' not found")
+        os.exit(1)
+    }
+    
+    let source_code = os.read_file(source_file)
+    
+    print("1 | Lex... ")
+    let tokens = lexer.lex(source_code)
+    println("Done")
+    
+    println($"Tokenized {tokens.length} tokens")
+    
+    os.exit(0)
+}

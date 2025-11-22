@@ -1,0 +1,493 @@
+// Author: Navid Momtahen (C) 2025
+// License: GPL-3.0
+
+use std.string
+use std.lists
+
+enum TokenType {
+    IDENTIFIER,
+    NUMBER,
+    STR,
+    CHAR,
+    INTERPOLATED_STR,
+    COMMENT,
+    WHITESPACE,
+    NEWLINE,
+    LPAREN,
+    RPAREN,
+    LBRACE,
+    RBRACE,
+    LBRACKET,
+    RBRACKET,
+    COMMA,
+    DOT,
+    COLON,
+    SEMICOLON,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    OPERATOR,
+    INCREMENT,
+    DECREMENT,
+    AND,
+    OR,
+    NOT,
+    FN,
+    LET,
+    MUT,
+    IF,
+    ELSE,
+    ELIF,
+    WHILE,
+    FOR,
+    IN,
+    RETURN,
+    BREAK,
+    CONTINUE,
+    MODEL,
+    ENUM,
+    USE,
+    MATCH,
+    CASE,
+    TEST,
+    ASSERT,
+    REF,
+    MACRO,
+    RAW,
+    PLATFORM,
+    PARALLEL,
+    SINGLE,
+    WINDOWS,
+    POSIX,
+    TO,
+    REDUCE,
+    OPAQUE,
+    EXTERN,
+    UNSAFE,
+    STAR_DOT,
+    PUB
+}
+
+pub model Token {
+    pub token_type: i32
+    pub value: string
+
+    pub def create(token_type: i32, value: string): Token {
+        mut t: Token
+        t.token_type = token_type
+        t.value = value
+        return t
+    }
+}
+
+fn is_alpha(ch: char) -> bool {
+    return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z')
+}
+
+fn is_digit(ch: char) -> bool {
+    return ch >= '0' and ch <= '9'
+}
+
+fn is_alphanum(ch: char) -> bool {
+    return is_alpha(ch) or is_digit(ch) or ch == '_'
+}
+
+fn is_whitespace(ch: char) -> bool {
+    return ch == ' ' or ch == '\t' or ch == '\r'
+}
+
+pub fn lex(source: string) -> ref Token[] {
+    let tokens: Token[]
+    let pos = 0
+    let len = string.length(source)
+    
+    while pos < len {
+        let ch = string.char_at(source, pos)
+        
+        // Handle whitespace
+        if is_whitespace(ch) {
+            tokens = lists.push(tokens, Token.create(TokenType.WHITESPACE, string.substring(source, pos, pos + 1)))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle newline
+        if ch == '\n' {
+            tokens = lists.push(tokens, Token.create(TokenType.NEWLINE, "\n"))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle comments
+        if ch == '/' and pos + 1 < len and string.char_at(source, pos + 1) == '/' {
+            let start = pos
+            while pos < len and string.char_at(source, pos) != '\n' {
+                pos = pos + 1
+            }
+            tokens = lists.push(tokens, Token.create(TokenType.COMMENT, string.substring(source, start, pos)))
+            continue
+        }
+        
+        // Handle strings
+        if ch == '"' {
+            let start = pos
+            pos = pos + 1
+            
+            while pos < len {
+                let str_ch = string.char_at(source, pos)
+                if str_ch == '"' {
+                    break
+                }
+                if str_ch == '\\' and pos + 1 < len {
+                    pos = pos + 2
+                } else {
+                    pos = pos + 1
+                }
+            }
+            
+            if pos >= len {
+                println("Error: Unterminated string")
+                os.exit(1)
+            }
+            
+            let str_content = string.substring(source, start + 1, pos)
+            tokens = lists.push(tokens, Token.create(TokenType.STR, str_content))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle interpolated strings
+        if ch == '$' and pos + 1 < len and string.char_at(source, pos + 1) == '"' {
+            pos = pos + 2
+            let start = pos
+            
+            while pos < len {
+                let str_ch = string.char_at(source, pos)
+                if str_ch == '"' {
+                    break
+                }
+                if str_ch == '\\' and pos + 1 < len {
+                    pos = pos + 2
+                } else {
+                    pos = pos + 1
+                }
+            }
+            
+            if pos >= len {
+                println("Error: Unterminated interpolated string")
+                os.exit(1)
+            }
+            
+            let interp_content = string.substring(source, start, pos)
+            tokens = lists.push(tokens, Token.create(TokenType.INTERPOLATED_STR, interp_content))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle character literals
+        if ch == '\'' {
+            let start = pos
+            pos = pos + 1
+            
+            while pos < len and string.char_at(source, pos) != '\'' {
+                if string.char_at(source, pos) == '\\' and pos + 1 < len {
+                    pos = pos + 2
+                } else {
+                    pos = pos + 1
+                }
+            }
+            
+            if pos >= len {
+                println("Error: Unterminated character literal")
+                os.exit(1)
+            }
+            
+            let char_content = string.substring(source, start + 1, pos)
+            tokens = lists.push(tokens, Token.create(TokenType.CHAR, char_content))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle numbers
+        if is_digit(ch) {
+            let start = pos
+            while pos < len and (is_digit(string.char_at(source, pos)) or string.char_at(source, pos) == '.') {
+                pos = pos + 1
+            }
+            tokens = lists.push(tokens, Token.create(TokenType.NUMBER, string.substring(source, start, pos)))
+            continue
+        }
+        
+        // Handle operators and special characters
+        if ch == '+' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '+' {
+                tokens = lists.push(tokens, Token.create(TokenType.INCREMENT, "++"))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.PLUS, "+"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '-' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '-' {
+                tokens = lists.push(tokens, Token.create(TokenType.DECREMENT, "--"))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.MINUS, "-"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '*' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '.' {
+                tokens = lists.push(tokens, Token.create(TokenType.STAR_DOT, "*."))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.STAR, "*"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '/' {
+            tokens = lists.push(tokens, Token.create(TokenType.SLASH, "/"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '=' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '=' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "=="))
+                pos = pos + 2
+            } else if pos + 1 < len and string.char_at(source, pos + 1) == '>' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "=>"))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "="))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '!' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '=' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "!="))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.NOT, "!"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '<' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '=' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "<="))
+                pos = pos + 2
+            } else if pos + 1 < len and string.char_at(source, pos + 1) == '<' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "<<"))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "<"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '>' {
+            if pos + 1 < len and string.char_at(source, pos + 1) == '=' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, ">="))
+                pos = pos + 2
+            } else if pos + 1 < len and string.char_at(source, pos + 1) == '>' {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, ">>"))
+                pos = pos + 2
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, ">"))
+                pos = pos + 1
+            }
+            continue
+        }
+        
+        if ch == '&' {
+            tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "&"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '|' {
+            tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "|"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '^' {
+            tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "^"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '~' {
+            tokens = lists.push(tokens, Token.create(TokenType.OPERATOR, "~"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '(' {
+            tokens = lists.push(tokens, Token.create(TokenType.LPAREN, "("))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == ')' {
+            tokens = lists.push(tokens, Token.create(TokenType.RPAREN, ")"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '{' {
+            tokens = lists.push(tokens, Token.create(TokenType.LBRACE, "{"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '}' {
+            tokens = lists.push(tokens, Token.create(TokenType.RBRACE, "}"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '[' {
+            tokens = lists.push(tokens, Token.create(TokenType.LBRACKET, "["))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == ']' {
+            tokens = lists.push(tokens, Token.create(TokenType.RBRACKET, "]"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == ',' {
+            tokens = lists.push(tokens, Token.create(TokenType.COMMA, ","))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == '.' {
+            tokens = lists.push(tokens, Token.create(TokenType.DOT, "."))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == ':' {
+            tokens = lists.push(tokens, Token.create(TokenType.COLON, ":"))
+            pos = pos + 1
+            continue
+        }
+        
+        if ch == ';' {
+            tokens = lists.push(tokens, Token.create(TokenType.SEMICOLON, ";"))
+            pos = pos + 1
+            continue
+        }
+        
+        // Handle identifiers and keywords
+        if is_alpha(ch) or ch == '_' {
+            let start = pos
+            while pos < len and is_alphanum(string.char_at(source, pos)) {
+                pos = pos + 1
+            }
+            
+            let word = string.substring(source, start, pos)
+            
+            // Check for keywords
+            if string.equals(word, "fn") {
+                tokens = lists.push(tokens, Token.create(TokenType.FN, word))
+            } elif string.equals(word, "let") {
+                tokens = lists.push(tokens, Token.create(TokenType.LET, word))
+            } elif string.equals(word, "mut") {
+                tokens = lists.push(tokens, Token.create(TokenType.MUT, word))
+            } elif string.equals(word, "if") {
+                tokens = lists.push(tokens, Token.create(TokenType.IF, word))
+            } elif string.equals(word, "else") {
+                tokens = lists.push(tokens, Token.create(TokenType.ELSE, word))
+            } elif string.equals(word, "elif") {
+                tokens = lists.push(tokens, Token.create(TokenType.ELIF, word))
+            } elif string.equals(word, "while") {
+                tokens = lists.push(tokens, Token.create(TokenType.WHILE, word))
+            } elif string.equals(word, "for") {
+                tokens = lists.push(tokens, Token.create(TokenType.FOR, word))
+            } elif string.equals(word, "in") {
+                tokens = lists.push(tokens, Token.create(TokenType.IN, word))
+            } elif string.equals(word, "return") {
+                tokens = lists.push(tokens, Token.create(TokenType.RETURN, word))
+            } elif string.equals(word, "break") {
+                tokens = lists.push(tokens, Token.create(TokenType.BREAK, word))
+            } elif string.equals(word, "continue") {
+                tokens = lists.push(tokens, Token.create(TokenType.CONTINUE, word))
+            } elif string.equals(word, "model") {
+                tokens = lists.push(tokens, Token.create(TokenType.MODEL, word))
+            } elif string.equals(word, "enum") {
+                tokens = lists.push(tokens, Token.create(TokenType.ENUM, word))
+            } elif string.equals(word, "use") {
+                tokens = lists.push(tokens, Token.create(TokenType.USE, word))
+            } elif string.equals(word, "match") {
+                tokens = lists.push(tokens, Token.create(TokenType.MATCH, word))
+            } elif string.equals(word, "case") {
+                tokens = lists.push(tokens, Token.create(TokenType.CASE, word))
+            } elif string.equals(word, "test") {
+                tokens = lists.push(tokens, Token.create(TokenType.TEST, word))
+            } elif string.equals(word, "assert") {
+                tokens = lists.push(tokens, Token.create(TokenType.ASSERT, word))
+            } elif string.equals(word, "and") {
+                tokens = lists.push(tokens, Token.create(TokenType.AND, word))
+            } elif string.equals(word, "or") {
+                tokens = lists.push(tokens, Token.create(TokenType.OR, word))
+            } elif string.equals(word, "not") {
+                tokens = lists.push(tokens, Token.create(TokenType.NOT, word))
+            } elif string.equals(word, "ref") {
+                tokens = lists.push(tokens, Token.create(TokenType.REF, word))
+            } elif string.equals(word, "macro") {
+                tokens = lists.push(tokens, Token.create(TokenType.MACRO, word))
+            } elif string.equals(word, "raw") {
+                tokens = lists.push(tokens, Token.create(TokenType.RAW, word))
+            } elif string.equals(word, "platform") {
+                tokens = lists.push(tokens, Token.create(TokenType.PLATFORM, word))
+            } elif string.equals(word, "parallel") {
+                tokens = lists.push(tokens, Token.create(TokenType.PARALLEL, word))
+            } elif string.equals(word, "single") {
+                tokens = lists.push(tokens, Token.create(TokenType.SINGLE, word))
+            } elif string.equals(word, "windows") {
+                tokens = lists.push(tokens, Token.create(TokenType.WINDOWS, word))
+            } elif string.equals(word, "posix") {
+                tokens = lists.push(tokens, Token.create(TokenType.POSIX, word))
+            } elif string.equals(word, "to") {
+                tokens = lists.push(tokens, Token.create(TokenType.TO, word))
+            } elif string.equals(word, "reduce") {
+                tokens = lists.push(tokens, Token.create(TokenType.REDUCE, word))
+            } elif string.equals(word, "opaque") {
+                tokens = lists.push(tokens, Token.create(TokenType.OPAQUE, word))
+            } elif string.equals(word, "extern") {
+                tokens = lists.push(tokens, Token.create(TokenType.EXTERN, word))
+            } elif string.equals(word, "unsafe") {
+                tokens = lists.push(tokens, Token.create(TokenType.UNSAFE, word))
+            } elif string.equals(word, "pub") {
+                tokens = lists.push(tokens, Token.create(TokenType.PUB, word))
+            } else {
+                tokens = lists.push(tokens, Token.create(TokenType.IDENTIFIER, word))
+            }
+            continue
+        }
+        
+        // Unknown character
+        println($"Error: Unknown character '{ch}' at position {pos}")
+        os.exit(1)
+    }
+    
+    return tokens
+}
