@@ -1,8 +1,8 @@
 // Author: Navid Momtahen (C) 2025
 // License: GPL-3.0
 
-use std.string
-use std.lists
+use std.string;
+use std.lists;
 
 enum TokenType {
     IDENTIFIER,
@@ -70,31 +70,31 @@ enum TokenType {
 }
 
 pub model Token {
-    pub token_type: i32
-    pub value: string
+    pub token_type: i32;
+    pub value: string;
 
     pub def create(token_type: i32, value: string): Token {
-        mut t: Token
-        t.token_type = token_type
-        t.value = value
-        return t
+        mut t: Token;
+        t.token_type = token_type;
+        t.value = value;
+        return t;
     }
 }
 
 def is_alpha(ch: char): bool {
-    return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z')
+    return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
 }
 
 def is_digit(ch: char): bool {
-    return ch >= '0' and ch <= '9'
+    return ch >= '0' and ch <= '9';
 }
 
 def is_alphanum(ch: char): bool {
-    return is_alpha(ch) or is_digit(ch) or ch == '_'
+    return is_alpha(ch) or is_digit(ch) or ch == '_';
 }
 
 def is_whitespace(ch: char): bool {
-    return ch == ' ' or ch == '\t' or ch == '\r'
+    return ch == ' ' or ch == '\t' or ch == '\r';
 }
 
 pub def lex(source: string): ref Token[] {

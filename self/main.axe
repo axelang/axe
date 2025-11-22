@@ -8,7 +8,7 @@ use std.string;
 use lexer;
 
 main {
-    val args: StringList = get_cmdline_args()
+    val args: StringList = get_cmdline_args();
     
     if StringList.length(args) < 2 {
         println("Usage: axe <input.axe|axec> [options]");
@@ -28,7 +28,7 @@ main {
     
     val source_file: string = StringList.get(args, 1);
     
-    if not is_file(source_file) {
+    if !is_file(source_file) {
         println($"Error: File '{source_file}' not found");
         quit(1);
     }
