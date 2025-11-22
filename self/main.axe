@@ -5,6 +5,7 @@ use std.io;
 use std.os;
 use std.lists;
 use std.string;
+use std.arena;
 use lexer;
 
 model TokenList {
@@ -16,10 +17,12 @@ model TokenList {
 }
 
 main {
-    val args: StringList = get_cmdline_args();
-    
-    if StringList.length(args) < 2 {
+    val arena: Arena = Arena.create(9000);
+    val args: ref StringList = get_cmdline_args(ref_of(arena));
+
+    if args.len < 2 {
         println("Usage: axe <input.axe|axec> [options]");
+        println("");
         println("Options:");
         println("  -asm          emit assembly and assemble/link/run it (requires nasm)");
         println("  -e            keep the emitted file");
@@ -30,26 +33,24 @@ main {
         println("  --release     build in release mode");
         println("  -q, --quiet   suppress debug output");
         println("  -I<path>      pass a C include directory");
-        println("  --version, -v show axe version and exit");
+        println("  --version, -v show axe version and exit\n");
         quit(1);
     }
     
     val source_file: string = StringList.get(args, 1);
-    
+
     if !is_file(source_file) {
         println($"Error: File '{source_file}' not found");
         quit(1);
     }
-    
+
     val source_code: string = read_file(source_file);
-    
+
     print("1 | Lex... ");
 
     mut tokens: ref TokenList = lex(source_code);
 
     println("Done");
-    
-    println($"Tokenized {tokens.length} tokens");
     
     quit(0);
 }
