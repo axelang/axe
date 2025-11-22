@@ -258,9 +258,9 @@ class FunctionNode : ASTNode
 class MacroNode : ASTNode
 {
     string name;
-    string[] params; // Parameter names
-    string[] paramTypes; // Parameter types (e.g., "untyped")
-    Token[] bodyTokens; // Store the macro body as tokens for expansion
+    string[] params;
+    string[] paramTypes;
+    Token[] bodyTokens;
 
     this(string name, string[] params, string[] paramTypes)
     {
