@@ -302,9 +302,9 @@ Token[] lex(string source)
             auto clen = cend - (pos + 1);
             enforce(clen >= 1 && clen <= 10,
                 "Character literals must contain between 1 and 10 characters at line " ~ line.to!string ~ ", column " ~ column.to!string ~ " (content: '" ~ source[pos + 1 .. cend] ~ "')");
-            tokens ~= Token(TokenType.CHAR, source[pos + 1 .. cend]);
-            pos = cend + 1;
+            tokens ~= Token(TokenType.CHAR, source[pos + 1 .. cend], line, column);
             column += (cend + 1 - pos);
+            pos = cend + 1;
             break;
 
         case '(', ')', ',':
@@ -571,21 +571,22 @@ Token[] lex(string source)
                 pos += 5;
                 column += 5;
             }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "new" &&
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "ref" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.REF, "ref", line, column);
                 pos += 3;
                 column += 3;
             }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw" &&
-                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
+            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "elif" &&
+                (pos + 4 >= source.length || !(source[pos + 4].isAlphaNum || source[pos + 4] == '_')))
             {
-                tokens ~= Token(TokenType.RAW, "raw", line, column);
-                pos += 3;
-                column += 3;
+                tokens ~= Token(TokenType.ELIF, "elif", line, column);
+                pos += 4;
+                column += 4;
             }
-            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "else")
+            else if (pos + 4 <= source.length && source[pos .. pos + 4] == "else" &&
+                (pos + 4 >= source.length || !(source[pos + 4].isAlphaNum || source[pos + 4] == '_')))
             {
                 tokens ~= Token(TokenType.ELSE, "else", line, column);
                 pos += 4;
@@ -620,7 +621,8 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.REF, "ref");
                 pos += 3;
             }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw")
+            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "raw" &&
+                (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.RAW, "raw", line, column);
                 pos += 3;
@@ -640,8 +642,9 @@ Token[] lex(string source)
                 // If we find '{', skip the entire raw block content
                 if (pos < source.length && source[pos] == '{')
                 {
-                    tokens ~= Token(TokenType.LBRACE, "{");
+                    tokens ~= Token(TokenType.LBRACE, "{", line, column);
                     pos++;
+                    column++;
 
                     // Find matching closing brace, tracking depth
                     int braceDepth = 1;
@@ -663,14 +666,28 @@ Token[] lex(string source)
                     if (pos > contentStart)
                     {
                         string rawContent = source[contentStart .. pos];
-                        tokens ~= Token(TokenType.IDENTIFIER, rawContent);
+                        tokens ~= Token(TokenType.IDENTIFIER, rawContent, line, column);
+                        // Update line and column based on raw content
+                        foreach (c; rawContent)
+                        {
+                            if (c == '\n')
+                            {
+                                line++;
+                                column = 1;
+                            }
+                            else
+                            {
+                                column++;
+                            }
+                        }
                     }
 
                     // Add closing brace
                     if (pos < source.length && source[pos] == '}')
                     {
-                        tokens ~= Token(TokenType.RBRACE, "}");
+                        tokens ~= Token(TokenType.RBRACE, "}", line, column);
                         pos++;
+                        column++;
                     }
                 }
             }

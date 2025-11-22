@@ -113,18 +113,21 @@ pub def println_i32(value: i32) {
 
 /// Print a boolean with no newline
 pub def print_bool(value: bool) {
-    raw {
-        printf("%s", value ? "true" : "false");
+    if value {
+        C.printf("true");
+    } else {
+        C.printf("false");
     }
 }
 
 /// Print a boolean with newline
 pub def println_bool(value: bool) {
-    raw {
-        printf("%s\n", value ? "true" : "false");
+    if value {
+        C.printf("true\n");
+    } else {
+        C.printf("false");
     }
 }
-
 
 test {
     val x: f32 = 3.14159;

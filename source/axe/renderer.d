@@ -1247,7 +1247,29 @@ string generateC(ASTNode ast)
         }
         else
         {
-            baseType = "int";
+            // Try to infer type from initializer if it's a model instantiation.
+            //
+            // This is a guess; if we can't determine the type, default to int.
+            if (declNode.initializer.startsWith("new "))
+            {
+                size_t modelStart = 4;
+                while (modelStart < declNode.initializer.length && (declNode.initializer[modelStart] == ' ' || declNode.initializer[modelStart] == '\t'))
+                    modelStart++;
+                
+                size_t parenPos = declNode.initializer.indexOf("(", modelStart);
+                if (parenPos != -1)
+                {
+                    baseType = declNode.initializer[modelStart .. parenPos].strip();
+                }
+                else
+                {
+                    baseType = "int";
+                }
+            }
+            else
+            {
+                baseType = "int";
+            }
         }
 
         for (int i = 0; i < declNode.refDepth; i++)
@@ -2654,7 +2676,73 @@ string processExpression(string expr, string context = "")
     expr = replaceOutsideStrings(expr, " or ", " || ");
     expr = replaceOutsideStrings(expr, " xor ", " ^ ");
 
-    import std.string : indexOf, lastIndexOf;
+    import std.string : indexOf, lastIndexOf, startsWith, strip;
+    if (expr.startsWith("new "))
+    {
+        size_t modelStart = 4; // after "new "
+        while (modelStart < expr.length && (expr[modelStart] == ' ' || expr[modelStart] == '\t'))
+            modelStart++;
+        
+        size_t parenPos = expr.indexOf("(", modelStart);
+        if (parenPos != -1)
+        {
+            string modelName = expr[modelStart .. parenPos].strip();
+            
+            int depth = 1;
+            size_t closePos = parenPos + 1;
+            while (closePos < expr.length && depth > 0)
+            {
+                if (expr[closePos] == '(')
+                    depth++;
+                else if (expr[closePos] == ')')
+                    depth--;
+                closePos++;
+            }
+            closePos--; // Back to the ')'
+            
+            string argsStr = expr[parenPos + 1 .. closePos];
+            
+            string[] inits;
+            string current = "";
+            int argDepth = 0;
+            bool inQuote = false;
+            
+            for (size_t i = 0; i < argsStr.length; i++)
+            {
+                char c = argsStr[i];
+                if (c == '"' && (i == 0 || argsStr[i-1] != '\\'))
+                    inQuote = !inQuote;
+                else if (!inQuote && c == '(')
+                    argDepth++;
+                else if (!inQuote && c == ')')
+                    argDepth--;
+                else if (!inQuote && argDepth == 0 && c == ',')
+                {
+                    if (current.strip().length > 0)
+                        inits ~= current.strip();
+                    current = "";
+                    continue;
+                }
+                current ~= c;
+            }
+            if (current.strip().length > 0)
+                inits ~= current.strip();
+            
+            string[] cInits;
+            foreach (init; inits)
+            {
+                auto colonPos = init.indexOf(":");
+                if (colonPos != -1)
+                {
+                    string fieldName = init[0 .. colonPos].strip();
+                    string fieldValue = init[colonPos + 1 .. $].strip();
+                    cInits ~= "." ~ fieldName ~ " = " ~ processExpression(fieldValue, context);
+                }
+            }
+            
+            return "{" ~ cInits.join(", ") ~ "}";
+        }
+    }
 
     ptrdiff_t funcNameEnd = expr.indexOf("(");
     if (funcNameEnd > 0)
