@@ -1057,6 +1057,24 @@ string generateC(ASTNode ast)
             }
         }
 
+        // Handle length() for list types
+        if (callName == "length")
+        {
+            if (callNode.args.length >= 1)
+            {
+                string varName = callNode.args[0].strip();
+
+                // Check if this is a list variable
+                if (varName in g_listOfTypes)
+                {
+                    string lengthVar = "__list_length_" ~ varName;
+                    cCode ~= lengthVar;
+                    debugWriteln("DEBUG: Generated length() code for '", varName, "'");
+                    break;
+                }
+            }
+        }
+
         if (callName.startsWith("C."))
         {
             callName = callName[2 .. $];
@@ -1525,17 +1543,36 @@ string generateC(ASTNode ast)
                 }
             }
 
-            decl ~= " = " ~ processedExpr;
+            // For list types with initializers, we can't use direct initialization
+            // because arrays can't be initialized with function return values in C
+            if (isListOfType)
+            {
+                cCode ~= decl ~ ";\n";
+                
+                string lengthVar = "__list_length_" ~ declNode.name;
+                cCode ~= "int " ~ lengthVar ~ " = 0;\n";
+                
+                // TODO: Handle the function call that returns a list
+                // For now, we just skip the initializer - the function needs to be called separately
+                // or we need to rethink how list-returning functions work
+                debugWriteln("DEBUG renderer: List variable '", declNode.name, "' with initializer - skipping init");
+            }
+            else
+            {
+                decl ~= " = " ~ processedExpr;
+                cCode ~= decl ~ ";\n";
+            }
         }
-
-        cCode ~= decl ~ ";\n";
-
-        // For list types, also declare a length counter initialized to 0
-        if (isListOfType)
+        else
         {
-            string lengthVar = "__list_length_" ~ declNode.name;
-            cCode ~= "int " ~ lengthVar ~ " = 0;\n";
-            debugWriteln("DEBUG renderer: Emitted length counter '", lengthVar, "' for list variable");
+            cCode ~= decl ~ ";\n";
+
+            if (isListOfType)
+            {
+                string lengthVar = "__list_length_" ~ declNode.name;
+                cCode ~= "int " ~ lengthVar ~ " = 0;\n";
+                debugWriteln("DEBUG renderer: Emitted length counter '", lengthVar, "' for list variable");
+            }
         }
 
         break;
@@ -2718,6 +2755,20 @@ string processExpression(string expr, string context = "")
 {
     expr = expr.strip();
 
+    import std.regex : regex, matchFirst, replaceAll;
+    auto lengthCallRegex = regex(r"\blen\s*\(\s*(\w+)\s*\)");
+    auto lengthMatch = matchFirst(expr, lengthCallRegex);
+    if (lengthMatch)
+    {
+        string varName = lengthMatch[1];
+        if (varName in g_listOfTypes)
+        {
+            string lengthVar = "__list_length_" ~ varName;
+            expr = replaceAll(expr, lengthCallRegex, lengthVar);
+            debugWriteln("DEBUG: Replaced len(", varName, ") with ", lengthVar);
+        }
+    }
+
     // EARLY EXIT: If the entire expression is a string literal, return it as-is without any processing
     // Handle both " and ' as starting quotes (sometimes quotes get corrupted in parsing)
     if (expr.length >= 2 && (expr[0] == '"' || expr[0] == '\''))
@@ -2916,6 +2967,7 @@ string processExpression(string expr, string context = "")
     expr = replaceKeywordOutsideStrings(expr, "and", "&&");
     expr = replaceKeywordOutsideStrings(expr, "or", "||");
     expr = replaceKeywordOutsideStrings(expr, "xor", "^");
+    expr = replaceKeywordOutsideStrings(expr, "not", "!");
 
     import std.string : indexOf, lastIndexOf;
 

@@ -184,7 +184,7 @@ def concat_chr(a: mut string, b: char): string {
 }
 
 /// Returns a substring from start to end (exclusive).
-def substring_se(s: string, start: i32, end: i32): string {
+pub def substring_se(s: string, start: i32, end: i32): string {
     mut result: string = str("");
     mut i: i32 = start;
     loop {
@@ -197,9 +197,23 @@ def substring_se(s: string, start: i32, end: i32): string {
     return result;
 }
 
+/// Returns a substring from start to end (exclusive).
+pub def substring_scse(s: string, start: i32, end: i32): char* {
+    unsafe {
+        mut len: i32 = end - start;
+        mut result: char* = C.malloc(len + 1);
+        if (result != nil) {
+            C.memcpy(result, s.data + start, len);
+            result[len] = '\0';
+        }
+        return result;
+    }
+}
+
+
 /// Returns a substring from char* s from start to end (exclusive). 
 /// Caller must free the result.
-def substring_cse(s: char*, start: i32, end: i32): char* {
+pub def substring_cse(s: char*, start: i32, end: i32): char* {
     unsafe {
         mut len: i32 = end - start;
         mut result: char* = C.malloc(len + 1);

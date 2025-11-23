@@ -43,7 +43,7 @@ main {
 
     println("Done");
     
-    println($"Tokenized {tokens.length} tokens");
+    println($"Tokenized {len(tokens)} tokens");
     
     quit(0);
 }

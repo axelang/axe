@@ -93,16 +93,8 @@ def create_token(token_type: i32, value: char*): Token {
     return t;
 }
 
-def is_alpha(ch: char): bool {
-    return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
-}
-
 def is_digit(ch: char): bool {
     return ch >= '0' and ch <= '9';
-}
-
-def is_alphanum(ch: char): bool {
-    return is_alpha(ch) or is_digit(ch) or ch == '_';
 }
 
 def is_hex_digit(ch: char): bool {
@@ -159,7 +151,7 @@ pub def lex(source: string): list(Token) {
                 pos = pos + 1;
             }
         } elif ch == ' ' or ch == '\t' or ch == '\r' {
-            append(tokens, create_token(TokenType.WHITESPACE, substring_cse(source, pos, pos + 1)));
+            append(tokens, create_token(TokenType.WHITESPACE, substring_scse(source, pos, pos + 1)));
             pos = pos + 1;
         } elif ch == '\n' {
             append(tokens, create_token(TokenType.NEWLINE, "\n"));
@@ -242,7 +234,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.COMMENT, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.COMMENT, substring_scse(source, start, pos)));
             } else {
                 append(tokens, create_token(TokenType.SLASH, "/"));
                 pos = pos + 1;
@@ -276,7 +268,7 @@ pub def lex(source: string): list(Token) {
                         ending = ending + 1;
                     }
                 }
-                append(tokens, create_token(TokenType.INTERPOLATED_STR, substring_cse(source, str_start, ending)));
+                append(tokens, create_token(TokenType.INTERPOLATED_STR, substring_scse(source, str_start, ending)));
                 pos = ending + 1;
             }
         } elif ch == '"' {
@@ -293,7 +285,7 @@ pub def lex(source: string): list(Token) {
                     ending = ending + 1;
                 }
             }
-            append(tokens, create_token(TokenType.STR, substring_cse(source, pos + 1, ending)));
+            append(tokens, create_token(TokenType.STR, substring_scse(source, pos + 1, ending)));
             pos = ending + 1;
         } elif ch == '\'' {
             mut cend: i32 = pos + 1;
@@ -303,7 +295,7 @@ pub def lex(source: string): list(Token) {
                 }
                 cend = cend + 1;
             }
-            append(tokens, create_token(TokenType.CHAR, substring_cse(source, pos + 1, cend)));
+            append(tokens, create_token(TokenType.CHAR, substring_scse(source, pos + 1, cend)));
             pos = cend + 1;
         } elif ch == '(' {
             append(tokens, create_token(TokenType.LPAREN, "("));
@@ -338,7 +330,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'b' {
             if str_equals(source, "break", pos, 5, source_len) and check_boundary(source, pos + 5, source_len) {
@@ -352,7 +344,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'c' {
             if str_equals(source, "continue", pos, 8, source_len) and check_boundary(source, pos + 8, source_len) {
@@ -369,7 +361,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'd' {
             if str_equals(source, "default", pos, 7, source_len) and check_boundary(source, pos + 7, source_len) {
@@ -386,7 +378,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'e' {
             if str_equals(source, "external", pos, 8, source_len) and check_boundary(source, pos + 8, source_len) {
@@ -412,7 +404,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'f' {
             if str_equals(source, "for", pos, 3, source_len) and check_boundary(source, pos + 3, source_len) {
@@ -426,7 +418,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'i' {
             if str_equals(source, "in", pos, 2, source_len) and check_boundary(source, pos + 2, source_len) {
@@ -443,7 +435,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'l' {
             if str_equals(source, "loop", pos, 4, source_len) and check_boundary(source, pos + 4, source_len) {
@@ -457,7 +449,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'm' {
             if str_equals(source, "macro", pos, 5, source_len) and check_boundary(source, pos + 5, source_len) {
@@ -483,7 +475,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'n' {
             if str_equals(source, "new", pos, 3, source_len) and check_boundary(source, pos + 3, source_len) {
@@ -497,7 +489,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'o' {
             if str_equals(source, "overload", pos, 8, source_len) and check_boundary(source, pos + 8, source_len) {
@@ -517,7 +509,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'p' {
             if str_equals(source, "platform", pos, 8, source_len) and check_boundary(source, pos + 8, source_len) {
@@ -543,7 +535,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'r' {
             if str_equals(source, "return", pos, 6, source_len) and check_boundary(source, pos + 6, source_len) {
@@ -565,7 +557,7 @@ pub def lex(source: string): list(Token) {
                     if get_char(source, pos) == '\n' {
                         append(tokens, create_token(TokenType.NEWLINE, "\n"));
                     } elif get_char(source, pos) == ' ' or get_char(source, pos) == '\t' {
-                        append(tokens, create_token(TokenType.WHITESPACE, substring_cse(source, pos, pos + 1)));
+                        append(tokens, create_token(TokenType.WHITESPACE, substring_scse(source, pos, pos + 1)));
                     }
                     pos = pos + 1;
                 }
@@ -589,7 +581,7 @@ pub def lex(source: string): list(Token) {
                         pos = pos + 1;
                     }
                     if pos > content_start {
-                        append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, content_start, pos)));
+                        append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, content_start, pos)));
                     }
                     if pos < source_len and get_char(source, pos) == '}' {
                         append(tokens, create_token(TokenType.RBRACE, "}"));
@@ -604,7 +596,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 's' {
             if str_equals(source, "switch", pos, 6, source_len) and check_boundary(source, pos + 6, source_len) {
@@ -621,7 +613,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 't' {
             if str_equals(source, "test", pos, 4, source_len) and check_boundary(source, pos + 4, source_len) {
@@ -638,7 +630,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'u' {
             if str_equals(source, "unsafe", pos, 6, source_len) and check_boundary(source, pos + 6, source_len) {
@@ -655,7 +647,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'v' {
             if str_equals(source, "val", pos, 3, source_len) and check_boundary(source, pos + 3, source_len) {
@@ -669,7 +661,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'w' {
             if str_equals(source, "windows", pos, 7, source_len) and check_boundary(source, pos + 7, source_len) {
@@ -686,7 +678,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == 'x' {
             if str_equals(source, "xor", pos, 3, source_len) and check_boundary(source, pos + 3, source_len) {
@@ -700,7 +692,7 @@ pub def lex(source: string): list(Token) {
                     }
                     pos = pos + 1;
                 }
-                append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+                append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
             }
         } elif ch == '0' and pos + 1 < source_len and (get_char(source, pos + 1) == 'x' or get_char(source, pos + 1) == 'X') {
             mut start: i32 = pos;
@@ -711,7 +703,7 @@ pub def lex(source: string): list(Token) {
                 }
                 pos = pos + 1;
             }
-            append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+            append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
         } elif is_alphanum(ch) {
             mut start: i32 = pos;
             loop {
@@ -720,7 +712,7 @@ pub def lex(source: string): list(Token) {
                 }
                 pos = pos + 1;
             }
-            append(tokens, create_token(TokenType.IDENTIFIER, substring_cse(source, start, pos)));
+            append(tokens, create_token(TokenType.IDENTIFIER, substring_scse(source, start, pos)));
         } else {
             pos = pos + 1;
         }
