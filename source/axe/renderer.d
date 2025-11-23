@@ -2498,12 +2498,13 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
     foreach (i, expr; expressions)
     {
         string varType = lookupExpressionType(expr);
+        string processedExprForLen = processExpression(expr);
 
         if (i + 1 < parts.length)
             code ~= " + " ~ parts[i + 1].length.to!string;
 
         if (varType == "string" || varType.endsWith("_string") || varType == "std_string_string")
-            code ~= " + (" ~ expr ~ ").len";
+            code ~= " + (" ~ processedExprForLen ~ ").len";
         else
             code ~= " + 32";
     }
@@ -2525,17 +2526,18 @@ string processInterpolatedString(string interpContent, bool returnStruct = false
         {
             string expr = expressions[i];
             string varType = lookupExpressionType(expr);
+            string processedExpr = processExpression(expr);
 
             if (varType == "string" || varType.endsWith("_string") || varType == "std_string_string")
             {
-                code ~= "{ struct std_string_string _s = " ~ expr ~ "; ";
+                code ~= "{ struct std_string_string _s = " ~ processedExpr ~ "; ";
                 code ~= "memcpy(" ~ resultVar ~ "_p, _s.data, _s.len); ";
                 code ~= resultVar ~ "_p += _s.len; } ";
             }
             else
             {
                 string formatSpec = getTypeFormatSpecifier(varType);
-                string exprToFormat = expr;
+                string exprToFormat = processedExpr;
 
                 code ~= "{ int _len = snprintf(" ~ resultVar ~ "_p, 32, \"" ~ formatSpec ~ "\", " ~ exprToFormat ~ "); ";
                 code ~= resultVar ~ "_p += _len; } ";
