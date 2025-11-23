@@ -114,7 +114,7 @@ def is_whitespace(ch: char): bool {
 }
 
 def substring(s: string, start: i32, end: i32): string {
-    mut result: string = "";
+    mut result: string = str("");
     mut i: i32 = start;
     loop {
         if i >= end {
@@ -133,6 +133,24 @@ def check_boundary(source: string, pos: i32, source_len: i32): bool {
     mut ch: char = source.data[pos];
     return not is_alphanum(ch);
 }
+
+def str_equals(s1: string, s2: char*, start: i32, len: i32, source_len: i32): bool {
+    if start + len > source_len {
+        return false;
+    }
+    mut i: i32 = 0;
+    loop {
+        if i >= len {
+            break;
+        }
+        if get_char(s1, start + i) != s2[i] {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
 
 pub def lex(source: string): list_of(Token) {
     mut tokens: list_of(Token);
