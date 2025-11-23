@@ -113,19 +113,6 @@ def is_whitespace(ch: char): bool {
     return ch == ' ' or ch == '\t' or ch == '\r';
 }
 
-def substring(s: string, start: i32, end: i32): string {
-    mut result: string = str("");
-    mut i: i32 = start;
-    loop {
-        if i >= end {
-            break;
-        }
-        result = concat(result, get_char(s, i));
-        i = i + 1;
-    }
-    return result;
-}
-
 def check_boundary(source: string, pos: i32, source_len: i32): bool {
     if pos >= source_len {
         return true;

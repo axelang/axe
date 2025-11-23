@@ -162,6 +162,39 @@ pub def str_copy(src: string, desta: mut string): void {
     }
 }
 
+def concat_chr(a: mut string, b: char): string {
+    unsafe {
+        mut new_len: usize = a.len + 1;
+        mut new_data: char* = C.malloc(new_len + 1);
+        if (new_data != NULL) {
+            if (a.len > 0) {
+                C.memcpy(new_data, a.data, a.len);
+            }
+            new_data[a.len] = b;
+            new_data[new_len] = '\0';
+            C.free(a.data);
+            a.data = new_data;
+            a.len = new_len;
+            a.cap = new_len + 1;
+        }
+    }
+    return a;
+}
+
+/// Returns a substring from start to end (exclusive).
+def substring_se(s: string, start: i32, end: i32): string {
+    mut result: string = str("");
+    mut i: i32 = start;
+    loop {
+        if i >= end {
+            break;
+        }
+        result = concat_chr(result, get_char(s, i));
+        i = i + 1;
+    }
+    return result;
+}
+
 /// Compares string with char*. Returns 0 if equal.
 pub def equals_c(a: string, b: char*): i32 {
     mut result: i32 = 0;
@@ -701,6 +734,8 @@ test {
     assert equals_c(string.create("test"), "test") == 0, "equals_c should return 0 for equal strings";
     assert equals_c(string.create("test"), "TEST") != 0, "equals_c should return non-zero for different strings";
 
+    assert concat_chr(string.create("Price: "), '$').data != nil, "concat_chr should append character to string";
+    
     val y = 10;
     
     print_str(str($"This should be 10 dollars: ${y}"));
