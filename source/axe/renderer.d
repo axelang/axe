@@ -330,7 +330,9 @@ string mapAxeTypeToCForReturnOrParam(string axeType)
     {
         string elementType = axeType[0 .. $ - 5];
         string mappedElementType = mapAxeTypeToC(elementType);
-        return mappedElementType ~ "*";
+        // Return struct by value for list types
+        string structName = "__list_" ~ mappedElementType.replace("*", "_ptr").replace(" ", "_") ~ "_t";
+        return structName;
     }
     return mapAxeTypeToC(axeType);
 }
@@ -651,7 +653,8 @@ string generateC(ASTNode ast)
             }
         }
 
-        cCode ~= "#define len(x) __list_length_ ## x\n";
+        // Generate len() macro that accesses the len field
+        cCode ~= "#define len(x) ((x).len)\n";
 
         foreach (child; ast.children)
         {
@@ -804,6 +807,12 @@ string generateC(ASTNode ast)
             }
         }
 
+        // TODO: MAKE GENERIC ( HIGH PRIORITY )
+        cCode ~= "typedef struct __list_lexer_Token_t {\n";
+        cCode ~= "    lexer_Token data[999];\n";
+        cCode ~= "    int len;\n";
+        cCode ~= "} __list_lexer_Token_t;\n";
+
         string[string] functionModulePrefixes;
 
         foreach (child; ast.children)
@@ -913,6 +922,8 @@ string generateC(ASTNode ast)
                 }
             }
         }
+
+        cCode ~= "\n";  // Add blank line after model methods
 
         g_inTopLevel = true;
         foreach (child; ast.children)
@@ -1049,10 +1060,9 @@ string generateC(ASTNode ast)
                 // Check if this is a list variable
                 if (varName in g_listOfTypes)
                 {
-                    string lengthVar = "__list_length_" ~ varName;
                     string processedValue = processExpression(value);
-                    cCode ~= varName ~ "[" ~ lengthVar ~ "] = " ~ processedValue ~ ";\n";
-                    cCode ~= lengthVar ~ "++;\n";
+                    cCode ~= varName ~ ".data[" ~ varName ~ ".len] = " ~ processedValue ~ ";\n";
+                    cCode ~= varName ~ ".len++;\n";
                     debugWriteln("DEBUG: Generated append code for '", varName, "'");
                     break;
                 }
@@ -1401,6 +1411,7 @@ string generateC(ASTNode ast)
         import std.conv : to;
 
         bool isListOfType = false;
+        string listStructName = "";
         if (declNode.typeName.length > 0 && declNode.typeName.canFind("[999]"))
         {
             auto bracketPos999 = declNode.typeName.indexOf("[999]");
@@ -1409,6 +1420,7 @@ string generateC(ASTNode ast)
                 string elementType = declNode.typeName[0 .. bracketPos999];
                 string mappedElementType = mapAxeTypeToC(elementType);
                 g_listOfTypes[declNode.name] = mappedElementType;
+                listStructName = "__list_" ~ mappedElementType.replace("*", "_ptr").replace(" ", "_") ~ "_t";
                 isListOfType = true;
                 debugWriteln("DEBUG renderer: Detected list variable '", declNode.name,
                     "' with element type '", elementType, "' -> '", mappedElementType, "'");
@@ -1441,6 +1453,13 @@ string generateC(ASTNode ast)
         g_isPointerVar[declNode.name] = declNode.refDepth > 0 ? "true" : "false";
         if (declNode.refDepth > 0)
             debugWriteln("DEBUG set g_isPointerVar['", declNode.name, "'] = true");
+
+        // For list types, override with struct type
+        if (isListOfType)
+        {
+            baseType = listStructName;
+            arrayPart = "";
+        }
 
         string type = declNode.isMutable ? baseType : "const " ~ baseType;
         string decl = type ~ " " ~ declNode.name ~ arrayPart;
@@ -1527,25 +1546,9 @@ string generateC(ASTNode ast)
                 }
             }
 
-            // For list types with initializers, we can't use direct initialization
-            // because arrays can't be initialized with function return values in C
-            if (isListOfType)
-            {
-                cCode ~= decl ~ ";\n";
-                
-                string lengthVar = "__list_length_" ~ declNode.name;
-                cCode ~= "int " ~ lengthVar ~ " = 0;\n";
-                
-                // TODO: Handle the function call that returns a list
-                // For now, we just skip the initializer - the function needs to be called separately
-                // or we need to rethink how list-returning functions work
-                debugWriteln("DEBUG renderer: List variable '", declNode.name, "' with initializer - skipping init");
-            }
-            else
-            {
-                decl ~= " = " ~ processedExpr;
-                cCode ~= decl ~ ";\n";
-            }
+            // For list types and all other types
+            decl ~= " = " ~ processedExpr;
+            cCode ~= decl ~ ";\n";
         }
         else
         {
@@ -1553,9 +1556,9 @@ string generateC(ASTNode ast)
 
             if (isListOfType)
             {
-                string lengthVar = "__list_length_" ~ declNode.name;
-                cCode ~= "int " ~ lengthVar ~ " = 0;\n";
-                debugWriteln("DEBUG renderer: Emitted length counter '", lengthVar, "' for list variable");
+                // Initialize the list struct with empty data and zero length
+                cCode ~= declNode.name ~ ".len = 0;\n";
+                debugWriteln("DEBUG renderer: Initialized list struct '", declNode.name, "' with len=0");
             }
         }
 
@@ -2739,19 +2742,8 @@ string processExpression(string expr, string context = "")
 {
     expr = expr.strip();
 
-    import std.regex : regex, matchFirst, replaceAll;
-    auto lengthCallRegex = regex(r"\blen\s*\(\s*(\w+)\s*\)");
-    auto lengthMatch = matchFirst(expr, lengthCallRegex);
-    if (lengthMatch)
-    {
-        string varName = lengthMatch[1];
-        if (varName in g_listOfTypes)
-        {
-            string lengthVar = "__list_length_" ~ varName;
-            expr = replaceAll(expr, lengthCallRegex, lengthVar);
-            debugWriteln("DEBUG: Replaced len(", varName, ") with ", lengthVar);
-        }
-    }
+    // len() is now handled by the C macro #define len(x) ((x).len)
+    // No need for special processing here
 
     // EARLY EXIT: If the entire expression is a string literal, return it as-is without any processing
     // Handle both " and ' as starting quotes (sometimes quotes get corrupted in parsing)
