@@ -2831,9 +2831,23 @@ string processExpression(string expr, string context = "")
                     bool afterOk = (i + keyword.length >= input.length ||
                             (!isAlphaNum(input[i + keyword.length]) && input[i + keyword.length] != '_'));
 
-                    if (beforeOk && afterOk)
+                    if (beforeOk && (keyword == "and" || keyword == "or" || keyword == "xor" || keyword == "not"))
                     {
+                        if (i > 0 && input[i - 1] != ' ')
+                            result ~= " ";
                         result ~= replacement;
+                        if (i + keyword.length < input.length && input[i + keyword.length] != ' ')
+                            result ~= " ";
+                        i += keyword.length;
+                        matches = true;
+                    }
+                    else if (beforeOk && afterOk)
+                    {
+                        if (i > 0 && input[i - 1] != ' ')
+                            result ~= " ";
+                        result ~= replacement;
+                        if (i + keyword.length < input.length && input[i + keyword.length] != ' ')
+                            result ~= " ";
                         i += keyword.length;
                         matches = true;
                     }
