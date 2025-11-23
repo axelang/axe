@@ -1,7 +1,7 @@
 use std.string;
 use std.io;
 
-main {
+def main() {
     val s: string = str("hello from string");
     mut cstr: char* = "hello from cstring";
     val n: i32 = 42;

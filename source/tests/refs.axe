@@ -1,4 +1,4 @@
-main {
+def main() {
     val x: int = 10;
     mut val y: ref int = ref_of(x);
     val z: ref ref int = ref_of(y);

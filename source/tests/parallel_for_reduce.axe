@@ -1,7 +1,7 @@
 // Test for parallel for loops with reduction
 // This should generate OpenMP parallel for with reduction clause
 
-main {
+def main() {
     println "Testing parallel for with reduction:";
     
     mut val sum: i32 = 0;

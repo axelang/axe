@@ -12,7 +12,7 @@ model Person {
     age: i32;
 }
 
-main {
+def main() {
     parallel for mut i = 0 to 10 {
         mut person = new Person(name: "Alice", age: i);
         println person.age;
@@ -84,7 +84,7 @@ def greet(name: string): void {
     println "Hello, ", name.data, ".";
 }
 
-main {
+def main() {
     greet(string.create("Axe"));
 }
 ```
@@ -167,7 +167,7 @@ def copy_grid(src: ref i32[], dst: ref i32[], size: i32) {
     }
 }
 
-main {
+def main() {
     val width: i32 = 20;
     val height: i32 = 20;
     val size: i32 = width * height;

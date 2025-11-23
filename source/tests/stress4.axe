@@ -6,7 +6,7 @@ use stdlib/arena (
     arena_get_remaining
 );
 
-main {
+def main() {
     println "=== ASCII MOUNTAIN DEMO ===";
 
     // configuration

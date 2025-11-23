@@ -194,7 +194,7 @@ def generate_docs_for_file(path: string): bool {
     return ok;
 }
 
-main {
+def main() {
     val arena: Arena = Arena.create(65536);
     val args: ref StringList = get_cmdline_args(ref arena);
     if args.len < 2 {

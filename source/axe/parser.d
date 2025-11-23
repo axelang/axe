@@ -1500,38 +1500,9 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
             ast.children ~= new UnsafeNode(unsafeBody);
             continue;
 
-        case TokenType.MAIN:
-            // Fall through to IDENTIFIER case which handles main
-            goto case TokenType.IDENTIFIER;
-
         case TokenType.IDENTIFIER:
-            if (tokens[pos].value == "main")
-            {
-                pos++;
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
-                    "Expected '{' after 'main'");
-                pos++;
-
-                auto mainNode = new FunctionNode("main", []);
-                debugWriteln("Entering main block at pos ", pos);
-
-                auto previousScope = currentScopeNode;
-                currentScopeNode = mainNode;
-
-                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
-                {
-                    auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode, isAxec);
-                    if (stmt !is null)
-                        mainNode.children ~= stmt;
-                }
-
-                currentScopeNode = previousScope;
-
-                // OLD CODE - keeping structure for reference
-                static if (false)
+            // Check if this is a macro invocation
+            static if (false) // Old main block code kept for reference but disabled
                 {
                     switch (tokens[pos].type)
                     {
@@ -1922,20 +1893,6 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
                 debugWriteln("Current token: ", pos < tokens.length ? to!string(
                         tokens[pos].type) : "EOF", " ('",
                     pos < tokens.length ? tokens[pos].value : "", "')");
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
-                    "Expected '}' after main body");
-                pos++;
-
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                ast.children ~= mainNode;
-                continue;
-            }
-
             // Check if this is a macro invocation
             string identName = tokens[pos].value;
             if (identName in g_macros)
@@ -3067,7 +3024,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
 
         if (!hasEntryPoint)
         {
-            enforce(false, "No entry point defined. You must have either a 'main { }' or 'test { }' block.");
+            enforce(false, "No entry point defined. You must have either a 'def main() { }' or 'test { }' block.");
         }
     }
 
@@ -5461,8 +5418,8 @@ private PrintlnNode parsePrintlnHelper(ref size_t pos, Token[] tokens)
                         "String interpolation requires 'use std.string;'");
 
                     string rawContent = tokens[pos].value;
-                    enforce(rawContent.canFind("${"),
-                        "Interpolated string must contain at least one ${} expression. " ~
+                    enforce(rawContent.canFind("{"),
+                        "Interpolated string must contain at least one {} expression. " ~
                             "Use a regular string if no interpolation is needed.");
 
                     expr ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";
@@ -5561,8 +5518,8 @@ private PrintNode parsePrintHelper(ref size_t pos, Token[] tokens)
                         "String interpolation requires 'use std.string;'");
 
                     string rawContent = tokens[pos].value;
-                    enforce(rawContent.canFind("${"),
-                        "Interpolated string must contain at least one ${} expression. " ~
+                    enforce(rawContent.canFind("{"),
+                        "Interpolated string must contain at least one {} expression. " ~
                             "Use a regular string if no interpolation is needed.");
 
                     expr ~= "__INTERPOLATED__" ~ tokens[pos].value ~ "__INTERPOLATED__";

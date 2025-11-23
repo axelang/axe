@@ -10,7 +10,7 @@ model Token {
     value: i32;
 }
 
-main {
+def main() {
     // Create a dynamic array using list()
     mut tokens: list(Token);
     

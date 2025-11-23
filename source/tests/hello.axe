@@ -1,6 +1,6 @@
 use std.io;
 
-main {
+def main() {
     println "Hello, world.";
 
     loop {

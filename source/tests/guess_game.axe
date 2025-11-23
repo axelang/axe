@@ -1,7 +1,7 @@
 use std.random;
 use std.io;
 
-main {
+def main() {
     randomize();
     val secret: i32 = random(1, 100);
     mut guess: i32;

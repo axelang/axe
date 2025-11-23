@@ -1,5 +1,5 @@
 use external("raylib.h");
 
-main {
+def main() {
     InitWindow("Hello, Raylib.");
 }

@@ -6,7 +6,7 @@ def destroy(ptr: i64) {
     println "destroyed";
 }
 
-main {
+def main() {
     val x: i32 = 5;
     destroy(thing_of(x));
 }

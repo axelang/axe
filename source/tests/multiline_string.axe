@@ -1,6 +1,6 @@
 use std.io(println);
 
-main {
+def main() {
     mut message: char* = `This is a
 multiline string
 with multiple lines`;

@@ -6,7 +6,7 @@ def some_other_task() {
     println "world";
 }
 
-main {
+def main() {
     parallel {
         single {
             some_task();

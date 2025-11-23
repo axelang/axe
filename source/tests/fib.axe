@@ -22,7 +22,7 @@ def fib(n: i32): i32 {
     return b;
 }
 
-main {
+def main() {
     mut i: i32 = 0;
     loop {
         if i > 20 {

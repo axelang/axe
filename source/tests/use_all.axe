@@ -1,6 +1,6 @@
 use std.io;
 use std.string;
 
-main {
+def main() {
     println_str(str("Wow its usable"));
 }

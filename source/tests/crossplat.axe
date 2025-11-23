@@ -25,7 +25,7 @@ platform posix {
     }
 }
 
-main {
+def main() {
     cross_platform_func();
     some_function();
 }

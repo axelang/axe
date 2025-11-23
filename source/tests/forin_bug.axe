@@ -2,7 +2,7 @@ use std.arena(Arena);
 use std.os(get_cmdline_args);
 use std.io(print_str);
 
-main {
+def main() {
     mut arena: Arena = Arena.create(65536);
     for arg in get_cmdline_args(ref_of(arena)) {
         print_str(arg);

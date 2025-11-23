@@ -463,12 +463,6 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.MODEL, "model");
                 pos += 5;
             }
-            else if (pos + 3 < source.length && source[pos .. pos + 4] == "main" &&
-                (pos + 4 >= source.length || !(source[pos + 4].isAlphaNum || source[pos + 4] == '_')))
-            {
-                tokens ~= Token(TokenType.MAIN, "main");
-                pos += 4;
-            }
             else if (pos + 2 < source.length && source[pos .. pos + 3] == "mut" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
@@ -493,12 +487,7 @@ Token[] lex(string source)
             break;
 
         default:
-            if (pos + 4 <= source.length && source[pos .. pos + 4] == "main")
-            {
-                tokens ~= Token(TokenType.MAIN, "main");
-                pos += 4;
-            }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "pub" &&
+            if (pos + 3 <= source.length && source[pos .. pos + 3] == "pub" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.PUB, "pub");
@@ -810,7 +799,7 @@ unittest
     {
         import axe.parser;
 
-        auto tokens = lex("main { put \"test\"; }");
+        auto tokens = lex("def main() { put \"test\"; }");
         auto ast = parse(tokens);
         assert(ast.nodeType == "Program");
         assert(ast.children.length == 1);

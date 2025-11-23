@@ -1,1 +1,1 @@
-main { println "unittest"; }
+def main() { println "unittest"; }

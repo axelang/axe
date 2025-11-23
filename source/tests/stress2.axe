@@ -69,7 +69,7 @@ def print_particles(particles: Particle[count], count: int) {
     }
 }
 
-main {
+def main() {
     val particle_count: int = 10;
     mut val arena: Arena = arena_create(65536);
 

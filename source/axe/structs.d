@@ -15,7 +15,6 @@ import std.array;
  */
 enum TokenType
 {
-    MAIN,
     PRINTLN,
     PRINT,
     LOOP,

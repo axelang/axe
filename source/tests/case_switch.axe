@@ -1,6 +1,6 @@
 use std.io;
 
-main {
+def main() {
     val x: i32 = 1;
 
     switch x {

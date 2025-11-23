@@ -1,4 +1,4 @@
-main {
+def main() {
     val x: char* = "hello";
     val y = ($"Hello, {x} world");
 }

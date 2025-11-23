@@ -12,7 +12,7 @@ model Cell {
     temperature: i32;
 }
 
-main {
+def main() {
     val grid: Cell[10][10];
     val new_grid: Cell[10][10];
     copy_of(grid, new_grid, Cell[10][10]);

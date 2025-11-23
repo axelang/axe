@@ -1,8 +1,10 @@
+use std.io;
+
 def hello() {
     val x = 42;
     println("Hello from Axe!");
 }
 
-main {
-
+def main() {
+    hello();
 }
