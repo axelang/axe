@@ -36,12 +36,12 @@ pub def enforce(condition: bool, err: error) {
     }
 }
 
-pub def __test_error(): error {
+def test_error(): error {
     return new error(msg: string.create("Some bad thing happened"));
 }
 
 test {
-    print(__test_error().msg);
+    print(test_error().msg);
     enforce(true, error.create("Should be fine"));
     panic(error.create("Should NOT be fine"));
 }

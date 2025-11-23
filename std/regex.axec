@@ -4,17 +4,17 @@ use std.string (
 use external("pcre.h");
 
 /// Simple regex-like support built on substring search.
-model regex {
+pub model regex {
     pattern: string;
 }
 
 /// Compile a pattern into a regex value.
-def compile(pattern: string): regex {
+pub def compile(pattern: string): regex {
     return new regex(pattern: pattern);
 }
 
 /// Returns true if the given text contains the pattern as a substring.
-def is_match(re: regex, text: string): bool {
+pub def is_match(re: regex, text: string): bool {
     return match(re.pattern, text);
 }
 
@@ -54,7 +54,7 @@ def match(pattern: string, text: string): bool {
 }
 
 /// Convenience helper: returns true if text fully equals pattern.
-def full_match(pattern: string, text: string): bool {
+pub def full_match(pattern: string, text: string): bool {
     if pattern.len != text.len {
         return false;
     }
