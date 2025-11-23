@@ -328,7 +328,7 @@ string mapAxeTypeToCForReturnOrParam(string axeType)
 {
     if (axeType.endsWith("[999]"))
     {
-        string elementType = axeType[0 .. $-5];
+        string elementType = axeType[0 .. $ - 5];
         string mappedElementType = mapAxeTypeToC(elementType);
         return mappedElementType ~ "*";
     }
@@ -425,6 +425,17 @@ string generateC(ASTNode ast)
         string[][string] platformExternalHeaders;
         collectExternalImports(ast, globalExternalHeaders, platformExternalHeaders);
 
+        // First pass: collect all overload names so we don't treat them as functions
+        bool[string] overloadNames;
+        foreach (child; ast.children)
+        {
+            if (child.nodeType == "Overload")
+            {
+                auto overloadNode = cast(OverloadNode) child;
+                overloadNames[overloadNode.name] = true;
+            }
+        }
+
         foreach (child; ast.children)
         {
             if (child.nodeType == "Macro")
@@ -441,8 +452,12 @@ string generateC(ASTNode ast)
                 {
                     if (importName.length > 0 && !(importName[0] >= 'A' && importName[0] <= 'Z'))
                     {
-                        g_functionPrefixes[importName] = modulePrefix ~ "_" ~ importName;
-                        g_modelNames[importName] = modulePrefix ~ "_" ~ importName;
+                        // Skip overload names - they should not be prefixed
+                        if (importName !in overloadNames)
+                        {
+                            g_functionPrefixes[importName] = modulePrefix ~ "_" ~ importName;
+                            g_modelNames[importName] = modulePrefix ~ "_" ~ importName;
+                        }
                     }
                 }
             }
@@ -476,7 +491,7 @@ string generateC(ASTNode ast)
                             g_modelNames[baseName] = modelNode.name;
                         }
                     }
-                    
+
                     // For std files, prefix with module name
                     // TODO: Remove this.
                     if (modelNode.name == "error")
@@ -642,7 +657,7 @@ string generateC(ASTNode ast)
             {
                 auto enumNode = cast(EnumNode) child;
                 g_enumNames[enumNode.name] = true;
-                
+
                 string baseName = enumNode.name;
                 if (enumNode.name.canFind("_"))
                 {
@@ -653,7 +668,7 @@ string generateC(ASTNode ast)
                         g_modelNames[baseName] = enumNode.name;
                     }
                 }
-                
+
                 cCode ~= generateC(child) ~ "\n";
             }
         }
@@ -788,7 +803,7 @@ string generateC(ASTNode ast)
         }
 
         string[string] functionModulePrefixes;
-        
+
         foreach (child; ast.children)
         {
             if (child.nodeType == "Function")
@@ -802,7 +817,7 @@ string generateC(ASTNode ast)
                         string potentialPrefix = funcNode.name[0 .. lastUnderscore];
                         string baseName = funcNode.name[lastUnderscore + 1 .. $];
                         functionModulePrefixes[baseName] = potentialPrefix;
-                        
+
                         foreach (enumName; g_enumNames.byKey())
                         {
                             if (enumName.startsWith(potentialPrefix ~ "_"))
@@ -814,7 +829,7 @@ string generateC(ASTNode ast)
                 }
             }
         }
-        
+
         foreach (child; ast.children)
         {
             if (child.nodeType == "Function")
@@ -823,21 +838,22 @@ string generateC(ASTNode ast)
                 if (funcNode.name != "main")
                 {
                     string prefixedFuncName = funcNode.name;
-                    
+
                     if (funcNode.name.canFind("_"))
                     {
                         auto lastUnderscore = funcNode.name.lastIndexOf('_');
                         if (lastUnderscore >= 0)
                         {
                             string baseName = funcNode.name[lastUnderscore + 1 .. $];
-                            if (funcNode.name.startsWith("std_") || funcNode.name.startsWith("lexer_"))
+                            if (funcNode.name.startsWith("std_") || funcNode.name.startsWith(
+                                    "lexer_"))
                             {
                                 g_functionPrefixes[baseName] = funcNode.name;
                             }
                         }
                         prefixedFuncName = funcNode.name;
                     }
-                    
+
                     string processedReturnType = mapAxeTypeToCForReturnOrParam(funcNode.returnType);
                     cCode ~= processedReturnType ~ " " ~ prefixedFuncName ~ "(";
                     if (funcNode.params.length > 0)
@@ -866,7 +882,8 @@ string generateC(ASTNode ast)
                     auto methodFunc = cast(FunctionNode) method;
                     if (methodFunc !is null)
                     {
-                        string processedReturnType = mapAxeTypeToCForReturnOrParam(methodFunc.returnType);
+                        string processedReturnType = mapAxeTypeToCForReturnOrParam(
+                            methodFunc.returnType);
                         cCode ~= processedReturnType ~ " " ~ methodFunc.name ~ "(";
                         if (methodFunc.params.length > 0)
                         {
@@ -929,12 +946,12 @@ string generateC(ASTNode ast)
     case "Function":
         auto funcNode = cast(FunctionNode) ast;
         string funcName = funcNode.name;
-        
+
         if (funcName != "main" && funcName in g_functionPrefixes)
         {
             funcName = g_functionPrefixes[funcName];
         }
-        
+
         string[] params = funcNode.params;
         string prevFunction = currentFunction;
         currentFunction = funcName;
@@ -1868,7 +1885,36 @@ string generateC(ASTNode ast)
 
     case "RawC":
         auto rawNode = cast(RawCNode) ast;
-        cCode ~= rawNode.code ~ "\n";
+        string rawCode = rawNode.code;
+
+        // IMPORTANT: 
+        //
+        // ONLY replace local functions from the current module (g_localFunctionMap)
+        // Do NOT replace imported functions or system functions
+        // This handles cases like local callback functions that need to be prefixed
+        // while leaving system API functions (malloc, strlen, accept, etc.) unchanged
+
+        foreach (unprefixed, prefixed; g_localFunctionMap)
+        {
+            import std.regex : regex, replaceAll;
+
+            // Match function names ONLY in these contexts:
+            // 1. Function calls: funcname( - immediately followed by opening paren
+            // 2. Function pointers as arguments: , funcname) or , funcname, - preceded by comma
+            //
+            // Do NOT match:
+            // - Variable names in declarations
+            // - Type names in casts like (typename)
+            // - Struct field names like s.fieldname
+            //
+            // Pattern: Either preceded by comma and followed by comma/semicolon/close-paren OR followed by (.
+
+            auto pattern = regex(
+                `(?:(?<=,)\s*\b` ~ unprefixed ~ `\b\s*(?=[,;)])|\b` ~ unprefixed ~ `\b(?=\s*\())`);
+            rawCode = replaceAll(rawCode, pattern, prefixed);
+        }
+
+        cCode ~= rawCode ~ "\n";
         break;
 
     case "Return":
@@ -1986,13 +2032,10 @@ string generateC(ASTNode ast)
             string paramName = overloadNode.paramName.length ? overloadNode.paramName : "x";
             string callExpr = overloadNode.callExpr.length ? overloadNode.callExpr : paramName;
 
-            // Use a prefixed macro name if this overload was imported via a
-            // module (e.g. use std.io(println) -> std_io_println).
+            // Overload macro names should NOT be prefixed - they should remain as simple
+            // names like "print" or "println" so user code can call them naturally.
+            // Only the TARGET FUNCTIONS inside the macro should be prefixed.
             string macroName = overloadNode.name;
-            if (overloadNode.name in g_functionPrefixes)
-            {
-                macroName = g_functionPrefixes[overloadNode.name];
-            }
 
             cCode ~= "#define " ~ macroName ~ "(" ~ paramName ~ ") _Generic((" ~ callExpr ~ "), \\\n";
 

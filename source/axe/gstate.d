@@ -19,6 +19,12 @@ static class Logger
  */
 __gshared string g_currentModulePrefix = "";
 
+/**
+ * Global map of local function names to their prefixed versions.
+ * Used by renderer to replace function names in raw C blocks.
+ */
+__gshared string[string] g_localFunctionMap;
+
 /** 
  * Helper function for conditional debug output.
  *

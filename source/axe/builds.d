@@ -958,8 +958,9 @@ string mapSingleCErrorToAxe(CErrorInfo err, string inputName, string ext)
             string axeLineText = (axeLine > 0 && axeLine <= cast(int) axeLines.length)
                 ? axeLines[axeLine - 1].strip() : "";
 
-            return format("%s:%d: %s: %s\n    -> %s",
-                axeSourcePath, axeLine, err.kind, err.message, axeLineText);
+            return format("%s:%d: %s: %s\n    -> %s\n    (C line %d: %s)",
+                axeSourcePath, axeLine, err.kind, err.message, axeLineText,
+                err.line, cLine);
         }
     }
 

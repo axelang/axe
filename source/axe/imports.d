@@ -179,6 +179,8 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
         writeln("DEBUG: Total local models: ", localModels.length);
         writeln("DEBUG: Total local functions: ", localFunctions.length);
         writeln("DEBUG: Total local enums: ", localEnums.length);
+        
+        g_localFunctionMap = localFunctions.dup;
     }
 
     bool[string] isTransitiveDependency;
