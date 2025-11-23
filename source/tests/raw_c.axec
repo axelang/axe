@@ -1,4 +1,4 @@
-main {
+def main() {
     println "Hello, world";
     raw {
         printf("Hello, world\n");

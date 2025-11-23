@@ -6,6 +6,6 @@ def greet(name: string): void {
     println "Hello, ", name.data, ".";
 }
 
-main {
+def main() {
     greet(string.create("Axe"));
 }

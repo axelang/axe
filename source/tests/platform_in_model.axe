@@ -11,6 +11,6 @@ model TestModel {
     }
 }
 
-main {
+def main() {
     TestModel.test_method();
 }

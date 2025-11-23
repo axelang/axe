@@ -6,7 +6,7 @@ enum State {
     STOPPED
 }
 
-main {
+def main() {
     mut val fixed_state: State = State.CHANGING;
     println State.RUNNING;
     println fixed_state;

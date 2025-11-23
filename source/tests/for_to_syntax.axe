@@ -1,7 +1,7 @@
 // Test for 'to' syntax
 // for mut x = 0 to 10 should desugar to: for mut x = 0; x < 10; x++
 
-main {
+def main() {
     println "Testing 'for to' syntax:";
     
     for mut i = 0 to 5 {

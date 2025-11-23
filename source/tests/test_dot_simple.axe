@@ -1,7 +1,7 @@
 use std.io (println_str);
 use std.string (string);
 
-main {
+def main() {
     val x = 10;
     println $"Testing dot {x} notation!";
 }

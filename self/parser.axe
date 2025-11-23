@@ -269,7 +269,7 @@ def parse_ref_depth(ctx: ref ParserContext): i32 {
 // - parse_expression:  Parse expressions
 // - parse_block:       Parse { ... } blocks
 
-main {
+def main() {
     println "Parser module loaded";
     println "TODO: Implement remaining parser functions";
 }

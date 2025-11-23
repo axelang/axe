@@ -253,7 +253,7 @@ def show_help() {
     println "  axpm help              Show this help message";
 }
 
-main {
+def main() {
     mut arena: Arena = Arena.create(1048576);
     val args: ref StringList = get_cmdline_args(ref_of(arena));
     

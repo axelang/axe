@@ -103,7 +103,7 @@ def print_grid(grid: Cell[rows][cols], rows: int, cols: int) {
     }
 }
 
-main {
+def main() {
     val rows: int = 10;
     val cols: int = 10;
     mut val arena: Arena = arena_create(65536);

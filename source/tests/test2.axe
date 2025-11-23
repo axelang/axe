@@ -6,7 +6,7 @@ model Person {
     age: i32;
 }
 
-main {
+def main() {
     parallel for mut i = 0 to 10 {
         mut person = new Person(name: "Alice", age: i);
         println_str(str($"Hello {person.age}"));

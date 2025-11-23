@@ -11,7 +11,7 @@ def some_function() {
     println "Hello, world.";
 }
 
-main {
+def main() {
     some_function();
 }
 ```

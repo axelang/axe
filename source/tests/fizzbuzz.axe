@@ -1,4 +1,4 @@
-main {
+def main() {
     for mut i = 1; i <= 100; i++ {
         if i mod 3 == 0 and i mod 5 == 0 {
             println "FizzBuzz";

@@ -623,7 +623,7 @@ unittest
     import axe.lexer;
     import axe.parser;
 
-    auto tokens = lex("main { println \"hello\"; }");
+    auto tokens = lex("def main() { println \"hello\"; }");
     auto ast = parse(tokens);
 
     generateAsm(ast);

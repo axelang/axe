@@ -4,6 +4,6 @@ def      f      (     )     {
 println    "looks spaced normally      right";
 }
 
-main {
+def main() {
     f();
 }

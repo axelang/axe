@@ -4,7 +4,7 @@ model Cat {
     name              : char*
 }
 
-main {
+def main() {
     mut val cat = new Cat(
         health: 100,
         name: "Garfield",

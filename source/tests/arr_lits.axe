@@ -14,6 +14,6 @@ def func_that_takes_arr_literal(a: i32[]) {
     println "";
 }
 
-main {
+def main() {
     func_that_takes_arr_literal([i32]{10, 20, 30, 40}); //should become (int32_t[]){10, 20, 30, 40}
 }

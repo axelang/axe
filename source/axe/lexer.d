@@ -823,7 +823,7 @@ unittest
     {
         import axe.parser;
 
-        auto tokens = lex("main { put \"test\"; }");
+        auto tokens = lex("def main() { put \"test\"; }");
         auto ast = parse(tokens);
         assert(ast.nodeType == "Program");
         assert(ast.children.length == 1);

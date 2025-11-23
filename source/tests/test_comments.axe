@@ -1,5 +1,5 @@
 // This is a comment
-main {
+def main() {
     // Another comment
     println "Hello"; // inline comment
 }

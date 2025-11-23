@@ -4163,7 +4163,7 @@ unittest
     import std.string;
 
     {
-        auto tokens = lex("main { put \"hello\"; }");
+        auto tokens = lex("def main() { put \"hello\"; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4173,7 +4173,7 @@ unittest
     }
 
     {
-        auto tokens = lex("def foo { put \"hello\"; } main { foo(); }");
+        auto tokens = lex("def foo { put \"hello\"; } def main() { foo(); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4181,7 +4181,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { foo(1, 2); }");
+        auto tokens = lex("def main() { foo(1, 2); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4190,7 +4190,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { loop { break; } }");
+        auto tokens = lex("def main() { loop { break; } }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4199,7 +4199,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { if (x > 5) { put \"greater\"; } }");
+        auto tokens = lex("def main() { if (x > 5) { put \"greater\"; } }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4211,7 +4211,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x = 5 + 3; val y = x - 2; }");
+        auto tokens = lex("def main() { val x = 5 + 3; val y = x - 2; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4222,7 +4222,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def foo { put \"in foo\"; } main { foo(); }");
+            "def foo { put \"in foo\"; } def main() { foo(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
         assert(cCode.canFind("void foo()"));
@@ -4232,7 +4232,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def add(a: i32, b: i32): i32 { return a + b; } main { val x = add(1, 2); }");
+            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x = add(1, 2); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4247,7 +4247,7 @@ unittest
         bool caught = false;
         try
         {
-            auto tokens = lex("main { y = y + 1; }");
+            auto tokens = lex("def main() { y = y + 1; }");
             auto ast = parse(tokens);
             generateC(ast);
         }
@@ -4264,7 +4264,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"start\"; loop { put \"in loop\"; break; } }");
+        auto tokens = lex("def main() { put \"start\"; loop { put \"in loop\"; break; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4288,7 +4288,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val x = 5; x = 10; }");
+        auto tokens = lex("def main() { mut val x = 5; x = 10; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4301,7 +4301,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def testfunc() { mut val x = 0; loop { put \"test\"; x = x + 1; if x == 5 { break; } } } main { testfunc(); }"
+            "def testfunc() { mut val x = 0; loop { put \"test\"; x = x + 1; if x == 5 { break; } } } def main() { testfunc(); }"
         );
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
@@ -4323,7 +4323,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def greet(name: char*, t: i32) { put \"hello\"; } main { greet(\"world\", 1); }");
+            "def greet(name: char*, t: i32) { put \"hello\"; } def main() { greet(\"world\", 1); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4336,7 +4336,7 @@ unittest
     }
 
     {
-        auto tokens = lex("// This is a comment\nmain { put \"test\"; }");
+        auto tokens = lex("// This is a comment\ndef main() { put \"test\"; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4349,7 +4349,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { raw { printf(\"raw C\"); } }");
+        auto tokens = lex("def main() { raw { printf(\"raw C\"); } }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -4361,7 +4361,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"before\"; raw { int x = 5; } put \"after\"; }");
+        auto tokens = lex("def main() { put \"before\"; raw { int x = 5; } put \"after\"; }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -4376,7 +4376,7 @@ unittest
     {
         import std.exception : assertThrown;
 
-        auto tokens = lex("main { raw { test(); } }");
+        auto tokens = lex("def main() { raw { test(); } }");
 
         writeln("Raw C block rejection test (.axe):");
         assertThrown(parse(tokens, false), "Should reject raw blocks in .axe files");
@@ -4384,7 +4384,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Cat { name: char*, age: i32 } main { }");
+        auto tokens = lex("model Cat { name: char*, age: i32 } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4400,7 +4400,7 @@ unittest
     {
         auto tokens = lex(
             "model Cat { name: char*, health: i32 } " ~
-                "main { val cat = new Cat(name: \"Garfield\", health: 100); }");
+                "def main() { val cat = new Cat(name: \"Garfield\", health: 100); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4417,7 +4417,7 @@ unittest
         auto tokens = lex(
             "overload println(x: generic) { i32 => println_i32; }(x); " ~
                 "def println_i32(x: i32) { put \"int\"; } " ~
-                "main { println(42); }");
+                "def main() { println(42); }");
 
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
@@ -4437,7 +4437,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Cat { health: i32 } main { mut val cat = new Cat(health: 100); cat.health = 90; }");
+            "model Cat { health: i32 } def main() { mut val cat = new Cat(health: 100); cat.health = 90; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4451,7 +4451,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Cat { health: i32 } main { val ptr: i64 = 123; mut val n: ref Cat = deref(ptr); }");
+            "model Cat { health: i32 } def main() { val ptr: i64 = 123; mut val n: ref Cat = deref(ptr); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4462,7 +4462,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } main { mut val obj: SomeModel; obj.some_function(); }");
+        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel; obj.some_function(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4476,7 +4476,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def test_func(grid: i32[height][width], width: i32, height: i32) { } main { }");
+            "def test_func(grid: i32[height][width], width: i32, height: i32) { } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4501,7 +4501,7 @@ unittest
                 "    } " ~
                 "    return 0; " ~
                 "} " ~
-                "main { }");
+                "def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4526,7 +4526,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"hello\"; }");
+        auto tokens = lex("def main() { put \"hello\"; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4536,7 +4536,7 @@ unittest
     }
 
     {
-        auto tokens = lex("def foo { put \"hello\"; } main { foo(); }");
+        auto tokens = lex("def foo { put \"hello\"; } def main() { foo(); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4544,7 +4544,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { foo(1, 2); }");
+        auto tokens = lex("def main() { foo(1, 2); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4553,7 +4553,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { loop { break; } }");
+        auto tokens = lex("def main() { loop { break; } }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4562,7 +4562,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { if (x > 5) { put \"greater\"; } }");
+        auto tokens = lex("def main() { if (x > 5) { put \"greater\"; } }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4574,7 +4574,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x = 5 + 3; val y = x - 2; }");
+        auto tokens = lex("def main() { val x = 5 + 3; val y = x - 2; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4585,7 +4585,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def foo { put \"in foo\"; } main { foo(); }");
+            "def foo { put \"in foo\"; } def main() { foo(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
         assert(cCode.canFind("void foo()"));
@@ -4595,7 +4595,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def add(a: i32, b: i32): i32 { return a + b; } main { val x = add(1, 2); }");
+            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x = add(1, 2); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4610,7 +4610,7 @@ unittest
         bool caught = false;
         try
         {
-            auto tokens = lex("main { y = y + 1; }");
+            auto tokens = lex("def main() { y = y + 1; }");
             auto ast = parse(tokens);
             generateC(ast);
         }
@@ -4627,7 +4627,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"start\"; loop { put \"in loop\"; break; } }");
+        auto tokens = lex("def main() { put \"start\"; loop { put \"in loop\"; break; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4651,7 +4651,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val x = 5; x = 10; }");
+        auto tokens = lex("def main() { mut val x = 5; x = 10; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4664,7 +4664,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def testfunc() { mut val x = 0; loop { put \"test\"; x = x + 1; if x == 5 { break; } } } main { testfunc(); }"
+            "def testfunc() { mut val x = 0; loop { put \"test\"; x = x + 1; if x == 5 { break; } } } def main() { testfunc(); }"
         );
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
@@ -4686,7 +4686,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def greet(name: char*, t: i32) { put \"hello\"; } main { greet(\"world\", 1); }");
+            "def greet(name: char*, t: i32) { put \"hello\"; } def main() { greet(\"world\", 1); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4699,7 +4699,7 @@ unittest
     }
 
     {
-        auto tokens = lex("// This is a comment\nmain { put \"test\"; }");
+        auto tokens = lex("// This is a comment\ndef main() { put \"test\"; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4712,7 +4712,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { raw { printf(\"raw C\"); } }");
+        auto tokens = lex("def main() { raw { printf(\"raw C\"); } }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -4724,7 +4724,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"before\"; raw { int x = 5; } put \"after\"; }");
+        auto tokens = lex("def main() { put \"before\"; raw { int x = 5; } put \"after\"; }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -4739,7 +4739,7 @@ unittest
     {
         import std.exception : assertThrown;
 
-        auto tokens = lex("main { raw { test(); } }");
+        auto tokens = lex("def main() { raw { test(); } }");
 
         writeln("Raw C block rejection test (.axe):");
         assertThrown(parse(tokens, false), "Should reject raw blocks in .axe files");
@@ -4747,7 +4747,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Cat { name: char*, age: i32 } main { }");
+        auto tokens = lex("model Cat { name: char*, age: i32 } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4763,7 +4763,7 @@ unittest
     {
         auto tokens = lex(
             "model Cat { name: char*, health: i32 } " ~
-                "main { val cat = new Cat(name: \"Garfield\", health: 100); }");
+                "def main() { val cat = new Cat(name: \"Garfield\", health: 100); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4778,7 +4778,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Cat { health: i32 } main { mut val cat = new Cat(health: 100); cat.health = 90; }");
+            "model Cat { health: i32 } def main() { mut val cat = new Cat(health: 100); cat.health = 90; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4792,7 +4792,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Cat { health: i32 } main { mut val cat = new Cat(health: 100); put cat.health; }");
+            "model Cat { health: i32 } def main() { mut val cat = new Cat(health: 100); put cat.health; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4804,7 +4804,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Person { name: char*, age: i32, height: i32 } main"
+        auto tokens = lex("model Person { name: char*, age: i32, height: i32 } def main()"
                 ~ " { val p = new Person(name: \"Alice\", age: 30, height: 170); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
@@ -4825,7 +4825,7 @@ unittest
         try
         {
             auto tokens = lex(
-                "model Cat { health: i32 } main { val cat = new Cat(health: 100); cat.health = 90; }");
+                "model Cat { health: i32 } def main() { val cat = new Cat(health: 100); cat.health = 90; }");
             auto ast = parse(tokens);
             generateC(ast);
         }
@@ -4844,7 +4844,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Point { x: i32, y: i32 } model Line { start: Point*, end: Point* } main { }");
+            "model Point { x: i32, y: i32 } model Line { start: Point*, end: Point* } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4858,7 +4858,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x: i32 = 1; switch x { case 1 { put \"one\"; } " ~
+        auto tokens = lex("def main() { val x: i32 = 1; switch x { case 1 { put \"one\"; } " ~
                 "case 2 { put \"two\"; } default { put \"other\"; } } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
@@ -4878,7 +4878,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x: char* = \"hello\"; mut val y: i32 = 42; }");
+        auto tokens = lex("def main() { val x: char* = \"hello\"; mut val y: i32 = 42; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4892,7 +4892,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val a: i32 = 5; val b: i32 = 10; val c: i32 = a + b; }");
+        auto tokens = lex("def main() { val a: i32 = 5; val b: i32 = 10; val c: i32 = a + b; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4905,7 +4905,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val x: i32 = 0; x++; x--; }");
+        auto tokens = lex("def main() { mut val x: i32 = 0; x++; x--; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4919,7 +4919,7 @@ unittest
 
     {
         auto tokens = lex(
-            "main { mut val counter: i32 = 0; loop { counter++; if counter == 5 { break; } } }");
+            "def main() { mut val counter: i32 = 0; loop { counter++; if counter == 5 { break; } } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4933,7 +4933,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x: i32 = 10; val y: ref i32 = ref_of(x); }");
+        auto tokens = lex("def main() { val x: i32 = 10; val y: ref i32 = ref_of(x); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4945,7 +4945,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x: i32 = 10; val addr: i64 = addr_of(x); }");
+        auto tokens = lex("def main() { val x: i32 = 10; val addr: i64 = addr_of(x); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4958,7 +4958,7 @@ unittest
 
     {
         auto tokens = lex(
-            "enum State { RUNNING, STOPPED } main { val s: State = State.RUNNING; put s; }");
+            "enum State { RUNNING, STOPPED } def main() { val s: State = State.RUNNING; put s; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4973,7 +4973,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { if 5 mod 3 == 2 { put \"yes\"; } }");
+        auto tokens = lex("def main() { if 5 mod 3 == 2 { put \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4985,7 +4985,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { if 1 == 1 and 2 == 2 { put \"yes\"; } }");
+        auto tokens = lex("def main() { if 1 == 1 and 2 == 2 { put \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -4996,7 +4996,7 @@ unittest
     }
 
     {
-        auto tokens = lex("val msg: char* = \"hello\"; main { }");
+        auto tokens = lex("val msg: char* = \"hello\"; def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5012,7 +5012,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { if 1 mod 3 == 0 and 2 mod 5 == 0 { put \"yes\"; } }");
+        auto tokens = lex("def main() { if 1 mod 3 == 0 and 2 mod 5 == 0 { put \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5031,7 +5031,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def get_value(x: i32): i32 { return x; } def wrapper(y: i32): i32 { return get_value(y); } main { }");
+            "def get_value(x: i32): i32 { return x; } def wrapper(y: i32): i32 { return get_value(y); } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5045,7 +5045,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def destroy(ptr: i64) { } main { val x: i32 = 5; destroy(thing_of(x)); }");
+            "def destroy(ptr: i64) { } def main() { val x: i32 = 5; destroy(thing_of(x)); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5058,7 +5058,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def inner(a: i32): i32 { return a; } def middle(b: i32): i32 { return inner(b); } def outer(c: i32): i32 { return middle(inner(c)); } main { }");
+            "def inner(a: i32): i32 { return a; } def middle(b: i32): i32 { return inner(b); } def outer(c: i32): i32 { return middle(inner(c)); } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5071,7 +5071,7 @@ unittest
     // Macro system tests
     {
         auto tokens = lex(
-            "macro add(a: i32, b: i32) { raw { a + b } } main { val x: i32 = add(5, 3); }");
+            "macro add(a: i32, b: i32) { raw { a + b } } def main() { val x: i32 = add(5, 3); }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5086,7 +5086,7 @@ unittest
 
     {
         auto tokens = lex(
-            "macro square(x: i32) { raw { x * x } } main { val result: i32 = square(4); }");
+            "macro square(x: i32) { raw { x * x } } def main() { val result: i32 = square(4); }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5100,7 +5100,7 @@ unittest
 
     {
         auto tokens = lex(
-            "macro max(a: i32, b: i32) { raw { (a > b) ? a : b } } main { val m: i32 = max(10, 20); }");
+            "macro max(a: i32, b: i32) { raw { (a > b) ? a : b } } def main() { val m: i32 = max(10, 20); }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5113,7 +5113,7 @@ unittest
 
     {
         auto tokens = lex(
-            "macro add(a: i32, b: i32) { raw { a + b } } def calc(x: i32, y: i32): i32 { return add(x, y); } main { }");
+            "macro add(a: i32, b: i32) { raw { a + b } } def calc(x: i32, y: i32): i32 { return add(x, y); } def main() { }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5126,7 +5126,7 @@ unittest
 
     {
         auto tokens = lex(
-            "macro inc(x: i32) { raw { x + 1 } } main { val a: i32 = 5; val b: i32 = inc(a); }");
+            "macro inc(x: i32) { raw { x + 1 } } def main() { val a: i32 = 5; val b: i32 = inc(a); }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5140,7 +5140,7 @@ unittest
 
     {
         auto tokens = lex(
-            "macro triple(x: i32) { raw { x * 3 } } main { if triple(2) == 6 { println \"yes\"; } }");
+            "macro triple(x: i32) { raw { x * 3 } } def main() { if triple(2) == 6 { println \"yes\"; } }");
         auto ast = parse(tokens, true);
         auto cCode = generateC(ast);
 
@@ -5153,7 +5153,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val ptr: i32* = NULL; val value: i32 = deref(ptr); }");
+        auto tokens = lex("def main() { mut val ptr: i32* = NULL; val value: i32 = deref(ptr); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5166,7 +5166,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val ptr: i32** = NULL; val value: i32 = deref(deref(ptr)); }");
+        auto tokens = lex("def main() { mut val ptr: i32** = NULL; val value: i32 = deref(deref(ptr)); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5180,7 +5180,7 @@ unittest
 
     {
         auto tokens = lex(
-            "main { mut val ptr: int* = NULL; if deref(ptr) == 5 { println \"equal\"; } }");
+            "def main() { mut val ptr: int* = NULL; if deref(ptr) == 5 { println \"equal\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5191,7 +5191,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val ptr: i32* = NULL; deref(ptr) = 10; }");
+        auto tokens = lex("def main() { mut val ptr: i32* = NULL; deref(ptr) = 10; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5202,7 +5202,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Test { field: i32 } main { mut val obj: Test; obj.field = 5; }");
+        auto tokens = lex("model Test { field: i32 } def main() { mut val obj: Test; obj.field = 5; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5214,7 +5214,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Test { field: i32 } main { mut val ptr: ref Test; ptr.field = 5; }");
+            "model Test { field: i32 } def main() { mut val ptr: ref Test; ptr.field = 5; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5225,7 +5225,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Node { value: i32, next: Node } main { val head: Node; if head.next.value == 5 { println \"yes\"; } }");
+        auto tokens = lex("model Node { value: i32, next: Node } def main() { val head: Node; if head.next.value == 5 { println \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5237,7 +5237,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Test { value: i32 } main { val ptr: i64 = 123; mut val n: ref Test = deref(ptr); }");
+            "model Test { value: i32 } def main() { val ptr: i64 = 123; mut val n: ref Test = deref(ptr); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5248,7 +5248,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } main { mut val obj: SomeModel; obj.some_function(); }");
+        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel; obj.some_function(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5262,7 +5262,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def test_func(grid: i32[height][width], width: i32, height: i32) { } main { }");
+            "def test_func(grid: i32[height][width], width: i32, height: i32) { } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5277,7 +5277,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Test { data: i32[10][20]; } main { }");
+        auto tokens = lex("model Test { data: i32[10][20]; } def main() { }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5290,7 +5290,7 @@ unittest
     {
         auto tokens = lex(
             "model Node { value: i32; next: ref Node; } " ~
-                "main { mut val head: ref Node = nil; }");
+                "def main() { mut val head: ref Node = nil; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5306,7 +5306,7 @@ unittest
     {
         auto tokens = lex(
             "def use_grid(grid: ref i32[], width: i32) { } " ~
-                "main { use_grid(nil, 0); }");
+                "def main() { use_grid(nil, 0); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5325,7 +5325,7 @@ unittest
             value: i32,
         }
 
-        main {
+        def main() {
             mut val counter: Counter;
             counter.value = 5;
             counter.value++;
@@ -5395,7 +5395,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { for mut i = 0 to 10 { println i; } }");
+        auto tokens = lex("def main() { for mut i = 0 to 10 { println i; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5407,7 +5407,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { for mut i = 5 to 15 { println i; } }");
+        auto tokens = lex("def main() { for mut i = 5 to 15 { println i; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5420,7 +5420,7 @@ unittest
 
     {
         auto tokens = lex(
-            "main { mut val sum: i32 = 0; parallel for mut i = 0 to 100 { sum = sum + i; } }");
+            "def main() { mut val sum: i32 = 0; parallel for mut i = 0 to 100 { sum = sum + i; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5435,7 +5435,7 @@ unittest
 
     {
         auto tokens = lex(
-            "main { mut val sum: i32 = 0; parallel for mut i = 0 to 100 reduce(+:sum) { sum = sum + i; } }");
+            "def main() { mut val sum: i32 = 0; parallel for mut i = 0 to 100 reduce(+:sum) { sum = sum + i; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5449,7 +5449,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val sum: i32 = 0; mut val prod: i32 = 1; parallel for mut i = 1 to 10 reduce(+:sum, *:prod) { sum = sum + i; prod = prod * i; } }");
+        auto tokens = lex("def main() { mut val sum: i32 = 0; mut val prod: i32 = 1; parallel for mut i = 1 to 10 reduce(+:sum, *:prod) { sum = sum + i; prod = prod * i; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5461,7 +5461,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model StringList { len: i32, data: string } def get_list(): ref StringList { } main { for item in get_list() { } }");
+        auto tokens = lex("model StringList { len: i32, data: string } def get_list(): ref StringList { } def main() { for item in get_list() { } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5476,7 +5476,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model StringList { len: i32, data: string } main { val items: StringList; for item in items { } }");
+            "model StringList { len: i32, data: string } def main() { val items: StringList; for item in items { } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5492,7 +5492,7 @@ unittest
     {
         auto tokens = lex(
             "def task_a() { println \"A\"; } def task_b() { println \"B\"; } " ~
-                "main { parallel { task_a(); task_b(); } }");
+                "def main() { parallel { task_a(); task_b(); } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5511,7 +5511,7 @@ unittest
         auto tokens = lex(
             "def some_task() { println \"hello\"; } " ~
                 "def some_other_task() { println \"world\"; } " ~
-                "main { parallel { single { some_task(); some_other_task(); } } }");
+                "def main() { parallel { single { some_task(); some_other_task(); } } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5529,7 +5529,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put (\"Hello, world\"); }");
+        auto tokens = lex("def main() { put (\"Hello, world\"); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5547,7 +5547,7 @@ unittest
             "opaque { MyType, AnotherType }; " ~
                 "extern def my_func(x: i32): i32; " ~
                 "extern def process(data: ref MyType): bool; " ~
-                "main { val result: i32 = my_func(42); }");
+                "def main() { val result: i32 = my_func(42); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5568,7 +5568,7 @@ unittest
         auto tokens = lex(
             "opaque { SomeStruct }; " ~
                 "extern def get_value(ptr: usize): i32; " ~
-                "main { " ~
+                "def main() { " ~
                 "    mut ptr: usize = 0; " ~
                 "    unsafe { " ~
                 "        mut x: i32 = ptr*.value; " ~
@@ -5592,7 +5592,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { val x: f64 = 2 . 0* 3 . 0; }");
+        auto tokens = lex("def main() { val x: f64 = 2 . 0* 3 . 0; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5606,7 +5606,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut val n: f64 = 1 . 0; mut val term: f64 = 1 . 0; term = ((term*(( 2 . 0* n + 1 . 0) *( 2 . 0* n + 1 . 0)))); }");
+        auto tokens = lex("def main() { mut val n: f64 = 1 . 0; mut val term: f64 = 1 . 0; term = ((term*(( 2 . 0* n + 1 . 0) *( 2 . 0* n + 1 . 0)))); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5620,7 +5620,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { put \"value is 2 . 0\"; }");
+        auto tokens = lex("def main() { put \"value is 2 . 0\"; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5634,7 +5634,7 @@ unittest
     }
 
     {
-        auto tokens = lex("main { mut lst: list(i32); append(lst, 10); append(lst, 20);}");
+        auto tokens = lex("def main() { mut lst: list(i32); append(lst, 10); append(lst, 20);}");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5645,7 +5645,7 @@ unittest
     }
 
     {
-        auto tokens = lex(`main {
+        auto tokens = lex(`def main() {
             val x: char* = "hello";
             val y = ($"Hello, {x} world");
         }`);

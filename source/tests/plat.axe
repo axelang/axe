@@ -1,5 +1,5 @@
 use crossplat;
 
-main {
+def main() {
     cross_platform_func();
 }

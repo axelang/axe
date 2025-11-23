@@ -7,7 +7,7 @@ def greet(name: char*, t: i32) {
     }
 }
 
-main {
+def main() {
     mut val nums: i32[] = [123, 142, 123123];
     for n in nums {
         println n;

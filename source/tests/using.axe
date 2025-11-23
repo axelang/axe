@@ -1,5 +1,5 @@
 use math (add, subtract);
 
-main {
+def main() {
     println add(1, 2);
 }

@@ -3,6 +3,6 @@ def hello() {
     println("Hello from Axe!");
 }
 
-main {
+def main() {
 
 }

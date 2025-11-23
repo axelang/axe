@@ -19,7 +19,7 @@ model Particle {
     vy: int;
 }
 
-main {
+def main() {
     println "=== PARTICLE SNAPSHOT STRESS TEST ===";
 
     // config

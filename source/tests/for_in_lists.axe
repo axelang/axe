@@ -6,7 +6,7 @@ use std.lists (
     IntList
 );
 
-main {
+def main() {
     mut arena: Arena = Arena.create(65536);
     mut my_list: ref IntList = IntList.create(ref_of(arena), 4);
 

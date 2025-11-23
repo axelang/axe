@@ -78,7 +78,7 @@ def copy_grid(src: ref i32[], dst: ref i32[], size: i32) {
     }
 }
 
-main {
+def main() {
     randomize();
     
     val width: i32 = 20;

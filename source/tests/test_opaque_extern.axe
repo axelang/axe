@@ -8,7 +8,7 @@ extern def fopen(filename: char*, mode: char*): usize;
 extern def fclose(file: usize): i32;
 extern def fprintf(file: usize, format: char*): i32;
 
-main {
+def main() {
     println_str(string.create("Testing opaque and extern features"));
     println_str(string.create("Compilation successful!"));
 }

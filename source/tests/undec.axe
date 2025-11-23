@@ -2,6 +2,6 @@ def shouldnt_error() {
     put "Hello, world!";
 }
 
-main {
+def main() {
     shouldnt_error();
 }

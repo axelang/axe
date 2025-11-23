@@ -58,7 +58,7 @@ def matmul(a: int[n][m], b: int[m][p], result: int[n][p], n: int, m: int, p: int
     }
 }
 
-main {
+def main() {
     // Multiply:
     // [1 2 3]   [1 2]
     // [4 5 6] x [3 4]

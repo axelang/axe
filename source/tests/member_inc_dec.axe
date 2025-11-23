@@ -2,7 +2,7 @@ model Counter {
     value: i32,
 }
 
-main {
+def main() {
     mut val counter: Counter;
     counter.value = 5;
     counter.value++;

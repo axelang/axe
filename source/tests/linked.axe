@@ -60,7 +60,7 @@ def list_print(head: ref Node) {
     println "";
 }
 
-main {
+def main() {
     mut arena: Arena = Arena.create(65536);
     mut head: ref Node = nil;
 

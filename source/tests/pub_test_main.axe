@@ -1,6 +1,6 @@
 use pub_test_lib;
 
-main {
+def main() {
     pub_test_lib.public_func();
     
     mut val m = new PublicModel();
