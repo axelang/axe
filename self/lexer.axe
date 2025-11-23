@@ -89,17 +89,6 @@ pub model Token {
     }
 }
 
-pub model TokenList {
-    length: i32;
-    tokens: ref Token[];
-
-    pub def create(): ref TokenList {
-        mut list: TokenList;
-        list.length = 0;
-        return ref_of(list);
-    }
-}
-
 def is_alpha(ch: char): bool {
     return (ch >= 'a' and ch <= 'z') or (ch >= 'A' and ch <= 'Z');
 }
@@ -117,6 +106,6 @@ def is_whitespace(ch: char): bool {
 }
 
 pub def lex(source: string): ref TokenList {
-    mut tokens: TokenList;
+    mut tokens: list_of(Token);
     mut pos: i32 = 0;
 }

@@ -454,7 +454,16 @@ string generateC(ASTNode ast)
                 }
                 else
                 {
-                    // Not prefixed, so base name is the same as the model name
+                    if (modelNode.name.canFind("_"))
+                    {
+                        auto lastUnderscore = modelNode.name.lastIndexOf('_');
+                        if (lastUnderscore >= 0)
+                        {
+                            baseName = modelNode.name[lastUnderscore + 1 .. $];
+                            g_modelNames[baseName] = modelNode.name;
+                        }
+                    }
+                    
                     // For std files, prefix with module name
                     // TODO: Remove this.
                     if (modelNode.name == "error")
@@ -1297,7 +1306,6 @@ string generateC(ASTNode ast)
         import std.algorithm : canFind;
         import std.conv : to;
 
-        // Check if this is a list_of type (has [999] marker)
         bool isListOfType = false;
         if (declNode.typeName.length > 0 && declNode.typeName.canFind("[999]"))
         {
@@ -1305,10 +1313,11 @@ string generateC(ASTNode ast)
             if (bracketPos999 > 0)
             {
                 string elementType = declNode.typeName[0 .. bracketPos999];
-                g_listOfTypes[declNode.name] = elementType;
+                string mappedElementType = mapAxeTypeToC(elementType);
+                g_listOfTypes[declNode.name] = mappedElementType;
                 isListOfType = true;
                 debugWriteln("DEBUG renderer: Detected list_of variable '", declNode.name,
-                    "' with element type '", elementType, "'");
+                    "' with element type '", elementType, "' -> '", mappedElementType, "'");
             }
         }
 
