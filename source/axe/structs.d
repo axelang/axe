@@ -90,6 +90,7 @@ enum TokenType
     UNSAFE,
     STAR_DOT,
     PUB,
+    MULTILINE_STR,
 }
 
 /** 

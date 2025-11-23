@@ -3835,6 +3835,12 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                         }
                         if (tokens[pos].type == TokenType.STR)
                             initializer ~= "\"" ~ tokens[pos].value ~ "\"";
+                        else if (tokens[pos].type == TokenType.MULTILINE_STR)
+                        {
+                            import std.string : replace;
+                            string escaped = tokens[pos].value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+                            initializer ~= "\"" ~ escaped ~ "\"";
+                        }
                         else if (tokens[pos].type == TokenType.CHAR)
                             initializer ~= "'" ~ tokens[pos].value ~ "'";
                         else if (tokens[pos].type == TokenType.INTERPOLATED_STR)
@@ -3998,6 +4004,14 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                     else if (tokens[pos].type == TokenType.STR)
                     {
                         currentArg ~= "\"" ~ tokens[pos].value ~ "\"";
+                        lastWasRef = false;
+                        pos++;
+                    }
+                    else if (tokens[pos].type == TokenType.MULTILINE_STR)
+                    {
+                        import std.string : replace;
+                        string escaped = tokens[pos].value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
+                        currentArg ~= "\"" ~ escaped ~ "\"";
                         lastWasRef = false;
                         pos++;
                     }

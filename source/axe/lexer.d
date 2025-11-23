@@ -251,6 +251,22 @@ Token[] lex(string source)
             }
             break;
 
+        case '`':
+            {
+                size_t ending = pos + 1;
+                while (ending < source.length && source[ending] != '`')
+                {
+                    ending++;
+                }
+
+                import std.conv;
+
+                enforce(ending < source.length, "Unterminated multiline string at position " ~ pos.to!string);
+                tokens ~= Token(TokenType.MULTILINE_STR, source[pos + 1 .. ending]);
+                pos = ending + 1;
+                break;
+            }
+
         case '"':
             {
                 size_t ending = pos + 1;
