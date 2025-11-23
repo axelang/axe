@@ -330,8 +330,8 @@ string mapAxeTypeToCForReturnOrParam(string axeType)
     {
         string elementType = axeType[0 .. $ - 5];
         string mappedElementType = mapAxeTypeToC(elementType);
-        // Return struct by value for list types
-        string structName = "__list_" ~ mappedElementType.replace("*", "_ptr").replace(" ", "_") ~ "_t";
+        string structName = "__list_" ~ mappedElementType.replace("*", "_ptr")
+            .replace(" ", "_") ~ "_t";
         return structName;
     }
     return mapAxeTypeToC(axeType);
@@ -807,11 +807,38 @@ string generateC(ASTNode ast)
             }
         }
 
-        // TODO: MAKE GENERIC ( HIGH PRIORITY )
-        cCode ~= "typedef struct __list_lexer_Token_t {\n";
-        cCode ~= "    lexer_Token data[999];\n";
-        cCode ~= "    int len;\n";
-        cCode ~= "} __list_lexer_Token_t;\n";
+        bool[string] listElementTypes;
+
+        foreach (child; ast.children)
+        {
+            if (child.nodeType == "Function")
+            {
+                auto funcNode = cast(FunctionNode) child;
+                string returnType = funcNode.returnType;
+
+                import std.string : indexOf, lastIndexOf;
+
+                auto bracketPos = returnType.indexOf("[999]");
+                if (bracketPos > 0)
+                {
+                    string elementType = returnType[0 .. bracketPos].strip();
+                    string cElementType = mapAxeTypeToC(elementType);
+                    listElementTypes[cElementType] = true;
+                }
+            }
+        }
+        foreach (elementType; listElementTypes.byKey())
+        {
+            debugWriteln("DEBUG: Generating typedef for list of: ", elementType);
+        }
+
+        foreach (elementType; listElementTypes.byKey())
+        {
+            cCode ~= "typedef struct __list_" ~ elementType ~ "_t {\n";
+            cCode ~= "    " ~ elementType ~ " data[999];\n";
+            cCode ~= "    int len;\n";
+            cCode ~= "} __list_" ~ elementType ~ "_t;\n";
+        }
 
         string[string] functionModulePrefixes;
 
@@ -923,7 +950,7 @@ string generateC(ASTNode ast)
             }
         }
 
-        cCode ~= "\n";  // Add blank line after model methods
+        cCode ~= "\n";
 
         g_inTopLevel = true;
         foreach (child; ast.children)
