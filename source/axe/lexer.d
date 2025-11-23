@@ -261,7 +261,8 @@ Token[] lex(string source)
 
                 import std.conv;
 
-                enforce(ending < source.length, "Unterminated multiline string at position " ~ pos.to!string);
+                enforce(ending < source.length, "Unterminated multiline string at position " ~ pos
+                        .to!string);
                 tokens ~= Token(TokenType.MULTILINE_STR, source[pos + 1 .. ending]);
                 pos = ending + 1;
                 break;
@@ -397,14 +398,15 @@ Token[] lex(string source)
                 size_t lookAhead = pos + 3;
                 while (lookAhead < source.length && (source[lookAhead] == ' ' || source[lookAhead] == '\t'))
                     lookAhead++;
-                
+
                 if (lookAhead + 4 <= source.length && source[lookAhead .. lookAhead + 4] == "main" &&
-                    (lookAhead + 4 >= source.length || !(source[lookAhead + 4].isAlphaNum || source[lookAhead + 4] == '_')))
+                    (lookAhead + 4 >= source.length || !(source[lookAhead + 4].isAlphaNum || source[lookAhead + 4]
+                        == '_')))
                 {
                     lookAhead += 4;
                     while (lookAhead < source.length && (source[lookAhead] == ' ' || source[lookAhead] == '\t'))
                         lookAhead++;
-                    
+
                     if (lookAhead + 1 < source.length && source[lookAhead] == '(' && source[lookAhead + 1] == ')')
                     {
                         tokens ~= Token(TokenType.MAIN, "main");
