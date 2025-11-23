@@ -68,6 +68,7 @@ pub model string {
     }
 }
 
+/// Convert some i32 to a string.
 pub def i32_to_string(value: i32): string {
     unsafe {
         mut buffer: char* = C.malloc(12);
@@ -161,6 +162,7 @@ pub def str_copy(src: string, desta: mut string): void {
     }
 }
 
+/// Compares string with char*. Returns 0 if equal.
 pub def equals_c(a: string, b: char*): i32 {
     mut result: i32 = 0;
     unsafe {
