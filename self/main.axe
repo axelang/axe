@@ -7,7 +7,7 @@ use std.lists;
 use std.string;
 use lexer;
 
-main {
+def main() {
     val arena: Arena = Arena.create(1024);
     val args: ref StringList = get_cmdline_args(ref_of(arena));
     

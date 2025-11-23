@@ -394,6 +394,30 @@ Token[] lex(string source)
             else if (pos + 2 < source.length && source[pos .. pos + 3] == "def" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
+                size_t lookAhead = pos + 3;
+                while (lookAhead < source.length && (source[lookAhead] == ' ' || source[lookAhead] == '\t'))
+                    lookAhead++;
+                
+                if (lookAhead + 4 <= source.length && source[lookAhead .. lookAhead + 4] == "main" &&
+                    (lookAhead + 4 >= source.length || !(source[lookAhead + 4].isAlphaNum || source[lookAhead + 4] == '_')))
+                {
+                    lookAhead += 4;
+                    while (lookAhead < source.length && (source[lookAhead] == ' ' || source[lookAhead] == '\t'))
+                        lookAhead++;
+                    
+                    if (lookAhead + 1 < source.length && source[lookAhead] == '(' && source[lookAhead + 1] == ')')
+                    {
+                        tokens ~= Token(TokenType.MAIN, "main");
+                        pos = lookAhead + 2;
+                        break;
+                    }
+                    else if (lookAhead < source.length && source[lookAhead] == '{')
+                    {
+                        tokens ~= Token(TokenType.MAIN, "main");
+                        pos = lookAhead;
+                        break;
+                    }
+                }
                 tokens ~= Token(TokenType.DEF, "def");
                 pos += 3;
             }
@@ -463,12 +487,6 @@ Token[] lex(string source)
                 tokens ~= Token(TokenType.MODEL, "model");
                 pos += 5;
             }
-            else if (pos + 3 < source.length && source[pos .. pos + 4] == "main" &&
-                (pos + 4 >= source.length || !(source[pos + 4].isAlphaNum || source[pos + 4] == '_')))
-            {
-                tokens ~= Token(TokenType.MAIN, "main");
-                pos += 4;
-            }
             else if (pos + 2 < source.length && source[pos .. pos + 3] == "mut" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
@@ -493,12 +511,7 @@ Token[] lex(string source)
             break;
 
         default:
-            if (pos + 4 <= source.length && source[pos .. pos + 4] == "main")
-            {
-                tokens ~= Token(TokenType.MAIN, "main");
-                pos += 4;
-            }
-            else if (pos + 3 <= source.length && source[pos .. pos + 3] == "pub" &&
+            if (pos + 3 <= source.length && source[pos .. pos + 3] == "pub" &&
                 (pos + 3 >= source.length || !(source[pos + 3].isAlphaNum || source[pos + 3] == '_')))
             {
                 tokens ~= Token(TokenType.PUB, "pub");

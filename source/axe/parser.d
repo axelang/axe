@@ -1501,53 +1501,45 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
             continue;
 
         case TokenType.MAIN:
-            // Fall through to IDENTIFIER case which handles main
-            goto case TokenType.IDENTIFIER;
+            // MAIN token now represents "def main()" - just need to parse the body
+            pos++; // Skip MAIN token (which consumed "def main()")
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
 
-        case TokenType.IDENTIFIER:
-            if (tokens[pos].value == "main")
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
+                "Expected '{' after 'def main()'");
+            pos++;
+
+            auto mainNode = new FunctionNode("main", []);
+            debugWriteln("Entering main block at pos ", pos);
+
+            auto previousScope = currentScopeNode;
+            currentScopeNode = mainNode;
+
+            while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
             {
-                pos++;
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.LBRACE,
-                    "Expected '{' after 'main'");
-                pos++;
-
-                auto mainNode = new FunctionNode("main", []);
-                debugWriteln("Entering main block at pos ", pos);
-
-                auto previousScope = currentScopeNode;
-                currentScopeNode = mainNode;
-
-                while (pos < tokens.length && tokens[pos].type != TokenType.RBRACE)
-                {
-                    auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode, isAxec);
-                    if (stmt !is null)
-                        mainNode.children ~= stmt;
-                }
-
-                currentScopeNode = previousScope;
-
-                debugWriteln("Exited main block at pos ", pos);
-                debugWriteln("Current token: ", pos < tokens.length ? to!string(
-                        tokens[pos].type) : "EOF", " ('",
-                    pos < tokens.length ? tokens[pos].value : "", "')");
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
-                    "Expected '}' after main body");
-                pos++;
-
-                while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
-                    pos++;
-
-                ast.children ~= mainNode;
-                continue;
+                auto stmt = parseStatementHelper(pos, tokens, currentScope, currentScopeNode, isAxec);
+                if (stmt !is null)
+                    mainNode.children ~= stmt;
             }
 
+            currentScopeNode = previousScope;
+
+            debugWriteln("Exited main block at pos ", pos);
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            enforce(pos < tokens.length && tokens[pos].type == TokenType.RBRACE,
+                "Expected '}' after main body");
+            pos++;
+
+            while (pos < tokens.length && tokens[pos].type == TokenType.WHITESPACE)
+                pos++;
+
+            ast.children ~= mainNode;
+            continue;
+
+        case TokenType.IDENTIFIER:
             // Check if this is a macro invocation
             string identName = tokens[pos].value;
             if (identName in g_macros)
@@ -2677,7 +2669,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
 
         if (!hasEntryPoint)
         {
-            enforce(false, "No entry point defined. You must have either a 'main { }' or 'test { }' block.");
+            enforce(false, "No entry point defined. You must have either a 'def main() { }' or 'test { }' block.");
         }
     }
 
