@@ -513,7 +513,7 @@ def parse_type(ctx: ref ParserContext): string {
         consume(ctx);
         
         // Handle list(ElementType) syntax
-        if equals_c(type_name, "list") == 0 {
+        if equals_c(type_name, "list") {
             skip_whitespace(ctx);
             
             if !expect(ctx, TokenType.LPAREN) {
@@ -698,8 +698,7 @@ test {
     ctx1.pos = 0;
     mut type1: string = parse_type(addr_of(ctx1));
     assert equals_c(type1, "i32"), "Expected i32.";
-    println type1;
-    
+
     println "\nTest 2: skip_whitespace";
     mut tokens2: list(Token) = lex(str("   \n  \t  i32"));
     mut ctx2: ParserContext;
@@ -725,7 +724,7 @@ test {
     mut ctx4: ParserContext;
     ctx4.tokens = addr_of(tokens4);
     ctx4.pos = 0;
-    assert expect(addr_of(ctx4), TokenType.DEF) == 1, "Expected to find 'def' token";
+    assert expect(addr_of(ctx4), TokenType.DEF), "Expected to find 'def' token";
 
     println "\nAll tests completed!";
 }
