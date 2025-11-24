@@ -4378,7 +4378,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x = add(1, 2); }");
+            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x: i32 = add(1, 2); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4386,7 +4386,7 @@ unittest
         writeln(cCode);
         assert(cCode.canFind("int32_t add(int32_t a, int32_t b)"));
         assert(cCode.canFind("return (a+b);"));
-        assert(cCode.canFind("const int x = add(1, 2);"));
+        assert(cCode.canFind("const int32_t x = add(1, 2);"));
     }
 
     {
@@ -4741,7 +4741,7 @@ unittest
 
     {
         auto tokens = lex(
-            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x = add(1, 2); }");
+            "def add(a: i32, b: i32): i32 { return a + b; } def main() { val x: i32 = add(1, 2); }");
         auto ast = parse(tokens);
 
         auto cCode = generateC(ast);
@@ -4749,7 +4749,7 @@ unittest
         writeln(cCode);
         assert(cCode.canFind("int32_t add(int32_t a, int32_t b)"));
         assert(cCode.canFind("return (a+b);"));
-        assert(cCode.canFind("const int x = add(1, 2);"));
+        assert(cCode.canFind("const int32_t x = add(1, 2);"));
     }
 
     {
