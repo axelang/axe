@@ -45,7 +45,7 @@ pub model Arena {
                 panic(error.create("Arena out of memory!\n"));
                 return nil;
             }
-            result = (void *)(arena*.buffer + arena*.offset);
+            result = (ref void)(arena*.buffer + arena*.offset);
             arena*.offset = arena*.offset + size;
             arena*.offset = (arena*.offset + 7) & ~7;
         }
