@@ -279,7 +279,6 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
         ctx.pos++;  // Skip 'test'
         skip_whitespace(ctx);
         
-        // Skip test body
         if ctx.pos < len(ctx.tokens) and ctx.tokens.data[ctx.pos].token_type == TokenType.LBRACE {
             ctx.pos++;
             mut depth: i32 = 1;
