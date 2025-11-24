@@ -17,8 +17,8 @@ pub model Arena {
     pub def create(size: i32): Arena {
         mut arena: Arena;
         
-        raw {
-            arena.buffer = (uintptr_t)malloc(size);
+        unsafe {
+            arena.buffer = C.malloc(size);
             arena.capacity = size;
             arena.offset = 0;
         }
@@ -28,11 +28,11 @@ pub model Arena {
 
     /// Destroys the arena and frees its memory.
     pub def destroy(arena: ref Arena) {
-        raw {
-            free((void*)arena->buffer);
-            arena->buffer = 0;
-            arena->offset = 0;
-            arena->capacity = 0;
+        unsafe {
+            C.free((ref void)arena*.buffer);
+            arena*.buffer = 0;
+            arena*.offset = 0;
+            arena*.capacity = 0;
         }
     }
 
