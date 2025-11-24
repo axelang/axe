@@ -611,7 +611,6 @@ def parse_ref_depth(ctx: ref ParserContext): i32 {
 }
 
 // // TODO:                Implement remaining parser functions
-// // - parse_top_level:   Parse use, model, enum, function, etc.
 // // - parse_function:    Parse function definitions
 // // - parse_model:       Parse model definitions
 // // - parse_enum:        Parse enum definitions
