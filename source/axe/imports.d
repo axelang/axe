@@ -83,12 +83,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 if (modelNode.name.canFind("__"))
                 {
                     import std.array : split;
+
                     auto parts = modelNode.name.split("__");
                     if (parts.length >= 2)
                     {
                         string lastPart = parts[$ - 1];
-                        debugWriteln("DEBUG: Checking model '", modelNode.name, "' - parts: ", parts, 
-                            " - lastPart: '", lastPart, "' - starts with upper: ", 
+                        debugWriteln("DEBUG: Checking model '", modelNode.name, "' - parts: ", parts,
+                            " - lastPart: '", lastPart, "' - starts with upper: ",
                             (lastPart.length > 0 && lastPart[0] >= 'A' && lastPart[0] <= 'Z'));
                         if (lastPart.length > 0 && lastPart[0] >= 'A' && lastPart[0] <= 'Z')
                         {
@@ -96,7 +97,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         }
                     }
                 }
-                
+
                 if (startsWithLower(modelNode.name) && !modelNode.name.startsWith("std__") && !isPrefixedModel)
                 {
                     throw new Exception(
@@ -113,10 +114,11 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
 
     string currentModulePrefix = "";
     bool isStdModule = currentFilePath.canFind("std");
-    
+
     if (isTopLevel && moduleName.length > 0)
     {
         import std.string : replace;
+
         currentModulePrefix = moduleName.replace(".", "__");
         g_currentModulePrefix = currentModulePrefix;
         debugWriteln("DEBUG: Set currentModulePrefix='", currentModulePrefix, "' from moduleName='", moduleName, "'");
@@ -166,7 +168,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
             }
         }
     }
-    
+
     if (currentModulePrefix.length > 0 && macros.length > 0)
     {
         foreach (child; programNode.children)
@@ -180,20 +182,21 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                     if (callNode.functionName == "create_map")
                     {
                         import std.string : strip;
+
                         if (callNode.args.length > 2)
                         {
                             string modelName = callNode.args[2].strip();
                             localModels[modelName] = currentModulePrefix ~ "__" ~ modelName;
                             debugWriteln("DEBUG: Macro invocation '", callNode.functionName,
                                 "' generates model '", modelName, "' -> '",
-                                currentModulePrefix ~ "__" ~ modelName, "'");                            
+                                currentModulePrefix ~ "__" ~ modelName, "'");
                         }
                     }
                 }
             }
         }
     }
-    
+
     if (currentModulePrefix.length > 0)
     {
         foreach (child; programNode.children)
@@ -354,6 +357,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         if (mNode.name.canFind("__"))
                         {
                             import std.array : split;
+
                             auto parts = mNode.name.split("__");
                             if (parts.length >= 2)
                             {
@@ -364,7 +368,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                 }
                             }
                         }
-                        
+
                         if (startsWithLower(mNode.name) && !mNode.name.startsWith("std__") && !isPrefixedModel)
                         {
                             string msg = "Declaring primitive types outside of the standard library is disallowed: "
@@ -512,7 +516,7 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         string prefixedName = funcNode.name.startsWith("std__") ? funcNode.name
                             : (sanitizedModuleName ~ "__" ~ funcNode.name);
                         moduleFunctionMap[funcNode.name] = prefixedName;
-                        
+
                         if (prefixedName.canFind("__"))
                         {
                             auto lastUnderscore = prefixedName.lastIndexOf("__");
@@ -620,18 +624,18 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                 {
                     auto importedUse = cast(UseNode) importChild;
                     string importedModulePrefix = importedUse.moduleName.replace(".", "__");
-                    
+
                     // For each function that the imported module uses,
                     // find the corresponding prefixed function in the AST
                     foreach (importedFuncName; importedUse.imports)
                     {
                         // Skip models (start with uppercase)
-                        if (importedFuncName.length > 0 && 
+                        if (importedFuncName.length > 0 &&
                             (importedFuncName[0] < 'A' || importedFuncName[0] > 'Z'))
                         {
                             // Construct the expected prefixed name
                             string expectedPrefixedName = importedModulePrefix ~ "__" ~ importedFuncName;
-                            
+
                             // Check if this function exists in the AST
                             foreach (funcChild; importProgram.children)
                             {
@@ -644,13 +648,13 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                                         if (importedFuncName !in moduleFunctionMap)
                                         {
                                             moduleFunctionMap[importedFuncName] = expectedPrefixedName;
-                                            if (importedFuncName == "str" || 
-                                                importedFuncName == "is_alphanum" || 
+                                            if (importedFuncName == "str" ||
+                                                importedFuncName == "is_alphanum" ||
                                                 importedFuncName == "get_char")
                                             {
-                                                writeln("DEBUG: Added transitive mapping: ", 
-                                                    importedFuncName, " -> ", expectedPrefixedName, 
-                                                    " (from ", useNode.moduleName, "'s import of ", 
+                                                writeln("DEBUG: Added transitive mapping: ",
+                                                    importedFuncName, " -> ", expectedPrefixedName,
+                                                    " (from ", useNode.moduleName, "'s import of ",
                                                     importedUse.moduleName, ")");
                                             }
                                         }
@@ -949,10 +953,12 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                             funcNode.name = prefixedName;
                             addedFunctionNames[prefixedName] = true;
                             writeln("DEBUG: Adding non-public function '", originalName, "' as '", prefixedName, "'");
-                            writeln("DEBUG: moduleFunctionMap has ", moduleFunctionMap.length, " entries for module: ", useNode.moduleName);
+                            writeln("DEBUG: moduleFunctionMap has ", moduleFunctionMap.length, " entries for module: ",
+                                useNode.moduleName);
                             foreach (key, value; moduleFunctionMap)
                             {
-                                if (key.canFind("str") || key.canFind("alphanum") || key.canFind("get_char"))
+                                if (key.canFind("str") || key.canFind("alphanum") || key.canFind(
+                                        "get_char"))
                                     writeln("DEBUG:   '", key, "' -> '", value, "'");
                             }
 
