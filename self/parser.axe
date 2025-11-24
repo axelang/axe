@@ -58,9 +58,10 @@ pub def parse(tokens: list(Token), is_axec: bool, check_entry_point: bool, curre
     mut ast: ASTNode;
     ast.node_type = str("Program");
     
-    StringHashMapString.clear(addr_of(g_type_aliases));
-    StringHashMapBool.clear(addr_of(g_imported_modules));
-    StringHashMapString.clear(addr_of(g_list_of_types));
+    // TODO: Initialize and clear these global maps
+    // StringHashMapString.clear(addr_of(g_type_aliases));
+    // StringHashMapBool.clear(addr_of(g_imported_modules));
+    // StringHashMapString.clear(addr_of(g_list_of_types));
     
     if str_len(current_module) > 0 {
         // g_imported_modules[current_module] = true
@@ -746,7 +747,8 @@ test {
 
     println "\nTest 9: parse full program with def main";
     mut tokens9: list(Token) = lex(str("def main() { }"));
-    mut ast9: ASTNode = parse(addr_of(tokens9), false, false, str(""));
+    mut empty_module: string = str("");
+    mut ast9: ASTNode = parse(addr_of(tokens9), false, false, empty_module);
     assert equals_c(ast9.node_type, "Program"), "Expected Program AST node";
 
     println "\nTest 10: parse program with model definition";

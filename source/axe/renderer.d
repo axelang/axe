@@ -3633,6 +3633,37 @@ string processExpression(string expr, string context = "")
         }
 
         string varName = expr[parenStart .. parenEnd].strip();
+        expr = expr[0 .. startIdx] ~ "&" ~ varName ~ expr[parenEnd + 1 .. $];
+    }
+
+    while (expr.canFind("addr_int"))
+    {
+        auto startIdx = expr.indexOf("addr_int");
+        if (startIdx == -1)
+            break;
+
+        size_t pos = startIdx + 8;
+        while (pos < expr.length && (expr[pos] == ' ' || expr[pos] == '\t'))
+            pos++;
+
+        if (pos >= expr.length || expr[pos] != '(')
+            break;
+
+        auto parenStart = pos + 1; // After "("
+
+        int depth = 1;
+        size_t parenEnd = parenStart;
+        while (parenEnd < expr.length && depth > 0)
+        {
+            if (expr[parenEnd] == '(')
+                depth++;
+            else if (expr[parenEnd] == ')')
+                depth--;
+            if (depth > 0)
+                parenEnd++;
+        }
+
+        string varName = expr[parenStart .. parenEnd].strip();
         expr = expr[0 .. startIdx] ~ "(int64_t)&" ~ varName ~ expr[parenEnd + 1 .. $];
     }
 
@@ -5118,11 +5149,11 @@ unittest
     }
 
     {
-        auto tokens = lex("def main() { val x: i32 = 10; val addr: i64 = addr_of(x); }");
+        auto tokens = lex("def main() { val x: i32 = 10; val addr: i64 = addr_int(x); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
-        writeln("addr_of test:");
+        writeln("addr_int test:");
         writeln(cCode);
 
         assert(cCode.canFind("int32_t x = 10;"), "Should have x declaration");
