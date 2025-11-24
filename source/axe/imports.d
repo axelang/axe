@@ -946,8 +946,10 @@ ASTNode processImports(ASTNode ast, string baseDir, bool isAxec, string currentF
                         {
                             funcNode.name = prefixedName;
                             addedFunctionNames[prefixedName] = true;
-                            debugWriteln("DEBUG: Adding non-public function '", originalName, "' as '", prefixedName, "'");
-                            debugWriteln("DEBUG: moduleFunctionMap has ", moduleFunctionMap.length, " entries for module: ",
+                            debugWriteln("DEBUG: Adding non-public function '", originalName,
+                                "' as '", prefixedName, "'");
+                            debugWriteln("DEBUG: moduleFunctionMap has ", moduleFunctionMap.length,
+                                " entries for module: ",
                                 useNode.moduleName);
                             foreach (key, value; moduleFunctionMap)
                             {
