@@ -632,8 +632,10 @@ string generateC(ASTNode ast)
 
         import std.string : startsWith, endsWith;
 
-        debugWriteln("DEBUG: hasPrintOverload=", hasPrintOverload, ", 'print' in g_functionPrefixes=", ("print" in g_functionPrefixes) !is null);
-        debugWriteln("DEBUG: hasPrintlnOverload=", hasPrintlnOverload, ", 'println' in g_functionPrefixes=", ("println" in g_functionPrefixes) !is null);
+        debugWriteln("DEBUG: hasPrintOverload=", hasPrintOverload, ", 'print' in g_functionPrefixes=", (
+                "print" in g_functionPrefixes) !is null);
+        debugWriteln("DEBUG: hasPrintlnOverload=", hasPrintlnOverload, ", 'println' in g_functionPrefixes=", (
+                "println" in g_functionPrefixes) !is null);
 
         if (!hasPrintOverload && ("print" in g_functionPrefixes))
         {
@@ -970,17 +972,19 @@ string generateC(ASTNode ast)
                             // so that imported std functions like std__string_str get
                             // registered and can be called via their unprefixed names.
                             if (funcNode.name.startsWith("std_") || funcNode.name.startsWith("std__") || funcNode
-                                    .name.startsWith("lexer_"))
+                                .name.startsWith("lexer_"))
                             {
                                 // Don't overwrite existing mappings from imports processing
                                 if (baseName !in g_functionPrefixes)
                                 {
-                                    debugWriteln("DEBUG: Adding to g_functionPrefixes['", baseName, "'] = '", funcNode.name, "'");
+                                    debugWriteln("DEBUG: Adding to g_functionPrefixes['", baseName, "'] = '", funcNode
+                                            .name, "'");
                                     g_functionPrefixes[baseName] = funcNode.name;
                                 }
                                 else
                                 {
-                                    debugWriteln("DEBUG: Not overwriting existing g_functionPrefixes['", baseName, "'] = '", g_functionPrefixes[baseName], "' with '", funcNode.name, "'");
+                                    debugWriteln("DEBUG: Not overwriting existing g_functionPrefixes['", baseName, "'] = '", g_functionPrefixes[baseName], "' with '", funcNode
+                                            .name, "'");
                                 }
                             }
                         }
@@ -1168,8 +1172,9 @@ string generateC(ASTNode ast)
     case "FunctionCall":
         auto callNode = cast(FunctionCallNode) ast;
         string callName = callNode.functionName;
-        
-        debugWriteln("DEBUG: Processing FunctionCall '", callName, "', g_functionPrefixes.keys: ", g_functionPrefixes.keys);
+
+        debugWriteln("DEBUG: Processing FunctionCall '", callName, "', g_functionPrefixes.keys: ", g_functionPrefixes
+                .keys);
 
         import std.string : startsWith, indexOf, strip;
 
@@ -1946,19 +1951,20 @@ string generateC(ASTNode ast)
 
     case "ParallelLocal":
         auto parallelLocalNode = cast(ParallelLocalNode) ast;
-        
+
         foreach (i, varName; parallelLocalNode.privateVars)
         {
             string typeStr = parallelLocalNode.privateTypes[i];
             string cType = mapAxeTypeToC(typeStr);
-            
+
             cCode ~= cType ~ " " ~ varName ~ ";\n";
         }
-        
+
         cCode ~= "#pragma omp parallel private(";
         foreach (i, varName; parallelLocalNode.privateVars)
         {
-            if (i > 0) cCode ~= ", ";
+            if (i > 0)
+                cCode ~= ", ";
             cCode ~= varName;
         }
         cCode ~= ")\n{\n";
@@ -3317,6 +3323,7 @@ string processExpression(string expr, string context = "")
 
     {
         import std.regex : matchAll;
+
         auto refCastPattern = regex(r"\(\s*ref\s*(\w+)\s*\)");
         auto matches = matchAll(expr, refCastPattern);
         foreach (match; matches)
@@ -3324,7 +3331,7 @@ string processExpression(string expr, string context = "")
             string fullMatch = match[0];
             string baseType = match[1];
             string cBaseType = baseType in typeCastMap ? typeCastMap[baseType] : baseType;
-            
+
             expr = expr.replace(fullMatch, "(" ~ cBaseType ~ "*)");
         }
     }
@@ -3670,7 +3677,7 @@ string processExpression(string expr, string context = "")
     {
         expr = expr[2 .. $];
     }
-    
+
     // Handle member access with auto-detection of pointer types.
     //
     // IMPORTANT: Be string-literal aware so we never rewrite dots inside quoted strings
@@ -3906,21 +3913,21 @@ string processExpression(string expr, string context = "")
         {
             string funcName = expr[0 .. parenPos].strip();
             string args = expr[parenPos .. $];
-            
+
             string actualFuncName = funcName;
             if (funcName.startsWith("!"))
             {
                 actualFuncName = funcName[1 .. $].strip();
             }
-            
+
             debugWriteln("DEBUG processExpression: Found potential function call '", actualFuncName, "' with args '", args, "'");
             debugWriteln("DEBUG processExpression: Checking g_functionPrefixes for '", actualFuncName, "'");
-            
+
             if (actualFuncName in g_functionPrefixes)
             {
                 string prefixedFuncName = g_functionPrefixes[actualFuncName];
                 debugWriteln("DEBUG processExpression: Found mapping '", actualFuncName, "' -> '", prefixedFuncName, "'");
-                
+
                 if (funcName.startsWith("!"))
                 {
                     return "!" ~ prefixedFuncName ~ args;
@@ -3935,7 +3942,7 @@ string processExpression(string expr, string context = "")
                 debugWriteln("DEBUG processExpression: No mapping found for '", actualFuncName, "'");
             }
         }
-        
+
         return expr;
     }
 
@@ -5255,7 +5262,8 @@ unittest
     }
 
     {
-        auto tokens = lex("def main() { mut val ptr: ref i32 = NULL; val value: i32 = deref(ptr); }");
+        auto tokens = lex(
+            "def main() { mut val ptr: ref i32 = NULL; val value: i32 = deref(ptr); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5268,7 +5276,8 @@ unittest
     }
 
     {
-        auto tokens = lex("def main() { mut val ptr: ref ref i32 = NULL; val value: i32 = deref(deref(ptr)); }");
+        auto tokens = lex(
+            "def main() { mut val ptr: ref ref i32 = NULL; val value: i32 = deref(deref(ptr)); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5304,7 +5313,8 @@ unittest
     }
 
     {
-        auto tokens = lex("model Test { field: i32 } def main() { mut val obj: Test; obj.field = 5; }");
+        auto tokens = lex(
+            "model Test { field: i32 } def main() { mut val obj: Test; obj.field = 5; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
