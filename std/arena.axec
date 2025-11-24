@@ -40,14 +40,14 @@ pub model Arena {
     pub def alloc(arena: ref Arena, size: i32): ref void {
         mut result: ref void = nil;
 
-        raw {
-            if (arena->offset + size > arena->capacity) {
-                std__errors__panic(std__errors__error_create("Arena out of memory!\n"));
+        unsafe {
+            if (arena*.offset + size > arena*.capacity) {
+                panic(error.create("Arena out of memory!\n"));
                 return nil;
             }
-            result = (void *)(arena->buffer + arena->offset);
-            arena->offset += size;
-            arena->offset = (arena->offset + 7) & ~7;
+            result = (void *)(arena*.buffer + arena*.offset);
+            arena*.offset = arena*.offset + size;
+            arena*.offset = (arena*.offset + 7) & ~7;
         }
 
         return result;
@@ -61,17 +61,17 @@ pub model Arena {
 
     /// Resets the arena, clearing all allocated memory.
     pub def reset(arena: ref Arena) {
-        raw {
-            arena->offset = 0;
-            memset((void*)arena->buffer, 0, arena->capacity);
+        unsafe {
+            arena*.offset = 0;
+            C.memset((ref void)arena*.buffer, 0, arena*.capacity);
         }
     }
 
     /// Returns the amount of memory used by the arena.
     pub def used(arena: ref Arena): i32 {
         mut result: i32 = 0;
-        raw {
-            result = arena->offset;
+        unsafe {
+            result = arena*.offset;
         }
         return result;
     }
@@ -79,8 +79,8 @@ pub model Arena {
     /// Returns the amount of remaining memory in the arena.
     pub def remaining(arena: ref Arena): i32 {
         mut result: i32 = 0;
-        raw {
-            result = arena->capacity - arena->offset;
+        unsafe {
+            result = (arena*.capacity) - (arena*.offset);
         }
         return result;
     }
