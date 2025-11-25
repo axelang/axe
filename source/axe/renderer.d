@@ -3182,7 +3182,8 @@ string processTypeForCast(string axeType)
     {
         string elementType = axeType[5 .. $ - 1].strip();
         string cElementType = mapAxeTypeToC(elementType);
-        string listTypeName = "__list_" ~ cElementType ~ "_t";
+        string listTypeName = "__list_" ~ cElementType.replace("*", "_ptr")
+            .replace(" ", "_") ~ "_t";
         return isRef ? listTypeName ~ "*" : listTypeName;
     }
     
@@ -3219,7 +3220,64 @@ string processExpression(string expr, string context = "")
         expr = expr.replace(fullMatch, replacement);
     }
 
-    // Replace model names outside of string literals only
+    {
+        bool insideString = false;
+        bool insideChar = false;
+        size_t idx = 0;
+        while (idx < expr.length)
+        {
+            if (expr[idx] == '"' && (idx == 0 || expr[idx - 1] != '\\'))
+                insideString = !insideString;
+            else if (expr[idx] == '\'' && (idx == 0 || expr[idx - 1] != '\\'))
+                insideChar = !insideChar;
+            
+            if (!insideString && !insideChar && idx + 4 <= expr.length && expr[idx .. idx + 4] == "list")
+            {
+                if (idx > 0)
+                {
+                    char prevChar = expr[idx - 1];
+                    if ((prevChar >= 'a' && prevChar <= 'z') || 
+                        (prevChar >= 'A' && prevChar <= 'Z') ||
+                        (prevChar >= '0' && prevChar <= '9') ||
+                        prevChar == '_')
+                    {
+                        idx++;
+                        continue;
+                    }
+                }
+                
+                size_t j = idx + 4;
+                while (j < expr.length && (expr[j] == ' ' || expr[j] == '\t'))
+                    j++;
+                if (j < expr.length && expr[j] == '(')
+                {
+                    size_t parenDepth = 1;
+                    size_t k = j + 1;
+                    while (k < expr.length && parenDepth > 0)
+                    {
+                        if (expr[k] == '(')
+                            parenDepth++;
+                        else if (expr[k] == ')')
+                            parenDepth--;
+                        k++;
+                    }
+                    if (parenDepth == 0)
+                    {
+                        string fullMatch = expr[idx .. k];
+                        string innerContent = expr[j + 1 .. k - 1].strip();
+                        string cElementType = mapAxeTypeToC(innerContent);
+                        string listTypeName = "__list_" ~ cElementType.replace("*", "_ptr")
+                            .replace(" ", "_") ~ "_t";
+                        expr = expr[0 .. idx] ~ listTypeName ~ expr[k .. $];
+                        idx += listTypeName.length;
+                        continue;
+                    }
+                }
+            }
+            idx++;
+        }
+    }
+
     foreach (typeName, prefixedName; g_modelNames)
     {
         if (typeName != prefixedName)
