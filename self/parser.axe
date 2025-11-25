@@ -64,7 +64,6 @@ pub def parse(tokens: ref list(Token), is_axec: bool, check_entry_point: bool, c
     mut ast: ASTNode;
     ast.node_type = str("Program");
     
-    // Clear global maps
     StringStringMap.clear(addr_of(g_type_aliases));
     StringBoolMap.clear(addr_of(g_imported_modules));
     StringStringMap.clear(addr_of(g_list_of_types));
