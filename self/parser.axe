@@ -47,9 +47,27 @@ model Scope {
 
 /// Add a child AST node to a parent AST node
 def add_child_to_ast(ast: ref ASTNode, child: ASTNode) {
-    // TODO: Actually build the damn children list in parse_top_level
-    // The D compiler handles AST construction during semantic analysis
-    return;
+    if ast.children == nil {
+        unsafe {
+            mut new_list: list(ASTNode);
+            val list_size: usize = C.sizeof(list(ASTNode));
+            val heap_list: ref list(ASTNode) = cast[ref list(ASTNode)](C.malloc(list_size));
+            if heap_list != nil {
+                C.memcpy(heap_list, addr_of(new_list), list_size);
+                ast.children = heap_list;
+            }
+        }
+    }
+    
+    if ast.children != nil {
+        unsafe {
+            mut temp_list: list(ASTNode);
+            val list_size: usize = C.sizeof(list(ASTNode));
+            C.memcpy(addr_of(temp_list), ast.children, list_size);
+            append(temp_list, child);          
+            C.memcpy(ast.children, addr_of(temp_list), list_size);
+        }
+    }
 }
 
 /// Parse the tokens into an AST
