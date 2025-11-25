@@ -1846,9 +1846,16 @@ def parse_statement_helper(ctx: ref ParserContext): ASTNode {
         skip_whitespace(ctx);
         
         node.node_type = str("Opaque");
-        // TODO: Fix.
-        // For now, just mark it as Opaque - proper list assignment in unions needs compiler support
-        // node.data.opaque_node.type_names = type_names;
+        
+        unsafe {
+            val list_size: usize = C.sizeof(list(string));
+            mut heap_list: ref list(string) = cast[ref list(string)](C.malloc(list_size));
+            if heap_list != nil {
+                C.memcpy(heap_list, addr_of(type_names), list_size);
+                node.data.opaque_node.type_names = heap_list;
+            }
+        }
+        
         return node;
     }
     
