@@ -24,8 +24,8 @@ pub def panic(err: error) {
     print "\nerror: ";
     error.print_self(err);
     
-    raw {
-        exit(1);
+    unsafe {
+        C.exit(1);
     }
 }
 
