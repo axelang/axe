@@ -101,14 +101,6 @@ def replace_extension(filename: string, new_ext: string): string {
     return concat(filename, new_ext);
 }
 
-/// Execute system command
-def system(cmd: string): i32 {
-    // TODO: Implement system command execution
-    // For now, just print and return success
-    println concat(str("Would execute: "), cmd);
-    return 0;
-}
-
 /// Check if AST contains parallel blocks
 def has_parallel_blocks(ast: ref ASTNode): bool {
     if ast == nil {
