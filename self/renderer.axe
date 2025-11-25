@@ -392,36 +392,6 @@ def generate_c(ast: ref ASTNode): string {
     return result;
 }
 
-/// Render a function node
-def render_function(func: ref ASTNode): string {
-    mut result: string = str("");
-    
-    // TODO: Implement function rendering
-    result = concat(result, str("void placeholder() {}\n"));
-    
-    return result;
-}
-
-/// Render a model node
-def render_model(modl: ref ASTNode): string {
-    mut result: string = str("");
-    
-    // TODO: Implement model rendering
-    result = concat(result, str("typedef struct {} placeholder;\n"));
-    
-    return result;
-}
-
-/// Render an enum node
-def render_enum(enum_node: ref ASTNode): string {
-    mut result: string = str("");
-    
-    // TODO: Implement enum rendering
-    result = concat(result, str("typedef enum {} placeholder;\n"));
-    
-    return result;
-}
-
 test {
     initialize_renderer();
     
