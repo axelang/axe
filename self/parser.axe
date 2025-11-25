@@ -1702,11 +1702,15 @@ def parse_statement_helper(ctx: ref ParserContext): ASTNode {
     
     // Handle CASE (within switch statements)
     if token_type == TokenType.CASE {
+        println "[DEBUG] Parsing CASE statement";
         consume(ctx); // Skip 'case'
+        println "[DEBUG] Consumed 'case' token";
         skip_whitespace(ctx);
+        println "[DEBUG] Skipped whitespace after 'case'";
         
         // Collect case value until '{'
         mut case_value: string = str("");
+        println "[DEBUG] Starting to collect case value";
         loop {
             if ctx.pos >= len(ctx.tokens) {
                 break;
@@ -1996,14 +2000,14 @@ test {
     assert equals_c(stmt25.node_type, "Use"), "Expected Use node with selective imports";
     assert stmt25.data.use_node.import_all == false, "Expected import_all to be false";
 
-    // println "\nTest 26: parse_statement_helper with case";
-    // mut tokens26: list(Token) = lex(str("case 1 { println \"one\"; }"));
-    // mut ctx26: ParserContext;
-    // ctx26.tokens = addr_of(tokens26);
-    // ctx26.pos = 0;
-    // ctx26.is_axec = false;
-    // mut stmt26: ASTNode = parse_statement_helper(addr_of(ctx26));
-    // assert equals_c(stmt26.node_type, "Case"), "Expected Case node";
+    println "\nTest 26: parse_statement_helper with case";
+    mut tokens26: list(Token) = lex(str("case 1 { println \"one\"; }"));
+    mut ctx26: ParserContext;
+    ctx26.tokens = addr_of(tokens26);
+    ctx26.pos = 0;
+    ctx26.is_axec = false;
+    mut stmt26: ASTNode = parse_statement_helper(addr_of(ctx26));
+    assert equals_c(stmt26.node_type, "Case"), "Expected Case node";
     // assert stmt26.data.case_node.is_default == false, "Expected non-default case";
 
     // println "\nTest 27: parse_statement_helper with default";
