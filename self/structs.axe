@@ -3,9 +3,25 @@ use std.io;
 use lexer (Token);
 
 /// Macro definition modelure
-model MacroDef {
+pub model MacroDef {
     params: list(string);
     body: list(Token);
+}
+
+/// Parser context - holds state during parsing
+pub model ParserContext {
+    tokens: ref list(Token);
+    pos: i32;
+    is_axec: bool;
+    check_entry_point: bool;
+    current_module: string;
+    current_scope: Scope;
+}
+
+/// Scope tracking for variable declarations
+pub model Scope {
+    variables: StringStringMap;
+    parent: ref Scope;
 }
 
 /// AST Node - all node types combined with a union

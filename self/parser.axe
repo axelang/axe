@@ -9,7 +9,9 @@ use lexer (
 );
 
 use structs (
-    ASTNode
+    ASTNode,
+    ParserContext,
+    Scope
 );
 
 use std.string;
@@ -29,21 +31,6 @@ def initialize_all() {
     g_list_of_types = deref(StringStringMap.create(ref_of(arena), 128));
 }
 
-/// Parser context - holds state during parsing
-pub model ParserContext {
-    tokens: ref list(Token);
-    pos: i32;
-    is_axec: bool;
-    check_entry_point: bool;
-    current_module: string;
-    current_scope: Scope;
-}
-
-/// Scope tracking for variable declarations
-pub model Scope {
-    variables: StringStringMap;
-    parent: ref Scope;
-}
 
 /// Add a child AST node to a parent AST node
 def add_child_to_ast(ast: ref ASTNode, child: ASTNode) {
