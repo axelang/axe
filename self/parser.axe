@@ -1536,15 +1536,256 @@ def parse_statement_helper(ctx: ref ParserContext): ASTNode {
         return node;
     }
     
+    if token_type == TokenType.USE {
+        consume(ctx); // Skip 'use'
+        skip_whitespace(ctx);
+        
+        if expect(ctx, TokenType.EXTERNAL) {
+            consume(ctx);
+            skip_whitespace(ctx);
+            
+            if !expect(ctx, TokenType.LPAREN) {
+                enforce_raw(false, "ERROR: Expected '(' after 'use external'");
+                return node;
+            }
+            consume(ctx);
+            
+            if !expect(ctx, TokenType.STR) {
+                enforce_raw(false, "ERROR: Expected string literal for header file");
+                return node;
+            }
+            val header_token: Token = consume(ctx);
+            val header_file: string = header_token.value;
+            
+            if !expect(ctx, TokenType.RPAREN) {
+                enforce_raw(false, "ERROR: Expected ')' after header file");
+                return node;
+            }
+            consume(ctx);
+            skip_whitespace(ctx);
+            
+            if !expect(ctx, TokenType.SEMICOLON) {
+                enforce_raw(false, "ERROR: Expected ';' after external import");
+                return node;
+            }
+            consume(ctx);
+            
+            node.node_type = str("ExternalImport");
+            node.data.external_import.header_file = header_file;
+            return node;
+        }
+        
+        mut module_name: string = str("");
+        
+        loop {
+            if expect(ctx, TokenType.DOT) {
+                val dot_tok: Token = peek(ctx);
+                consume(ctx);
+                
+                if expect(ctx, TokenType.DOT) {
+                    consume(ctx);
+                    if expect(ctx, TokenType.SLASH) {
+                        consume(ctx);
+                        module_name = concat(module_name, str("../"));
+                        continue;
+                    }
+                } elif expect(ctx, TokenType.SLASH) {
+                    consume(ctx);
+                    module_name = concat(module_name, str("./"));
+                    continue;
+                }
+            }
+            break;
+        }
+        
+        // Parse module path (e.g., std.io or std/maps)
+        if !expect(ctx, TokenType.IDENTIFIER) {
+            enforce_raw(false, "ERROR: Expected module name after 'use'");
+            return node;
+        }
+        val first_ident: Token = consume(ctx);
+        module_name = concat(module_name, first_ident.value);
+        
+        loop {
+            skip_whitespace(ctx);
+            if expect(ctx, TokenType.DOT) {
+                consume(ctx);
+                module_name = concat(module_name, str("."));
+                
+                if !expect(ctx, TokenType.IDENTIFIER) {
+                    enforce_raw(false, "ERROR: Expected identifier after '.' in module path");
+                    return node;
+                }
+                val ident: Token = consume(ctx);
+                module_name = concat(module_name, ident.value);
+            } elif expect(ctx, TokenType.SLASH) {
+                consume(ctx);
+                module_name = concat(module_name, str("/"));
+                
+                if !expect(ctx, TokenType.IDENTIFIER) {
+                    enforce_raw(false, "ERROR: Expected identifier after '/' in module path");
+                    return node;
+                }
+                val ident: Token = consume(ctx);
+                module_name = concat(module_name, ident.value);
+            } else {
+                break;
+            }
+        }
+        
+        skip_whitespace(ctx);
+        
+        // Check for import all syntax: use module;
+        if expect(ctx, TokenType.SEMICOLON) {
+            consume(ctx);
+            node.node_type = str("Use");
+            node.data.use_node.module_name = module_name;
+            node.data.use_node.import_all = true;
+            return node;
+        }
+        
+        // Parse selective imports: use module (item1, item2);
+        if !expect(ctx, TokenType.LPAREN) {
+            enforce_raw(false, "ERROR: Expected '(' or ';' after module name");
+            return node;
+        }
+        consume(ctx);
+        
+        mut imports: list(string);
+        loop {
+            skip_whitespace(ctx);
+            if expect(ctx, TokenType.RPAREN) {
+                break;
+            }
+            
+            if expect(ctx, TokenType.IDENTIFIER) {
+                val import_token: Token = consume(ctx);
+                append(imports, import_token.value);
+            } elif expect(ctx, TokenType.COMMA) {
+                consume(ctx);
+            } else {
+                enforce_raw(false, "ERROR: Expected identifier or ',' in use statement");
+                return node;
+            }
+        }
+        
+        if !expect(ctx, TokenType.RPAREN) {
+            enforce_raw(false, "ERROR: Expected ')' after imports");
+            return node;
+        }
+        consume(ctx);
+        skip_whitespace(ctx);
+        
+        if !expect(ctx, TokenType.SEMICOLON) {
+            enforce_raw(false, "ERROR: Expected ';' after use statement");
+            return node;
+        }
+        consume(ctx);
+        
+        node.node_type = str("Use");
+        node.data.use_node.module_name = module_name;
+
+        // TODO: imports list assignment should go here.
+        
+        node.data.use_node.import_all = false;
+        return node;
+    }
+    
+    // Handle CASE (within switch statements)
+    if token_type == TokenType.CASE {
+        consume(ctx); // Skip 'case'
+        skip_whitespace(ctx);
+        
+        // Collect case value until '{'
+        mut case_value: string = str("");
+        loop {
+            if ctx.pos >= len(ctx.tokens) {
+                break;
+            }
+            val t: Token = peek(ctx);
+            if t.token_type == TokenType.LBRACE {
+                break;
+            }
+            if t.token_type != TokenType.WHITESPACE and t.token_type != TokenType.NEWLINE {
+                case_value = concat(case_value, t.value);
+                case_value = concat(case_value, str(" "));
+            }
+            consume(ctx);
+        }
+        
+        if !expect(ctx, TokenType.LBRACE) {
+            enforce_raw(false, "ERROR: Expected '{' after case value");
+            return node;
+        }
+        consume(ctx);
+        
+        // Skip case body
+        mut depth: i32 = 1;
+        loop {
+            if ctx.pos >= len(ctx.tokens) {
+                break;
+            }
+            val t: Token = peek(ctx);
+            if t.token_type == TokenType.LBRACE {
+                depth = depth + 1;
+            } elif t.token_type == TokenType.RBRACE {
+                depth = depth - 1;
+                if depth == 0 {
+                    consume(ctx);
+                    break;
+                }
+            }
+            consume(ctx);
+        }
+        
+        node.node_type = str("Case");
+        node.data.case_node.value = case_value;
+        node.data.case_node.is_default = false;
+        return node;
+    }
+    
+    // Handle DEFAULT (within switch statements)
+    if token_type == TokenType.DEFAULT {
+        consume(ctx); // Skip 'default'
+        skip_whitespace(ctx);
+        
+        if !expect(ctx, TokenType.LBRACE) {
+            enforce_raw(false, "ERROR: Expected '{' after default");
+            return node;
+        }
+        consume(ctx);
+        
+        // Skip default body
+        mut depth: i32 = 1;
+        loop {
+            if ctx.pos >= len(ctx.tokens) {
+                break;
+            }
+            val t: Token = peek(ctx);
+            if t.token_type == TokenType.LBRACE {
+                depth = depth + 1;
+            } elif t.token_type == TokenType.RBRACE {
+                depth = depth - 1;
+                if depth == 0 {
+                    consume(ctx);
+                    break;
+                }
+            }
+            consume(ctx);
+        }
+        
+        node.node_type = str("Case");
+        node.data.case_node.value = str("");
+        node.data.case_node.is_default = true;
+        return node;
+    }
+    
     // TODO: Implement remaining token types:
-    // - USE (imports)
-    // - CASE, DEFAULT (handled within switch)
     // - Member access (DOT)
     // - Array access (LBRACKET)
     // - Increment/Decrement
     
     // For now, skip unknown tokens
-
     consume(ctx);
     return node;
 }
@@ -1723,4 +1964,46 @@ test {
     ctx23.is_axec = false;
     mut stmt23: ASTNode = parse_statement_helper(addr_of(ctx23));
     assert equals_c(stmt23.node_type, "If"), "Expected If node with elif and else";
+
+    println "\nTest 24: parse_statement_helper with use statement";
+    mut tokens24: list(Token) = lex(str("use std.io;"));
+    mut ctx24: ParserContext;
+    ctx24.tokens = addr_of(tokens24);
+    ctx24.pos = 0;
+    ctx24.is_axec = false;
+    mut stmt24: ASTNode = parse_statement_helper(addr_of(ctx24));
+    assert equals_c(stmt24.node_type, "Use"), "Expected Use node";
+    assert stmt24.data.use_node.import_all == true, "Expected import_all to be true";
+
+    println "\nTest 25: parse_statement_helper with use selective imports";
+    mut tokens25: list(Token) = lex(str("use std.maps (HashMap, StringHashMap);"));
+    mut ctx25: ParserContext;
+    ctx25.tokens = addr_of(tokens25);
+    ctx25.pos = 0;
+    ctx25.is_axec = false;
+    mut stmt25: ASTNode = parse_statement_helper(addr_of(ctx25));
+    assert equals_c(stmt25.node_type, "Use"), "Expected Use node with selective imports";
+    assert stmt25.data.use_node.import_all == false, "Expected import_all to be false";
+
+    println "\nTest 26: parse_statement_helper with case";
+    mut tokens26: list(Token) = lex(str("case 1 { println \"one\"; }"));
+    mut ctx26: ParserContext;
+    ctx26.tokens = addr_of(tokens26);
+    ctx26.pos = 0;
+    ctx26.is_axec = false;
+    mut stmt26: ASTNode = parse_statement_helper(addr_of(ctx26));
+    assert equals_c(stmt26.node_type, "Case"), "Expected Case node";
+    assert stmt26.data.case_node.is_default == false, "Expected non-default case";
+
+    println "\nTest 27: parse_statement_helper with default";
+    mut tokens27: list(Token) = lex(str("default { println \"other\"; }"));
+    mut ctx27: ParserContext;
+    ctx27.tokens = addr_of(tokens27);
+    ctx27.pos = 0;
+    ctx27.is_axec = false;
+    mut stmt27: ASTNode = parse_statement_helper(addr_of(ctx27));
+    assert equals_c(stmt27.node_type, "Case"), "Expected Case node for default";
+    assert stmt27.data.case_node.is_default == true, "Expected default case";
+
+    println "\nAll tests completed!";
 }
