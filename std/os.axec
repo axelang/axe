@@ -17,8 +17,8 @@ use std.arena (
 /// Execute a shell command. Returns exit status.
 pub def exec_from_string(cmd: string): i32 {
     mut val result: i32 = 0;
-    raw {
-        result = system(cmd.data);
+    unsafe {
+        result = C.system(cmd.data);
     }
     return result;
 }
@@ -27,8 +27,8 @@ pub def exec_from_string(cmd: string): i32 {
 /// Returns exit status.
 pub def exec(cmd: char*): i32 {
     mut val result: i32 = 0;
-    raw {
-        result = system(cmd);
+    unsafe {
+        result = C.system(cmd);
     }
     return result;
 }
