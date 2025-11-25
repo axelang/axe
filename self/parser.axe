@@ -30,7 +30,7 @@ def initialize_all() {
 }
 
 /// Parser context - holds state during parsing
-model ParserContext {
+pub model ParserContext {
     tokens: ref list(Token);
     pos: i32;
     is_axec: bool;
@@ -40,7 +40,7 @@ model ParserContext {
 }
 
 /// Scope tracking for variable declarations
-model Scope {
+pub model Scope {
     variables: StringStringMap;
     parent: ref Scope;
 }
