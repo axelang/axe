@@ -2358,4 +2358,35 @@ test {
     assert equals_c(stmt36.data.member_inc_dec.object_name, "obj"), "Expected object name 'obj'";
     assert equals_c(stmt36.data.member_inc_dec.member_name, "count"), "Expected member name 'count'";
     assert stmt36.data.member_inc_dec.is_increment == false, "Expected is_increment to be false";
+
+    println "\nTest 37: A complete program parse";
+    mut tokens37: list(Token) = lex(str(`use std.io;
+        
+        model Point {
+            x: i32;
+            y: i32;
+        }
+        
+        enum Color {
+            Red,
+            Green,
+            Blue
+        }
+        
+        pub def main() {
+            val p: Point = Point { x: 10, y: 20 };
+            println p.x;
+        }
+    `));
+    
+    mut ctx37: ParserContext;
+
+    ctx37.tokens = addr_of(tokens37);
+    ctx37.pos = 0;
+    ctx37.is_axec = false;
+
+    mut stmt37: ASTNode = parse_statement_helper(addr_of(ctx37));
+    
+    assert equals_c(stmt37.node_type, "Use"), "Expected Use node as first statement in program";
+    assert equals_c(stmt37.data.use_node.module_name, "std.io"), "Expected module name 'std.io'";
 }
