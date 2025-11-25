@@ -1198,6 +1198,76 @@ def parse_statement_helper(ctx: ref ParserContext): ASTNode {
             return node;
         }
         
+        if next_token.token_type == TokenType.DOT {
+            // Member access: object.member or object.member = value
+            consume(ctx); // Skip '.'
+            skip_whitespace(ctx);
+            
+            if !expect(ctx, TokenType.IDENTIFIER) {
+                enforce_raw(false, "ERROR: Expected member name after '.'");
+                return node;
+            }
+            val member_token: Token = consume(ctx);
+            val member_name: string = member_token.value;
+            skip_whitespace(ctx);
+            
+            if expect(ctx, TokenType.OPERATOR) {
+                val op_token: Token = peek(ctx);
+                if equals_c(op_token.value, "=") {
+                    consume(ctx); // Skip '='
+                    skip_whitespace(ctx);
+                    
+                    // Collect the value expression until semicolon
+                    mut value_expr: string = str("");
+                    loop {
+                        if ctx.pos >= len(ctx.tokens) {
+                            break;
+                        }
+                        val t: Token = peek(ctx);
+                        if t.token_type == TokenType.SEMICOLON {
+                            consume(ctx);
+                            break;
+                        }
+                        if t.token_type == TokenType.STR {
+                            value_expr = concat(value_expr, str("\""));
+                            value_expr = concat(value_expr, t.value);
+                            value_expr = concat(value_expr, str("\" "));
+                        } elif t.token_type == TokenType.WHITESPACE or t.token_type == TokenType.NEWLINE {
+                            // Skip whitespace in value
+                        } else {
+                            value_expr = concat(value_expr, t.value);
+                            value_expr = concat(value_expr, str(" "));
+                        }
+                        consume(ctx);
+                    }
+                    
+                    node.node_type = str("MemberAccess");
+                    node.data.member_access.object_name = ident_name;
+                    node.data.member_access.member_name = member_name;
+                    node.data.member_access.value = value_expr;
+                    return node;
+                }
+            }
+            
+            loop {
+                if ctx.pos >= len(ctx.tokens) {
+                    break;
+                }
+                val t: Token = peek(ctx);
+                if t.token_type == TokenType.SEMICOLON {
+                    consume(ctx);
+                    break;
+                }
+                consume(ctx);
+            }
+            
+            node.node_type = str("MemberAccess");
+            node.data.member_access.object_name = ident_name;
+            node.data.member_access.member_name = member_name;
+            node.data.member_access.value = str("");
+            return node;
+        }
+        
         if next_token.token_type == TokenType.OPERATOR and equals_c(next_token.value, "=") {
             consume(ctx); // Skip '='
             skip_whitespace(ctx);
@@ -2019,4 +2089,28 @@ test {
     mut stmt27: ASTNode = parse_statement_helper(addr_of(ctx27));
     assert equals_c(stmt27.node_type, "Case"), "Expected Case node for default";
     assert stmt27.data.case_node.is_default == true, "Expected default case";
+
+    println "\nTest 28: parse_statement_helper with member access assignment";
+    mut tokens28: list(Token) = lex(str("obj.field = 42;"));
+    mut ctx28: ParserContext;
+    ctx28.tokens = addr_of(tokens28);
+    ctx28.pos = 0;
+    ctx28.is_axec = false;
+    mut stmt28: ASTNode = parse_statement_helper(addr_of(ctx28));
+    assert equals_c(stmt28.node_type, "MemberAccess"), "Expected MemberAccess node";
+    assert equals_c(stmt28.data.member_access.object_name, "obj"), "Expected object name 'obj'";
+    assert equals_c(stmt28.data.member_access.member_name, "field"), "Expected member name 'field'";
+    assert str_contains_c(stmt28.data.member_access.value, "42"), "Expected value to contain '42'";
+
+    println "\nTest 29: parse_statement_helper with member access read";
+    mut tokens29: list(Token) = lex(str("obj.field;"));
+    mut ctx29: ParserContext;
+    ctx29.tokens = addr_of(tokens29);
+    ctx29.pos = 0;
+    ctx29.is_axec = false;
+    mut stmt29: ASTNode = parse_statement_helper(addr_of(ctx29));
+    assert equals_c(stmt29.node_type, "MemberAccess"), "Expected MemberAccess node";
+    assert equals_c(stmt29.data.member_access.object_name, "obj"), "Expected object name 'obj'";
+    assert equals_c(stmt29.data.member_access.member_name, "field"), "Expected member name 'field'";
+    assert equals_c(stmt29.data.member_access.value, ""), "Expected empty value for read access";
 }
