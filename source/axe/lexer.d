@@ -793,9 +793,12 @@ Token[] lex(string source)
             else
             {
                 import std.conv;
+                import std.algorithm : max, min;
 
+                size_t contextStart = pos >= 10 ? pos - 10 : 0;
+                size_t contextEnd = min(pos + 10, source.length);
                 enforce(false, "Unexpected character at position " ~ pos.to!string ~ ": " ~ source[pos .. pos + 1] ~
-                        "\nFull context: " ~ source[pos - 10 .. pos + 10]);
+                        "\nFull context: " ~ source[contextStart .. contextEnd]);
             }
         }
     }
