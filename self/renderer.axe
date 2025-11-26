@@ -754,6 +754,31 @@ pub def generate_c(ast: ref ASTNode): string {
         return result;
     }
     
+    if equals_c(node_type, "Print") {
+        val messages_ref: ref list(string) = ast.data.print.messages;
+        val flags_ref: ref list(bool) = ast.data.print.is_expressions;
+
+        if messages_ref == nil or flags_ref == nil {
+            return result;
+        }
+
+        val messages: list(string) = deref(messages_ref);
+        val flags: list(bool) = deref(flags_ref);
+
+        if len(messages) == 0 {
+            return result;
+        }
+
+        if len(messages) == 1 and len(flags) == 1 and !flags.data[0] {
+            result = concat(result, str("printf(\""));
+            result = concat(result, messages.data[0]);
+            result = concat(result, str("\");\n"));
+            return result;
+        }
+
+        return result;
+    }
+    
     if equals_c(node_type, "Loop") {
         result = concat(result, str("while (1) {\n"));
         

@@ -101,13 +101,13 @@ pub model ASTNode {
         };
         
         println: model {
-            messages: list(string);
-            is_expressions: list(bool);
+            messages: ref list(string);
+            is_expressions: ref list(bool);
         };
         
         print: model {
-            messages: list(string);
-            is_expressions: list(bool);
+            messages: ref list(string);
+            is_expressions: ref list(bool);
         };
         
         assignment: model {

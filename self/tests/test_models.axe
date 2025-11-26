@@ -7,4 +7,5 @@ def main() {
     mut md: SomeModel = new SomeModel();
     md.x = 1;
     md.y = 2;
+    put "ASDASD";
 }
