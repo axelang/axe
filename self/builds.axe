@@ -14,12 +14,12 @@ use parser (
     parse,
     initialize_all
 );
-
-use renderer;
 use imports (
     reset_processed_modules,
     process_imports
 );
+
+use renderer;
 use std.io;
 use std.os;
 
