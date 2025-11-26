@@ -448,7 +448,7 @@ bool handleMachineArgs(string[] args)
         else
         {
             setCurrentModuleName(moduleName);
-            
+
             string cCode = "";
             if (args.canFind("--release"))
             {
@@ -474,9 +474,31 @@ bool handleMachineArgs(string[] args)
             }
             else
             {
-                clangCmd = [
-                    "clang", replace(name, ext, ".c"), "-Wno-everything", "-O0"
-                ];
+                version (Windows)
+                {
+                    // -gcodeview       -> emit CodeView debug info
+                    // -fuse-ld=lld     -> required for PDB
+                    // -Xlinker /debug  -> linker should write a PDB
+                    clangCmd = [
+                        "clang",
+                        replace(name, ext, ".c"),
+                        "-Wno-everything",
+                        "-O0",
+                        "-gcodeview",
+                        "-fuse-ld=lld",
+                        "-Xlinker", "/debug",
+                    ];
+                }
+                else
+                {
+                    clangCmd = [
+                        "clang",
+                        replace(name, ext, ".c"),
+                        "-Wno-everything",
+                        "-O0"
+                    ];
+                }
+
                 version (Windows)
                 {
                     clangCmd ~= "-ldbghelp";
