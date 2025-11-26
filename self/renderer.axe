@@ -439,7 +439,105 @@ pub def generate_c(ast: ref ASTNode): string {
         if str_len(initializer) > 0 {
             mut trimmed: string = strip(initializer);
             if has_prefix(trimmed, str("new ")) {
-                result = concat(result, str(" = {0}"));
+                trimmed = substring_se(trimmed, 4, str_len(trimmed));
+                trimmed = strip(trimmed);
+
+                val first_paren: i32 = find_char_from(trimmed, '(', 0);
+                if first_paren < 0 {
+                    result = concat(result, str(" = {0}"));
+                } else {
+                    mut last_paren: i32 = -1;
+                    mut idx: i32 = str_len(trimmed) - 1;
+                    loop {
+                        if idx < 0 {
+                            break;
+                        }
+                        val ch_end: char = get_char(trimmed, idx);
+                        if ch_end == ')' {
+                            last_paren = idx;
+                            break;
+                        }
+                        idx = idx - 1;
+                    }
+
+                    if last_paren <= first_paren + 1 {
+                        // No arguments
+                        result = concat(result, str(" = {0}"));
+                    } else {
+                        val args_str: string = substring_se(trimmed, first_paren + 1, last_paren);
+                        mut init_code: string = str(" = {");
+
+                        mut current: string = str("");
+                        mut depth: i32 = 0;
+                        mut first_field: bool = true;
+                        mut i2: i32 = 0;
+
+                        loop {
+                            if i2 >= str_len(args_str) {
+                                break;
+                            }
+                            val ch: char = get_char(args_str, i2);
+                            if ch == '(' {
+                                depth = depth + 1;
+                                current = concat_chr(current, ch);
+                            } elif ch == ')' {
+                                if depth > 0 {
+                                    depth = depth - 1;
+                                }
+                                current = concat_chr(current, ch);
+                            } elif ch == ',' and depth == 0 {
+                                mut part: string = strip(current);
+                                if str_len(part) > 0 {
+                                    val colon_pos: i32 = find_char_from(part, ':', 0);
+                                    if colon_pos >= 0 {
+                                        val field_name: string = strip(substring_se(part, 0, colon_pos));
+                                        val value_expr: string = strip(substr(part, colon_pos + 1, str_len(part) - colon_pos - 1));
+                                        if str_len(field_name) > 0 and str_len(value_expr) > 0 {
+                                            if !first_field {
+                                                init_code = concat(init_code, str(", "));
+                                            }
+                                            init_code = concat(init_code, str("."));
+                                            init_code = concat(init_code, field_name);
+                                            init_code = concat(init_code, str(" = "));
+                                            init_code = concat(init_code, value_expr);
+                                            first_field = false;
+                                        }
+                                    }
+                                }
+                                current = str("");
+                            } else {
+                                current = concat_chr(current, ch);
+                            }
+                            i2 = i2 + 1;
+                        }
+
+                        mut part_last: string = strip(current);
+                        if str_len(part_last) > 0 {
+                            val colon_pos_last: i32 = find_char_from(part_last, ':', 0);
+                            if colon_pos_last >= 0 {
+                                val field_name_last: string = strip(substring_se(part_last, 0, colon_pos_last));
+                                val value_expr_last: string = strip(substr(part_last, colon_pos_last + 1, str_len(part_last) - colon_pos_last - 1));
+                                if str_len(field_name_last) > 0 and str_len(value_expr_last) > 0 {
+                                    if !first_field {
+                                        init_code = concat(init_code, str(", "));
+                                    }
+                                    init_code = concat(init_code, str("."));
+                                    init_code = concat(init_code, field_name_last);
+                                    init_code = concat(init_code, str(" = "));
+                                    init_code = concat(init_code, value_expr_last);
+                                    first_field = false;
+                                }
+                            }
+                        }
+
+                        if first_field {
+                            result = concat(result, str(" = {0}"));
+                        } else {
+                            init_code = concat(init_code, str("}"));
+                            result = concat(result, init_code);
+                        }
+                    }
+                }
             } else {
                 result = concat(result, str(" = "));
                 result = concat(result, trimmed);
