@@ -199,41 +199,17 @@ def format_model_field_type(field_type: string): string {
 
 /// Process parameter type (handle ref, mut, pointers, etc.)
 def process_parameter_type(param_type: string): string {
-    mut result: string = param_type;
-    
-    if has_prefix(result, str("mut ")) {
-        result = strip(substr(result, 4, str_len(result) - 4));
-    }
-    
-    if has_prefix(result, str("ref ")) {
-        val base_type: string = strip(substr(result, 4, str_len(result) - 4));
-        val mapped_base: string = map_type(base_type);
-        return concat(mapped_base, str("*"));
-    }
-    
-    if has_suffix(result, str("*")) {
-        val base_type: string = strip(substring_se(result, 0, str_len(result) - 1));
-        val mapped_base: string = map_type(base_type);
-        return concat(mapped_base, str("*"));
-    }
-    
-    if has_prefix(result, str("list(")) and has_suffix(result, str(")")) {
-        val element_type_start: i32 = 5;
-        val element_type_end: i32 = str_len(result) - 1;
-        val element_type: string = substring_se(result, element_type_start, element_type_end);
-        val mapped_element: string = map_type(element_type);
-        
-        mut list_struct: string = str("__list_");
-        list_struct = concat(list_struct, mapped_element);
-        list_struct = concat(list_struct, str("_t"));
-        return list_struct;
-    }
-    
-    if StringStringMap.contains(addr_of(g_model_names), result) {
-        return StringStringMap.get(addr_of(g_model_names), result);
-    }
-    
-    return map_type(result);
+    // Delegate to the comprehensive Axe->C mapper so that 'mut', repeated
+    // 'ref' prefixes, list[999] sugar, and pointer suffixes are handled
+    // consistently. Examples:
+    //
+    //   'char'          -> 'char'
+    //   'ref char'      -> 'char*'
+    //   'ref ref char'  -> 'char**'
+    //   'ref MyModel*'  -> 'struct ...* *'
+
+    mut result: string = strip(param_type);
+    return map_axe_type_to_c(result);
 }
 
 /// Process an expression string for C interop and pointer sugar

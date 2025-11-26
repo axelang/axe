@@ -1113,7 +1113,17 @@ def parse_function(ctx: ref ParserContext): ASTNode {
             continue;
         }
 
-        current_param = concat(current_param, t.value);
+        // Preserve spacing for ref/mut prefixes so types like 'ref char'
+        // and 'ref ref char' are not squashed into 'refchar'. The renderer
+        // relies on a 'ref ' prefix (with space) to map these to pointers.
+        
+        if t.token_type == TokenType.REF {
+            current_param = concat(current_param, str("ref "));
+        } elif t.token_type == TokenType.MUT {
+            current_param = concat(current_param, str("mut "));
+        } else {
+            current_param = concat(current_param, t.value);
+        }
         consume(ctx);
     }
 
