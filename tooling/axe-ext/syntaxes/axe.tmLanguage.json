@@ -51,6 +51,7 @@
           "name": "string.quoted.single.axe",
           "begin": "'",
           "end": "'",
+          "contentName": "meta.string.axe",
           "patterns": [
             {
               "name": "constant.character.escape.axe",
@@ -62,6 +63,7 @@
           "name": "string.quoted.double.axe",
           "begin": "\"",
           "end": "\"",
+          "contentName": "meta.string.axe",
           "patterns": [
             {
               "name": "constant.character.escape.axe",
@@ -73,6 +75,7 @@
           "name": "string.quoted.multiline.axe",
           "begin": "`",
           "end": "`",
+          "contentName": "meta.string.axe",
           "patterns": [
             {
               "name": "constant.character.escape.axe",
