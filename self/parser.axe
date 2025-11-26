@@ -3105,19 +3105,6 @@ test {
 // - Add case in parse_top_level after DEF handling
 // - Create FunctionNode with name "main" and parse body until RBRACE
 //
-// For OVERLOAD token:
-// - Very complex feature - may want to defer or simplify
-// - Requires parsing type => function mappings in LBRACE block
-// - Need OverloadNode in structs.axe with: function_name, params[], type_mappings[]
-// - Consider if this feature is actually used in the codebase
-//
-// For PRINTLN/PRINT:
-// - Add dedicated cases in parse_statement_helper
-// - Parse comma-separated arguments (strings and expressions)
-// - Check for INTERPOLATED_STR token type
-// - Validate std.string import if interpolation is used
-// - Create PrintlnNode/PrintNode with messages[] and isExpressions[] flags
-//
 // For Enhanced EXTERN:
 // - Parse parameter list properly: (name: type, name: type)
 // - Parse optional return type after COLON
@@ -3125,4 +3112,3 @@ test {
 // - May require changes to structs.axe extern_node definition
 //
 // =============================================================================
-
