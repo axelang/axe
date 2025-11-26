@@ -1,0 +1,14 @@
+/// Demonstrating function hoisting in the self hosted compiler.
+def main() {
+    some_func();
+}
+
+def some_func() {
+    some_other_func();
+}
+
+def some_other_func() {
+    unsafe {
+        C.printf("Hello, world.");
+    }
+}
