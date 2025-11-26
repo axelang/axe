@@ -2205,14 +2205,7 @@ string generateC(ASTNode ast)
         // This supports lists with .len field and .data array
         string indexVar = "_i_" ~ forInNode.varName;
         string processedArrayName = processExpression(forInNode.arrayName);
-
-        import std.regex : regex, replaceAll;
-
-        foreach (funcName, prefixedName; g_functionPrefixes)
-        {
-            processedArrayName = processedArrayName.replaceAll(
-                regex(r"\b" ~ funcName ~ r"\("), prefixedName ~ "(");
-        }
+        processedArrayName = applyFunctionPrefixes(processedArrayName);
 
         bool isPointer = (forInNode.arrayName in g_isPointerVar &&
                 g_isPointerVar[forInNode.arrayName] == "true");
@@ -4459,6 +4452,7 @@ string processExpression(string expr, string context = "")
     }
 
     expr = exprResult;
+    expr = applyFunctionPrefixes(expr);
 
     if (expr.canFind("(") && expr.endsWith(")"))
     {
@@ -4642,6 +4636,17 @@ string processExpression(string expr, string context = "")
     }
 
     debugWriteln("DEBUG processExpression FINAL: returning '", expr, "'");
+    return expr;
+}
+
+string applyFunctionPrefixes(string expr)
+{
+    import std.regex : regex, replaceAll;
+
+    foreach (funcName, prefixedName; g_functionPrefixes)
+    {
+        expr = expr.replaceAll(regex(r"\b" ~ funcName ~ r"\s*\("), prefixedName ~ "(");
+    }
     return expr;
 }
 
