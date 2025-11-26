@@ -505,13 +505,31 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
                 enforce_raw(false, "ERROR: Expected target function name in overload mapping");
                 return;
             }
-            val target_token: Token = consume(ctx);
-            append(target_funcs, target_token.value);
+            val first_target_token: Token = consume(ctx);
+            mut target_name: string = first_target_token.value;
             skip_whitespace(ctx);
+            loop {
+                if ctx.pos >= len(ctx.tokens) {
+                    break;
+                }
+                if ctx.tokens.data[ctx.pos].token_type != TokenType.IDENTIFIER {
+                    break;
+                }
+                val extra_tok: Token = consume(ctx);
+                // Assume pieces belong to the same identifier and join with '_'
+                target_name = concat(target_name, str("_"));
+                target_name = concat(target_name, extra_tok.value);
+                skip_whitespace(ctx);
+            }
+            append(target_funcs, target_name);
             
             if !expect(ctx, TokenType.SEMICOLON) {
                 mut err: string = str("ERROR: Expected ';' after overload mapping, instead got ");
-                err = concat(err, ctx.tokens.data[ctx.pos].value);
+                if ctx.pos < len(ctx.tokens) {
+                    err = concat(err, ctx.tokens.data[ctx.pos].value);
+                } else {
+                    err = concat(err, str("<eof>"));
+                }
                 enforce_raw(false, err.data);
                 return;
             }
@@ -895,7 +913,14 @@ def parse_function(ctx: ref ParserContext): ASTNode {
     
     skip_whitespace(ctx);
     if !expect(ctx, TokenType.LPAREN) {
-        enforce_raw(false, "ERROR: Expected '(' after function name");
+        mut err: string = str("ERROR: Expected '(' after function name");
+        if ctx.pos < len(ctx.tokens) {
+            err = concat(err, str(" instead got "));
+            err = concat(err, ctx.tokens.data[ctx.pos].value);
+        } else {
+            err = concat(err, str(" instead got <eof>"));
+        }
+        enforce_raw(false, err.data);
         return func;
     }
     consume(ctx);
