@@ -1,0 +1,5 @@
+use mods.lite_io;
+
+def main() {
+    print "Hi, world.";
+}

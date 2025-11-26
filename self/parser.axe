@@ -916,7 +916,8 @@ def parse_type(ctx: ref ParserContext): string {
         
         loop {
             val tok: Token = peek(ctx);
-            if tok.token_type == TokenType.OPERATOR and equals_c(tok.value, "*") {
+            if (tok.token_type == TokenType.OPERATOR and equals_c(tok.value, "*")) or
+               (tok.token_type == TokenType.STAR) {
                 consume(ctx);
                 type_name = concat(type_name, str("*"));
             } else {
@@ -2781,6 +2782,14 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                 }
                 val ident: Token = consume(ctx);
                 module_name = concat(module_name, ident.value);
+            } elif expect(ctx, TokenType.IDENTIFIER) {
+                val ident2: Token = peek(ctx);
+                if str_len(ident2.value) > 0 and get_char(ident2.value, 0) == '_' {
+                    consume(ctx);
+                    module_name = concat(module_name, ident2.value);
+                } else {
+                    break;
+                }
             } else {
                 break;
             }

@@ -1,0 +1,5 @@
+def print(str: ref char) {
+    unsafe {
+        C.printf(str);
+    }
+}
