@@ -601,8 +601,7 @@ pub def generate_c(ast: ref ASTNode): string {
     if equals_c(node_type, "FunctionCall") {
         val func_name: string = ast.data.func_call.function_name;
         
-        val processed_name: string = process_expression(func_name);
-        result = concat(result, processed_name);
+        result = concat(result, func_name);
         result = concat(result, str("("));
         
         val args: ref list(string) = ast.data.func_call.args;
@@ -672,15 +671,17 @@ pub def generate_c(ast: ref ASTNode): string {
     }
     
     if equals_c(node_type, "Unsafe") {
-        val body: list(ASTNode) = deref(ast.data.unsafe_node.body);
-        mut i_unsafe: i32 = 0;
-        loop {
-            if i_unsafe >= len(body) {
-                break;
+        val body: ref list(ASTNode) = ast.data.unsafe_node.body;
+        if body != nil {
+            mut i_unsafe: i32 = 0;
+            loop {
+                if i_unsafe >= len(deref(body)) {
+                    break;
+                }
+                val child_code: string = generate_c(addr_of(body.data[i_unsafe]));
+                result = concat(result, child_code);
+                i_unsafe = i_unsafe + 1;
             }
-            val child_code: string = generate_c(addr_of(body.data[i_unsafe]));
-            result = concat(result, child_code);
-            i_unsafe = i_unsafe + 1;
         }
         return result;
     }

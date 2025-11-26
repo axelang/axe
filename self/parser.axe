@@ -1802,18 +1802,25 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             
             node.node_type = str("FunctionCall");
             node.data.func_call.function_name = ident_name;
-            // Store full argument list as a single string for now
+
             mut args_list: list(string);
             val trimmed_args: string = strip(args_str);
             if str_len(trimmed_args) > 0 {
                 append(args_list, trimmed_args);
             }
-            node.data.func_call.args = addr_of(args_list);
+
+            unsafe {
+                val list_size: usize = C.sizeof(list(string));
+                mut heap_list: ref list(string) = cast[ref list(string)](C.malloc(list_size));
+                if heap_list != nil {
+                    C.memcpy(heap_list, addr_of(args_list), list_size);
+                    node.data.func_call.args = heap_list;
+                }
+            }
             return node;
         }
         
         if next_token.token_type == TokenType.LBRACKET {
-            // Array access: array[index] or array[index] = value or array[i][j]
             consume(ctx); // Skip '['
             skip_whitespace(ctx);
             
@@ -1997,8 +2004,13 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
 
                 node.node_type = str("FunctionCall");
                 mut full_name: string = ident_name;
-                full_name = concat(full_name, str("."));
-                full_name = concat(full_name, member_name);
+
+                if equals_c(ident_name, "C") {
+                    full_name = member_name;
+                } else {
+                    full_name = concat(full_name, str("."));
+                    full_name = concat(full_name, member_name);
+                }
                 node.data.func_call.function_name = full_name;
 
                 mut args_list2: list(string);
@@ -2006,7 +2018,15 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                 if str_len(trimmed2) > 0 {
                     append(args_list2, trimmed2);
                 }
-                node.data.func_call.args = addr_of(args_list2);
+
+                unsafe {
+                    val list_size2: usize = C.sizeof(list(string));
+                    mut heap_list2: ref list(string) = cast[ref list(string)](C.malloc(list_size2));
+                    if heap_list2 != nil {
+                        C.memcpy(heap_list2, addr_of(args_list2), list_size2);
+                        node.data.func_call.args = heap_list2;
+                    }
+                }
                 return node;
             }
             
@@ -2323,7 +2343,15 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
         
         node.node_type = str("Unsafe");
-        node.data.unsafe_node.body = addr_of(body);
+
+        unsafe {
+            val list_size_ast: usize = C.sizeof(list(ASTNode));
+            mut heap_body: ref list(ASTNode) = cast[ref list(ASTNode)](C.malloc(list_size_ast));
+            if heap_body != nil {
+                C.memcpy(heap_body, addr_of(body), list_size_ast);
+                node.data.unsafe_node.body = heap_body;
+            }
+        }
         return node;
     }
     
