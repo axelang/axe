@@ -63,7 +63,7 @@ def compile_file(filename: string, is_axec: bool): bool {
     write_file(c_filename, c_code);
     println concat(str("Generated: "), c_filename);
     
-    println str("9 | Last compilation pass");
+    println "\n9 | Last compilation pass";
     val exe_filename: string = replace_extension(filename, str(".exe"));
     
     mut compile_cmd: string = str("clang ");
