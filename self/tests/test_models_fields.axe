@@ -1,0 +1,8 @@
+model SomeModel {
+    x: i32;
+    y: i32;
+}
+
+def main() {
+    val md: SomeModel = new SomeModel(x: 20, y: 40);
+}
