@@ -3576,7 +3576,7 @@ test {
 //
 // MEDIUM PRIORITY (Statement Enhancements):
 // -----------------------------------------
-// 4. Enhanced EXTERN parameter parsing
+// 4. Enhanced EXTERN parameter parsing + OPAQUE
 //    - parser.d lines 1366-1459: Full parameter and return type parsing
 //    - parser.axe lines 1863-1899: Simplified version that skips to semicolon
 //    - parser.d stores full parameter list and return type in ExternNode
@@ -3600,11 +3600,6 @@ test {
 //    - Both implementations have TokenType.MACRO handling
 //    - parser.d has macro invocation in IDENTIFIER case (lines 1563+)
 //    - Need to verify if parser.axe macro system is complete
-//
-// 9. UNSAFE block body parsing
-//    - parser.d parses unsafe block body recursively (lines 1480-1523)
-//    - parser.axe handles unsafe in parse_statement_helper (lines 1744+)
-//    - Need to verify if approaches are equivalent
 //
 // COMPLETED:
 // ---------
