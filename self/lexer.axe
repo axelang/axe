@@ -518,7 +518,7 @@ pub def lex(source: string): list(Token) {
             } else {
                 mut start: i32 = pos;
                 loop {
-                    if pos >= source_len or !is_alphanum(get_char(source, pos)) {
+                    if pos >= source_len or !is_ident_char(get_char(source, pos)) {
                         break;
                     }
                     pos = pos + 1;
