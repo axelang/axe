@@ -9,7 +9,7 @@ use builds;
 
 def main() {
     mut arena: Arena = Arena.create(1024);
-    val args: ref StringList = get_cmdline_args(ref_of(arena));
+    val args: ref StringList = get_cmdline_args(addr_of(arena));
     
     if args.len < 2 {
         println("Usage: axe <input.axe|axec> [options]");
