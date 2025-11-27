@@ -1120,18 +1120,18 @@ pub def generate_c(ast: ref ASTNode): string {
         val union_parents: ref list(string) = ast.data.model_node.union_member_parents;
         val union_names: ref list(string) = ast.data.model_node.union_member_names;
         val union_types: ref list(string) = ast.data.model_node.union_member_types;
-        
+
         if StringBoolMap.contains(addr_of(g_generated_typedefs), model_name) {
             return str("");
         }
-        
+
         mut arena: Arena = Arena.create(1024);
         StringBoolMap.set(addr_of(g_generated_typedefs), addr_of(arena), model_name, true);
-        
+
         result = concat(result, str("typedef struct "));
         result = concat(result, model_name);
         result = concat(result, str(" {\n"));
-        
+
         if field_names != nil and field_types != nil {
             mut field_idx: i32 = 0;
             loop {
@@ -1160,153 +1160,96 @@ pub def generate_c(ast: ref ASTNode): string {
                             break;
                         }
 
-                        val field_name: string = field_names.data[field_idx];
-                        val field_type: string = field_types.data[field_idx];
+                        val parent_name: string = up.data[uidx];
+                        if compare(parent_name, field_name) == 0 {
+                            val member_name: string = un.data[uidx];
+                            val member_type_raw: string = ut.data[uidx];
 
-                        mut field_key: string = model_name;
-                        field_key = concat(field_key, str("."));
-                        field_key = concat(field_key, field_name);
-                        StringStringMap.set(addr_of(g_field_types), addr_of(arena), field_key, field_type);
+                            if str_len(member_type_raw) == 5 and equals_c(member_type_raw, "model") {
+                                result = concat(result, str("        struct {\n"));
 
-                        if str_len(field_type) == 5 and equals_c(field_type, "union") and union_parents != nil and union_names != nil and union_types != nil {
-                            result = concat(result, str("    union {\n"));
+                                mut nidx: i32 = 0;
+                                loop {
+                                    if nidx >= len(up) or nidx >= len(un) or nidx >= len(ut) {
+                                        break;
+                                    }
 
-                            val up: list(string) = deref(union_parents);
-                            val un: list(string) = deref(union_names);
-                            val ut: list(string) = deref(union_types);
+                                    val nested_parent: string = up.data[nidx];
+                                    if compare(nested_parent, member_name) == 0 {
+                                        val nested_name: string = un.data[nidx];
+                                        val nested_type_raw: string = ut.data[nidx];
 
-                            mut uidx: i32 = 0;
-                            loop {
-                                if uidx >= len(up) or uidx >= len(un) or uidx >= len(ut) {
-                                    break;
+                                        mut mapped_nested_type: string = map_axe_type_to_c(nested_type_raw);
+                                        mut nested_array_part: string = str("");
+
+                                        val n_bracket_pos: i32 = find_char_from(mapped_nested_type, '[', 0);
+                                        if n_bracket_pos >= 0 {
+                                            nested_array_part = substring_se(mapped_nested_type, n_bracket_pos, str_len(mapped_nested_type));
+                                            mapped_nested_type = substring_se(mapped_nested_type, 0, n_bracket_pos);
+                                        }
+
+                                        if has_prefix(mapped_nested_type, str("ref ")) {
+                                            mapped_nested_type = concat(strip(substring_se(mapped_nested_type, 4, str_len(mapped_nested_type))), str("*"));
+                                        }
+
+                                        val c_nested_model_name: string = canonical_model_c_name(mapped_nested_type);
+                                        if str_len(c_nested_model_name) > 0 {
+                                            if StringBoolMap.contains(addr_of(g_enum_names), c_nested_model_name) {
+                                                mapped_nested_type = c_nested_model_name;
+                                            } else {
+                                                mapped_nested_type = concat(str("struct "), c_nested_model_name);
+                                            }
+                                        }
+
+                                        result = concat(result, str("            "));
+                                        result = concat(result, mapped_nested_type);
+                                        result = concat(result, str(" "));
+                                        result = concat(result, nested_name);
+                                        result = concat(result, nested_array_part);
+                                        result = concat(result, str(";\n"));
+                                    }
+
+                                    nidx = nidx + 1;
                                 }
 
-                                val parent_name: string = up.data[uidx];
-                                if compare(parent_name, field_name) == 0 {
-                                    val member_name: string = un.data[uidx];
-                                    val member_type_raw: string = ut.data[uidx];
+                                result = concat(result, str("        } "));
+                                result = concat(result, member_name);
+                                result = concat(result, str(";\n"));
+                            } else {
+                                mut mapped_member_type: string = map_axe_type_to_c(member_type_raw);
+                                mut member_array_part: string = str("");
 
-                                    if str_len(member_type_raw) == 5 and equals_c(member_type_raw, "model") {
-                                        result = concat(result, str("        struct {\n"));
+                                val m_bracket_pos: i32 = find_char_from(mapped_member_type, '[', 0);
+                                if m_bracket_pos >= 0 {
+                                    member_array_part = substring_se(mapped_member_type, m_bracket_pos, str_len(mapped_member_type));
+                                    mapped_member_type = substring_se(mapped_member_type, 0, m_bracket_pos);
+                                }
 
-                                        mut nidx: i32 = 0;
-                                        loop {
-                                            if nidx >= len(up) or nidx >= len(un) or nidx >= len(ut) {
-                                                break;
-                                            }
+                                if has_prefix(mapped_member_type, str("ref ")) {
+                                    mapped_member_type = concat(strip(substring_se(mapped_member_type, 4, str_len(mapped_member_type))), str("*"));
+                                }
 
-                                            val nested_parent: string = up.data[nidx];
-                                            if compare(nested_parent, member_name) == 0 {
-                                                val nested_name: string = un.data[nidx];
-                                                val nested_type_raw: string = ut.data[nidx];
-
-                                                mut mapped_nested_type: string = map_axe_type_to_c(nested_type_raw);
-                                                mut nested_array_part: string = str("");
-
-                                                val n_bracket_pos: i32 = find_char_from(mapped_nested_type, '[', 0);
-                                                if n_bracket_pos >= 0 {
-                                                    nested_array_part = substring_se(mapped_nested_type, n_bracket_pos, str_len(mapped_nested_type));
-                                                    mapped_nested_type = substring_se(mapped_nested_type, 0, n_bracket_pos);
-                                                }
-
-                                                if has_prefix(mapped_nested_type, str("ref ")) {
-                                                    mapped_nested_type = concat(strip(substring_se(mapped_nested_type, 4, str_len(mapped_nested_type))), str("*"));
-                                                }
-
-                                                val c_nested_model_name: string = canonical_model_c_name(mapped_nested_type);
-                                                if str_len(c_nested_model_name) > 0 {
-                                                    if StringBoolMap.contains(addr_of(g_enum_names), c_nested_model_name) {
-                                                        mapped_nested_type = c_nested_model_name;
-                                                    } else {
-                                                        mapped_nested_type = concat(str("struct "), c_nested_model_name);
-                                                    }
-                                                }
-
-                                                result = concat(result, str("            "));
-                                                result = concat(result, mapped_nested_type);
-                                                result = concat(result, str(" "));
-                                                result = concat(result, nested_name);
-                                                result = concat(result, nested_array_part);
-                                                result = concat(result, str(";\n"));
-                                            }
-
-                                            nidx = nidx + 1;
-                                        }
-
-                                        result = concat(result, str("        } "));
-                                        result = concat(result, member_name);
-                                        result = concat(result, str(";\n"));
+                                val c_member_model_name: string = canonical_model_c_name(mapped_member_type);
+                                if str_len(c_member_model_name) > 0 {
+                                    if StringBoolMap.contains(addr_of(g_enum_names), c_member_model_name) {
+                                        mapped_member_type = c_member_model_name;
                                     } else {
-                                        mut mapped_member_type: string = map_axe_type_to_c(member_type_raw);
-                                        mut member_array_part: string = str("");
-
-                                        val m_bracket_pos: i32 = find_char_from(mapped_member_type, '[', 0);
-                                        if m_bracket_pos >= 0 {
-                                            member_array_part = substring_se(mapped_member_type, m_bracket_pos, str_len(mapped_member_type));
-                                            mapped_member_type = substring_se(mapped_member_type, 0, m_bracket_pos);
-                                        }
-
-                                        if has_prefix(mapped_member_type, str("ref ")) {
-                                            mapped_member_type = concat(strip(substring_se(mapped_member_type, 4, str_len(mapped_member_type))), str("*"));
-                                        }
-
-                                        val c_member_model_name: string = canonical_model_c_name(mapped_member_type);
-                                        if str_len(c_member_model_name) > 0 {
-                                            if StringBoolMap.contains(addr_of(g_enum_names), c_member_model_name) {
-                                                mapped_member_type = c_member_model_name;
-                                            } else {
-                                                mapped_member_type = concat(str("struct "), c_member_model_name);
-                                            }
-                                        }
-
-                                        result = concat(result, str("        "));
-                                        result = concat(result, mapped_member_type);
-                                        result = concat(result, str(" "));
-                                        result = concat(result, member_name);
-                                        result = concat(result, member_array_part);
-                                        result = concat(result, str(";\n"));
+                                        mapped_member_type = concat(str("struct "), c_member_model_name);
                                     }
                                 }
 
-                                uidx = uidx + 1;
+                                result = concat(result, str("        "));
+                                result = concat(result, mapped_member_type);
+                                result = concat(result, str(" "));
+                                result = concat(result, member_name);
+                                result = concat(result, member_array_part);
+                                result = concat(result, str(";\n"));
                             }
-
-                            result = concat(result, str("    } "));
-                            result = concat(result, field_name);
-                            result = concat(result, str(";\n"));
-                        } else {
-                            mut mapped_type: string = map_axe_type_to_c(field_type);
-                            mut array_part: string = str("");
-
-                            val bracket_pos: i32 = find_char_from(mapped_type, '[', 0);
-                            if bracket_pos >= 0 {
-                                array_part = substring_se(mapped_type, bracket_pos, str_len(mapped_type));
-                                mapped_type = substring_se(mapped_type, 0, bracket_pos);
-                            }
-
-                            if has_prefix(mapped_type, str("ref ")) {
-                                mapped_type = concat(strip(substring_se(mapped_type, 4, str_len(mapped_type))), str("*"));
-                            }
-
-                            val c_model_name: string = canonical_model_c_name(mapped_type);
-                            if str_len(c_model_name) > 0 {
-                                if StringBoolMap.contains(addr_of(g_enum_names), c_model_name) {
-                                    mapped_type = c_model_name;
-                                } else {
-                                    mapped_type = concat(str("struct "), c_model_name);
-                                }
-                            }
-
-                            result = concat(result, str("    "));
-                            result = concat(result, mapped_type);
-                            result = concat(result, str(" "));
-                            result = concat(result, field_name);
-                            result = concat(result, array_part);
-                            result = concat(result, str(";\n"));
                         }
 
-                        field_idx = field_idx + 1;
+                        uidx = uidx + 1;
                     }
+
                     result = concat(result, str("    } "));
                     result = concat(result, field_name);
                     result = concat(result, str(";\n"));
