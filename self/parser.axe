@@ -1711,12 +1711,14 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         val var_name: Token = consume(ctx);
         skip_whitespace(ctx);
 
-        mut type_name: string = str("i32");
+        mut type_name: string = str("");
         mut initializer: string = str("");
+        mut has_explicit_type: bool = false;
 
         if expect(ctx, TokenType.COLON) {
             consume(ctx);
             type_name = parse_type(ctx);
+            has_explicit_type = true;
             skip_whitespace(ctx);
         }
 
@@ -1725,6 +1727,9 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             if equals_c(op_token.value, "=") {
                 consume(ctx);
                 skip_whitespace(ctx);
+
+                mut rhs_has_function_call: bool = false;
+                mut last_non_ws_token_type: i32 = -1;
 
                 loop {
                     if ctx.pos >= len(ctx.tokens) {
@@ -1735,6 +1740,19 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                         consume(ctx);
                         break;
                     }
+
+                    if t.token_type != TokenType.WHITESPACE and t.token_type != TokenType.NEWLINE {
+                        if t.token_type == TokenType.IDENTIFIER {
+                            if ctx.pos + 1 < len(ctx.tokens) {
+                                val next_t: Token = ctx.tokens.data[ctx.pos + 1];
+                                if next_t.token_type == TokenType.LPAREN and last_non_ws_token_type != TokenType.NEW {
+                                    rhs_has_function_call = true;
+                                }
+                            }
+                        }
+                        last_non_ws_token_type = t.token_type;
+                    }
+
                     if t.token_type == TokenType.STR {
                         initializer = concat(initializer, str("\""));
                         initializer = concat(initializer, t.value);
@@ -1744,12 +1762,47 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                         initializer = concat(initializer, t.value);
                         initializer = concat(initializer, str("' "));
                     } elif t.token_type == TokenType.WHITESPACE or t.token_type == TokenType.NEWLINE {
-                        // skip
+                        // skip it
                     } else {
                         initializer = concat(initializer, t.value);
                         initializer = concat(initializer, str(" "));
                     }
                     consume(ctx);
+                }
+
+                if !has_explicit_type {
+                    mut trimmed_init_val: string = strip(initializer);
+                    if has_prefix(trimmed_init_val, str("new ")) {
+                        trimmed_init_val = substring_se(trimmed_init_val, 4, str_len(trimmed_init_val));
+                        trimmed_init_val = strip(trimmed_init_val);
+
+                        mut end_pos_val: i32 = -1;
+                        mut i_val: i32 = 0;
+                        loop {
+                            if i_val >= str_len(trimmed_init_val) {
+                                break;
+                            }
+                            val ch_val: char = get_char(trimmed_init_val, i_val);
+                            if ch_val == '(' or ch_val == ' ' or ch_val == '\t' {
+                                end_pos_val = i_val;
+                                break;
+                            }
+                            i_val = i_val + 1;
+                        }
+                        if end_pos_val < 0 {
+                            end_pos_val = str_len(trimmed_init_val);
+                        }
+                        val inferred_name_val: string = strip(substring_se(trimmed_init_val, 0, end_pos_val));
+                        if str_len(inferred_name_val) > 0 {
+                            type_name = inferred_name_val;
+                        }
+                    } else {
+                        mut err: string = str("ERROR: Type annotation required when initializing '");
+                        err = concat(err, var_name.value);
+                        err = concat(err, str("' without 'new Model(...)'"));
+                        enforce_raw(false, err.data);
+                        return node;
+                    }
                 }
             } else {
                 loop {
@@ -1806,12 +1859,14 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         val var_name: Token = consume(ctx);
         skip_whitespace(ctx);
 
-        mut type_name: string = str("i32");
+        mut type_name: string = str("");
         mut initializer: string = str("");
+        mut has_explicit_type_mut: bool = false;
 
         if expect(ctx, TokenType.COLON) {
             consume(ctx);
             type_name = parse_type(ctx);
+            has_explicit_type_mut = true;
             skip_whitespace(ctx);
         }
 
@@ -1820,6 +1875,9 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             if equals_c(op_token.value, "=") {
                 consume(ctx);
                 skip_whitespace(ctx);
+
+                mut rhs_has_function_call_mut: bool = false;
+                mut last_non_ws_token_type_mut: i32 = -1;
 
                 loop {
                     if ctx.pos >= len(ctx.tokens) {
@@ -1830,6 +1888,19 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                         consume(ctx);
                         break;
                     }
+
+                    if t.token_type != TokenType.WHITESPACE and t.token_type != TokenType.NEWLINE {
+                        if t.token_type == TokenType.IDENTIFIER {
+                            if ctx.pos + 1 < len(ctx.tokens) {
+                                val next_t: Token = ctx.tokens.data[ctx.pos + 1];
+                                if next_t.token_type == TokenType.LPAREN and last_non_ws_token_type_mut != TokenType.NEW {
+                                    rhs_has_function_call_mut = true;
+                                }
+                            }
+                        }
+                        last_non_ws_token_type_mut = t.token_type;
+                    }
+
                     if t.token_type == TokenType.STR {
                         initializer = concat(initializer, str("\""));
                         initializer = concat(initializer, t.value);
@@ -1839,12 +1910,47 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
                         initializer = concat(initializer, t.value);
                         initializer = concat(initializer, str("' "));
                     } elif t.token_type == TokenType.WHITESPACE or t.token_type == TokenType.NEWLINE {
-                        // skip
+                        // skip adding explicit whitespace
                     } else {
                         initializer = concat(initializer, t.value);
                         initializer = concat(initializer, str(" "));
                     }
                     consume(ctx);
+                }
+
+                if !has_explicit_type_mut {
+                    mut trimmed_init_mut: string = strip(initializer);
+                    if has_prefix(trimmed_init_mut, str("new ")) {
+                        trimmed_init_mut = substring_se(trimmed_init_mut, 4, str_len(trimmed_init_mut));
+                        trimmed_init_mut = strip(trimmed_init_mut);
+
+                        mut end_pos_mut: i32 = -1;
+                        mut i_mut: i32 = 0;
+                        loop {
+                            if i_mut >= str_len(trimmed_init_mut) {
+                                break;
+                            }
+                            val ch_mut: char = get_char(trimmed_init_mut, i_mut);
+                            if ch_mut == '(' or ch_mut == ' ' or ch_mut == '\t' {
+                                end_pos_mut = i_mut;
+                                break;
+                            }
+                            i_mut = i_mut + 1;
+                        }
+                        if end_pos_mut < 0 {
+                            end_pos_mut = str_len(trimmed_init_mut);
+                        }
+                        val inferred_name_mut: string = strip(substring_se(trimmed_init_mut, 0, end_pos_mut));
+                        if str_len(inferred_name_mut) > 0 {
+                            type_name = inferred_name_mut;
+                        }
+                    } else {
+                        mut err2: string = str("ERROR: Type annotation required when initializing '");
+                        err2 = concat(err2, var_name.value);
+                        err2 = concat(err2, str("' without 'new Model(...)'"));
+                        enforce_raw(false, err2.data);
+                        return node;
+                    }
                 }
             } else {
                 loop {
