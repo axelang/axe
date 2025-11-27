@@ -1,0 +1,27 @@
+use std.io;
+
+mut loud: bool = false;
+
+/// Print a debug message
+overload debug_print(x: generic) {
+    string => debug_print_str;
+    char*  => debug_print_raw;
+}(x);
+
+/// Ditto.
+def debug_print_str(msg: string) {
+    if loud {
+        println msg;
+    }
+}
+
+/// Ditto.
+def debug_print_raw(msg: ref char) {
+    if loud {
+        println msg;
+    }
+}
+
+test {
+
+}
