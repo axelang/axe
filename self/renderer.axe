@@ -263,35 +263,65 @@ def process_parameter_type(param_type: string): string {
 
 /// Process an expression string for C interop and pointer sugar
 def process_expression(expr: string): string {
-    mut result: string = expr;
-    
-    if str_contains(result, str("*.")) {
+    mut trimmed: string = strip(expr);
+    mut has_pointer_sugar: bool = false;
+    mut in_string: bool = false;
+    mut i: i32 = 0;
+
+    loop {
+        if i >= str_len(trimmed) {
+            break;
+        }
+        val ch: char = get_char(trimmed, i);
+        if ch == '"' and (i == 0 or get_char(trimmed, i - 1) != '\\') {
+            in_string = !in_string;
+        } elif !in_string and ch == '*' and i + 1 < str_len(trimmed) and get_char(trimmed, i + 1) == '.' {
+            has_pointer_sugar = true;
+            break;
+        }
+        i = i + 1;
+    }
+
+    mut has_c_prefix: bool = false;
+    if str_len(trimmed) >= 2 {
+        if get_char(trimmed, 0) == 'C' and get_char(trimmed, 1) == '.' {
+            has_c_prefix = true;
+        }
+    }
+
+    if !has_pointer_sugar and !has_c_prefix {
+        return trimmed;
+    }
+
+    mut result: string = trimmed;
+
+    if has_pointer_sugar {
         mut out: string = str("");
-        mut in_string: bool = false;
-        mut i: i32 = 0;
+        mut in_str2: bool = false;
+        mut j: i32 = 0;
         loop {
-            if i >= str_len(result) {
+            if j >= str_len(result) {
                 break;
             }
-            val ch: char = get_char(result, i);
-            if ch == '"' and (i == 0 or get_char(result, i - 1) != '\\') {
-                in_string = !in_string;
-                out = concat_chr(out, ch);
-            } elif !in_string and i + 1 < str_len(result) and ch == '*' and get_char(result, i + 1) == '.' {
+            val ch2: char = get_char(result, j);
+            if ch2 == '"' and (j == 0 or get_char(result, j - 1) != '\\') {
+                in_str2 = !in_str2;
+                out = concat_chr(out, ch2);
+            } elif !in_str2 and j + 1 < str_len(result) and ch2 == '*' and get_char(result, j + 1) == '.' {
                 out = concat(out, str("->"));
-                i = i + 1;
+                j = j + 1;
             } else {
-                out = concat_chr(out, ch);
+                out = concat_chr(out, ch2);
             }
-            i = i + 1;
+            j = j + 1;
         }
         result = out;
     }
-    
-    if has_prefix(result, str("C.")) {
+
+    if has_c_prefix {
         result = substring_se(result, 2, str_len(result));
     }
-    
+
     return result;
 }
 
@@ -723,7 +753,11 @@ pub def generate_c(ast: ref ASTNode): string {
     if equals_c(node_type, "Return") {
         result = concat(result, str("return "));
         val expr: string = ast.data.return_node.expression;
+        println "[DEBUG] RENDERER raw return expr:";
+        println expr;
         val processed: string = process_expression(expr);
+        println "[DEBUG] RENDERER processed return expr:";
+        println processed;
         result = concat(result, processed);
         result = concat(result, str(";\n"));
         return result;

@@ -85,6 +85,25 @@ def macros_get(name: string): MacroDef {
     return empty;
 }
 
+/// Check if a string consists only of decimal digits (for macro arg classification)
+def is_all_digits(s: string): bool {
+    if str_len(s) == 0 {
+        return false;
+    }
+    mut i: i32 = 0;
+    loop {
+        if i >= str_len(s) {
+            break;
+        }
+        val ch: char = get_char(s, i);
+        if ch < '0' or ch > '9' {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
 /// Register a variable's mutability (true for mut, false for val)
 def register_variable(var_name: string, is_mutable: bool) {
     mut arena: Arena = Arena.create(1024);
@@ -337,6 +356,10 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
                         mut exp_token: ref Token = addr_of(expanded_tokens.data[j_tok]);
                         if compare(exp_token.value, param_name) == 0 {
                             exp_token.value = arg_expr;
+
+                            if is_all_digits(arg_expr) {
+                                exp_token.token_type = TokenType.NUMBER;
+                            }
                         }
                     }
                     j_tok = j_tok + 1;
@@ -349,17 +372,12 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
             val expanded_ast: ASTNode = parse(expanded_ref, ctx.is_axec, false, ctx.current_module);
 
             if expanded_ast.children != nil {
-                unsafe {
-                    mut temp_children: list(ASTNode);
-                    val list_size_children: usize = C.sizeof(list(ASTNode));
-                    C.memcpy(addr_of(temp_children), expanded_ast.children, list_size_children);
-                }
                 mut k: i32 = 0;
                 loop {
-                    if k >= len(temp_children) {
+                    if k >= deref(expanded_ast.children).len {
                         break;
                     }
-                    add_child_to_ast(ast, temp_children.data[k]);
+                    add_child_to_ast(ast, expanded_ast.children.data[k]);
                     k = k + 1;
                 }
             }
@@ -1687,6 +1705,8 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx);
         
         node.node_type = str("Return");
+        println "[DEBUG] RETURN expr:";
+        println expr;
         node.data.return_node.expression = expr;
         return node;
     }
