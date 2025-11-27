@@ -459,7 +459,6 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
             }
             if ctx.tokens.data[ctx.pos].token_type == TokenType.SEMICOLON {
                 ctx.pos++;
-                break;
             }
             ctx.pos++;
         }
@@ -485,26 +484,47 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
         ctx.pos++;  // Skip 'test'
         skip_whitespace(ctx);
         
-        if ctx.pos < len(ctx.tokens) and ctx.tokens.data[ctx.pos].token_type == TokenType.LBRACE {
-            ctx.pos++;
-            mut depth: i32 = 1;
-            loop {
-                if ctx.pos >= len(ctx.tokens) {
-                    break;
-                }
-                if ctx.tokens.data[ctx.pos].token_type == TokenType.LBRACE {
-                    depth = depth + 1;
-                }
-                if ctx.tokens.data[ctx.pos].token_type == TokenType.RBRACE {
-                    depth = depth - 1;
-                    if depth == 0 {
-                        ctx.pos++;
-                        break;
-                    }
-                }
-                ctx.pos++;
+        if ctx.pos >= len(ctx.tokens) or ctx.tokens.data[ctx.pos].token_type != TokenType.LBRACE {
+            enforce_raw(false, "Expected '{' after 'test'");
+            return;
+        }
+        ctx.pos++; // Skip '{'
+        
+        mut test_node: ASTNode;
+        test_node.node_type = str("Test");
+        
+        mut children: list(ASTNode);
+        loop {
+            if ctx.pos >= len(ctx.tokens) {
+                break;
+            }
+            
+            skip_whitespace(ctx);
+            if ctx.pos >= len(ctx.tokens) {
+                break;
+            }
+            
+            if ctx.tokens.data[ctx.pos].token_type == TokenType.RBRACE {
+                ctx.pos++; // Skip '}'
+                break;
+            }
+            
+            mut stmt: ASTNode = parse_statement_helper(ctx, addr_of(ctx.current_scope));
+            if str_len(stmt.node_type) > 0 {
+                append(children, stmt);
             }
         }
+        
+        unsafe {
+            val list_size: usize = C.sizeof(list(ASTNode));
+            val heap_list: ref list(ASTNode) = cast[ref list(ASTNode)](C.malloc(list_size));
+            if heap_list != nil {
+                C.memcpy(heap_list, addr_of(children), list_size);
+                test_node.children = heap_list;
+            }
+        }
+        
+        add_child_to_ast(ast, test_node);
         return;
     }
     
@@ -612,9 +632,10 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
                     break;
                 }
                 val extra_tok: Token = consume(ctx);
-                // Assume pieces belong to the same identifier and join with '_'
+
                 target_name = concat(target_name, str("_"));
                 target_name = concat(target_name, extra_tok.value);
+
                 skip_whitespace(ctx);
             }
             append(target_funcs, target_name);
@@ -1354,6 +1375,10 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         node.node_type = str("Assert");
         node.data.assert_node.condition = condition;
         node.data.assert_node.message = message;
+        println "[DEBUG] ASSERT condition:";
+        println condition;
+        println "[DEBUG] ASSERT message:";
+        println message;
         return node;
     }
     
@@ -1870,6 +1895,13 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         node.data.declaration.type_name = type_name;
         node.data.declaration.ref_depth = 0;
         register_variable(var_name.value, false);
+        println "[DEBUG] VAL declaration details:";
+        println "[DEBUG]   name:";
+        println var_name.value;
+        println "[DEBUG]   type_name:";
+        println type_name;
+        println "[DEBUG]   initializer:";
+        println initializer;
         println "[DEBUG] VAL declaration finished for:";
         println var_name.value;
         return node;

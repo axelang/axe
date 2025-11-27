@@ -383,7 +383,6 @@ pub def generate_c(ast: ref ASTNode): string {
         val type_names_ref: ref list(string) = ast.data.overload_node.type_names;
         val targets_ref: ref list(string) = ast.data.overload_node.target_functions;
 
-        // If lists are missing or empty, nothing to emit
         if type_names_ref == nil or targets_ref == nil {
             return result;
         }
@@ -508,6 +507,117 @@ pub def generate_c(ast: ref ASTNode): string {
                 i = i + 1;
             }
         }
+    }
+
+    if equals_c(node_type, "Test") {
+        result = concat(result, str("int main(int argc, char** argv) {\n"));
+        result = concat(result, str("    int passed = 0;\n"));
+        result = concat(result, str("    int failed = 0;\n\n"));
+
+        if ast.children != nil {
+            val children: ref list(ASTNode) = ast.children;
+            mut i_test: i32 = 0;
+            loop {
+                if i_test >= len(deref(children)) {
+                    break;
+                }
+
+                val child: ref ASTNode = addr_of(children.data[i_test]);
+
+                if equals_c(child.node_type, "Assert") {
+                    val cond_raw: string = strip(child.data.assert_node.condition);
+                    val msg: string = child.data.assert_node.message;
+
+                    result = concat(result, str("    if ("));
+                    result = concat(result, cond_raw);
+                    result = concat(result, str(") {\n"));
+                    result = concat(result, str("        printf(\"PASSED: "));
+                    result = concat(result, msg);
+                    result = concat(result, str("\\n\");\n"));
+                    result = concat(result, str("        passed++;\n"));
+                    result = concat(result, str("    } else {\n"));
+                    result = concat(result, str("        printf(\"FAILED: "));
+                    result = concat(result, msg);
+                    result = concat(result, str("\\n\");\n"));
+                    result = concat(result, str("        failed++;\n"));
+                    result = concat(result, str("    }\n\n"));
+                } elif equals_c(child.node_type, "Declaration") {
+                    val var_name: string = child.data.declaration.name;
+                    val type_name: string = child.data.declaration.type_name;
+                    val is_mutable: bool = child.data.declaration.is_mutable;
+                    val initializer: string = child.data.declaration.initializer;
+
+                    mut mapped_type: string = map_type(type_name);
+                    mut line: string = str("");
+
+                    if is_mutable {
+                        line = concat(line, mapped_type);
+                        line = concat(line, str(" "));
+                        line = concat(line, var_name);
+                    } else {
+                        line = concat(line, str("const "));
+                        line = concat(line, mapped_type);
+                        line = concat(line, str(" "));
+                        line = concat(line, var_name);
+                    }
+
+                    mut trimmed_init: string = strip(initializer);
+                    if str_len(trimmed_init) > 0 {
+                        line = concat(line, str(" = "));
+                        line = concat(line, trimmed_init);
+                    }
+
+                    line = concat(line, str(";"));
+                    result = concat(result, str("    "));
+                    result = concat(result, line);
+                    result = concat(result, str("\n"));
+                } else {
+                    val stmt_code: string = generate_c(child);
+                    if str_len(stmt_code) > 0 {
+                        mut line: string = str("");
+                        mut buf: string = stmt_code;
+                        mut idx: i32 = 0;
+
+                        loop {
+                            if idx >= str_len(buf) {
+                                break;
+                            }
+                            val ch: char = get_char(buf, idx);
+                            if ch == '\n' {
+                                if str_len(line) > 0 {
+                                    result = concat(result, str("    "));
+                                    result = concat(result, line);
+                                    result = concat(result, str("\n"));
+                                    line = str("");
+                                }
+                            } else {
+                                line = concat_chr(line, ch);
+                            }
+                            idx = idx + 1;
+                        }
+
+                        if str_len(line) > 0 {
+                            result = concat(result, str("    "));
+                            result = concat(result, line);
+                            result = concat(result, str("\n"));
+                        }
+                    }
+                }
+
+                i_test = i_test + 1;
+            }
+        }
+
+        result = concat(result, str("    printf(\"\\n\");\n"));
+        result = concat(result, str("    if (failed == 0) {\n"));
+        result = concat(result, str("        printf(\"All tests passed. (%d/%d)\\n\", passed, passed + failed);\n"));
+        result = concat(result, str("    } else {\n"));
+        result = concat(result, str("        printf(\"%d test(s) failed, %d passed\\n\", failed, passed);\n"));
+        result = concat(result, str("    }\n"));
+        result = concat(result, str("    return failed > 0 ? 1 : 0;\n"));
+        result = concat(result, str("}\n"));
+
+        return result;
     }
     
     if equals_c(node_type, "Function") {
