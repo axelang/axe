@@ -301,7 +301,7 @@ pub def process_imports(ast: ref ASTNode, base_dir: string, is_axec: bool, curre
             merge_imported_module(ast, addr_of(import_ast), use_mod);
         }
 
-        idx = idx + 1;
+        idx++;
     }
 
     return *ast;
