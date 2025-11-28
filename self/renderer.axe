@@ -471,9 +471,12 @@ def process_expression(expr: string): string {
 
                 if is_token_char(prev) and is_token_char(next) {
                     if next == '_' {
-                        // Merge space before underscore into the identifier.
+                        // ok.
+                    } elif (prev >= '0' and prev <= '9' and next == '.') or
+                          (prev == '.' and next >= '0' and next <= '9') {
+                        // Merge numeric fragments around the decimal point.
                     } elif !is_ident_start(next) {
-                        // Merge numeric / token fragments such as `0 . 0`.
+                        // Merge other token fragments such as `0 . 0`.
                     } else {
                         out_norm = concat(out_norm, str(" "));
                     }
@@ -566,6 +569,9 @@ def process_expression(expr: string): string {
             if is_token_char(prev2) and is_token_char(next2) {
                 if next2 == '_' {
                     // Merge space before underscore into the identifier.
+                } elif (prev2 >= '0' and prev2 <= '9' and next2 == '.') or
+                      (prev2 == '.' and next2 >= '0' and next2 <= '9') {
+                    // Merge numeric fragments around the decimal point.
                 } elif !is_ident_start(next2) {
                     // Drop the space between token characters (e.g. `0 . 0`).
                 } else {
@@ -1040,10 +1046,11 @@ pub def generate_c(ast: ref ASTNode): string {
 
                 if equals_c(child.node_type, "Assert") {
                     val cond_raw: string = strip(child.data.assert_node.condition);
+                    val cond_norm: string = process_expression(cond_raw);
                     val msg: string = child.data.assert_node.message;
 
                     result = concat(result, str("    if ("));
-                    result = concat(result, cond_raw);
+                    result = concat(result, cond_norm);
                     result = concat(result, str(") {\n"));
                     result = concat(result, str("        printf(\"PASSED: "));
                     result = concat(result, msg);
