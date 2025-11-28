@@ -1,5 +1,7 @@
 use std.string;
 use std.io;
+use std.maps;
+
 use lexer (Token);
 
 /// Macro definition modelure

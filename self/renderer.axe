@@ -39,6 +39,11 @@ mut g_field_types: StringStringMap;
 /// Variable types
 mut g_var_types: StringStringMap;
 
+/// Track discovered list element types used in generated code (for C list helpers)
+mut g_list_element_types: StringBoolMap;
+/// Ordered list of discovered element type strings (for deterministic emission)
+mut g_list_elements: ref StringList;
+
 /// Initialize renderer globals
 pub def initialize_renderer() {
     mut arena: Arena = Arena.create(1024 * 1024 * 100);
@@ -53,6 +58,8 @@ pub def initialize_renderer() {
     g_generated_functions = deref(StringBoolMap.create(addr_of(arena), 128));
     g_field_types = deref(StringStringMap.create(addr_of(arena), 128));
     g_var_types = deref(StringStringMap.create(addr_of(arena), 128));
+    g_list_element_types = deref(StringBoolMap.create(addr_of(arena), 128));
+    g_list_elements = StringList.create(addr_of(arena), 64);
     
     StringStringMap.set(addr_of(g_type_mappings), addr_of(arena), str("i8"), str("int8_t"));
     StringStringMap.set(addr_of(g_type_mappings), addr_of(arena), str("u8"), str("uint8_t"));
@@ -154,12 +161,16 @@ def map_axe_type_to_c(axe_type: string): string {
         if has_prefix(element_type, str("ref ")) {
             val base_elem: string = strip(substr(element_type, 4, str_len(element_type) - 4));
             val mapped_elem: string = map_axe_type_to_c(base_elem);
+            // register list element type for later helper generation
+            add_list_element(mapped_elem);
             mut struct_name: string = str("__list_");
             struct_name = concat(struct_name, mapped_elem);
             struct_name = concat(struct_name, str("_t*"));
             return struct_name;
         } else {
             val mapped_elem: string = map_axe_type_to_c(element_type);
+            // register list element type for later helper generation
+            add_list_element(mapped_elem);
             mut struct_name: string = str("__list_");
             struct_name = concat(struct_name, mapped_elem);
             struct_name = concat(struct_name, str("_t"));
@@ -192,6 +203,95 @@ def map_axe_type_to_c(axe_type: string): string {
     }
     
     return result;
+}
+
+/// Sanitize a C element type string to be used as part of a generated list type name
+def sanitize_list_element_name(c_elem: string): string {
+    mut n: string = c_elem;
+    mut out: string = str("");
+    mut i: i32 = 0;
+    loop {
+        if i >= str_len(n) {
+            break;
+        }
+        val ch: char = get_char(n, i);
+        if ch == '*' {
+            out = concat(out, str("_ptr"));
+        } elif ch == ' ' {
+            out = concat(out, str("_"));
+        } else {
+            out = concat_chr(out, ch);
+        }
+        i = i + 1;
+    }
+    return out;
+}
+
+/// Add a list element type to tracking structures (map + ordered list)
+def add_list_element(c_elem: string) {
+    if str_len(c_elem) == 0 {
+        return;
+    }
+
+    if StringBoolMap.contains(addr_of(g_list_element_types), c_elem) {
+        return;
+    }
+
+    mut arena: Arena = Arena.create(256);
+    StringBoolMap.set(addr_of(g_list_element_types), addr_of(arena), c_elem, true);
+
+    if g_list_elements != nil {
+        val listref: ref StringList = g_list_elements;
+        mut i: i32 = 0;
+        loop {
+            if i >= listref*.len {
+                break;
+            }
+            val it: string = StringList.get(listref, i);
+            if compare(it, c_elem) == 0 {
+                return;
+            }
+            i = i + 1;
+        }
+        StringList.push(g_list_elements, addr_of(arena), c_elem);
+    }
+}
+
+/// Recursively scan AST for occurrences of list types (sugar: [999]) and register them
+def scan_for_list_types(node: ref ASTNode) {
+    if node == nil {
+        return;
+    }
+
+    if equals_c(node.node_type, "Declaration") {
+        val tname: string = node.data.declaration.type_name;
+        if str_len(tname) > 0 {
+            val br: i32 = find_char_from(tname, '[', 0);
+            if br >= 0 {
+                val suffix: string = substring_se(tname, br, str_len(tname));
+                if equals_c(suffix, "[999]") {
+                    mut element: string = strip(substring_se(tname, 0, br));
+                    if has_prefix(element, str("ref ")) {
+                        element = strip(substr(element, 4, str_len(element) - 4));
+                    }
+                    val mapped: string = map_axe_type_to_c(element);
+                    add_list_element(mapped);
+                }
+            }
+        }
+    }
+
+    if node.children != nil {
+        val chs: ref list(ASTNode) = node.children;
+        mut idx: i32 = 0;
+        loop {
+            if idx >= len(deref(chs)) {
+                break;
+            }
+            scan_for_list_types(addr_of(chs.data[idx]));
+            idx = idx + 1;
+        }
+    }
 }
 
 /// Format model field type with proper struct prefix
@@ -347,7 +447,7 @@ def generate_function_prototype(ast: ref ASTNode): string {
         return_type = str("void");
     }
 
-    val mapped_return_type: string = map_type(return_type);
+    val mapped_return_type: string = map_axe_type_to_c(return_type);
 
     result = concat(result, mapped_return_type);
     result = concat(result, str(" "));
@@ -476,17 +576,199 @@ pub def generate_c(ast: ref ASTNode): string {
         if ast.children != nil {
             val children: ref list(ASTNode) = ast.children;
 
-            mut i_models: i32 = 0;
+            StringBoolMap.clear(addr_of(g_list_element_types));
+
+            mut i_scan: i32 = 0;
             loop {
-                if i_models >= len(deref(children)) {
+                if i_scan >= len(deref(children)) {
                     break;
                 }
-                val m_child: ref ASTNode = addr_of(children.data[i_models]);
+                scan_for_list_types(addr_of(children.data[i_scan]));
+                i_scan = i_scan + 1;
+            }
+
+            mut i_more: i32 = 0;
+            loop {
+                if i_more >= len(deref(children)) {
+                    break;
+                }
+                val cnode: ref ASTNode = addr_of(children.data[i_more]);
+                if equals_c(cnode.node_type, "Function") {
+                    val ret_type: string = cnode.data.function.return_type;
+                    val br: i32 = find_char_from(ret_type, '[', 0);
+                    if br >= 0 and find_char_from(ret_type, ']', br) >= 0 {
+                        mut elementType: string = strip(substring_se(ret_type, 0, br));
+                        if has_prefix(elementType, str("ref ")) {
+                            elementType = strip(substr(elementType, 4, str_len(elementType) - 4));
+                        }
+                        val mappedC: string = map_axe_type_to_c(elementType);
+                        add_list_element(mappedC);
+                    }
+                } elif equals_c(cnode.node_type, "Model") {
+                    val field_names: ref list(string) = cnode.data.model_node.field_names;
+                    val field_types: ref list(string) = cnode.data.model_node.field_types;
+                    if field_names != nil and field_types != nil {
+                        mut fidx: i32 = 0;
+                        loop {
+                            if fidx >= len(deref(field_types)) or fidx >= len(deref(field_names)) {
+                                break;
+                            }
+                            val ftype: string = field_types.data[fidx];
+                            val br2: i32 = find_char_from(ftype, '[', 0);
+                            if br2 >= 0 and find_char_from(ftype, ']', br2) >= 0 {
+                                mut elemCandidate: string = strip(substring_se(ftype, 0, br2));
+                                if has_prefix(elemCandidate, str("ref ")) {
+                                    elemCandidate = strip(substr(elemCandidate, 4, str_len(elemCandidate) - 4));
+                                }
+                                val mappedElem: string = map_axe_type_to_c(elemCandidate);
+                                add_list_element(mappedElem);
+                            }
+
+                            fidx = fidx + 1;
+                        }
+                    }
+                }
+                i_more = i_more + 1;
+            }
+
+            mut i_models2: i32 = 0;
+            loop {
+                if i_models2 >= len(deref(children)) {
+                    break;
+                }
+                val m_child: ref ASTNode = addr_of(children.data[i_models2]);
                 if equals_c(m_child.node_type, "Model") or equals_c(m_child.node_type, "Enum") {
-                    val m_code: string = generate_c(m_child);
+                    mut name: string = str("");
+                    if equals_c(m_child.node_type, "Model") {
+                        name = m_child.data.model_node.name;
+                    } else {
+                        name = m_child.data.enum_node.name;
+                    }
+                    if !StringBoolMap.contains(addr_of(g_generated_typedefs), name) {
+                        result = concat(result, str("struct "));
+                        result = concat(result, name);
+                        result = concat(result, str(";\n"));
+                    }
+                }
+                i_models2 = i_models2 + 1;
+            }
+
+            mut i_models3: i32 = 0;
+            loop {
+                if i_models3 >= len(deref(children)) {
+                    break;
+                }
+                val m_child: ref ASTNode = addr_of(children.data[i_models3]);
+                if equals_c(m_child.node_type, "Model") or equals_c(m_child.node_type, "Enum") {
+                    mut name2: string = str("");
+                    if equals_c(m_child.node_type, "Model") {
+                        name2 = m_child.data.model_node.name;
+                    } else {
+                        name2 = m_child.data.enum_node.name;
+                    }
+                    if !StringBoolMap.contains(addr_of(g_generated_typedefs), name2) {
+                        result = concat(result, str("typedef struct "));
+                        result = concat(result, name2);
+                        result = concat(result, str(" "));
+                        result = concat(result, name2);
+                        result = concat(result, str(";\n"));
+                    }
+                }
+                i_models3 = i_models3 + 1;
+            }
+
+            if g_list_elements != nil {
+                val lst_ref: ref StringList = g_list_elements;
+                mut li: i32 = 0;
+                loop {
+                    if li >= lst_ref*.len {
+                        break;
+                    }
+                    val elemTypeStr: string = StringList.get(lst_ref, li);
+                    val san: string = sanitize_list_element_name(elemTypeStr);
+                    result = concat(result, str("typedef struct __list_"));
+                    result = concat(result, san);
+                    result = concat(result, str("_t __list_"));
+                    result = concat(result, san);
+                    result = concat(result, str("_t;\n"));
+                    li = li + 1;
+                }
+            }
+
+            mut i_models_fd: i32 = 0;
+            loop {
+                if i_models_fd >= len(deref(children)) {
+                    break;
+                }
+                val m_child_fd: ref ASTNode = addr_of(children.data[i_models_fd]);
+                if equals_c(m_child_fd.node_type, "Model") or equals_c(m_child_fd.node_type, "Enum") {
+                    val m_code: string = generate_c(m_child_fd);
                     result = concat(result, m_code);
                 }
-                i_models = i_models + 1;
+                i_models_fd = i_models_fd + 1;
+            }
+
+            if g_list_elements != nil {
+                val lst_ref2: ref StringList = g_list_elements;
+                mut jj: i32 = 0;
+                loop {
+                    if jj >= lst_ref2*.len {
+                        break;
+                    }
+                    val elementType: string = StringList.get(lst_ref2, jj);
+                    val elemSan: string = sanitize_list_element_name(elementType);
+
+                    result = concat(result, str("typedef struct __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_t {\n"));
+                    result = concat(result, str("    "));
+                    result = concat(result, elementType);
+                    result = concat(result, str("* data;\n"));
+                    result = concat(result, str("    int len;\n"));
+                    result = concat(result, str("    int capacity;\n"));
+                    result = concat(result, str("} __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_t;\n\n"));
+
+                    result = concat(result, str("static inline __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_t __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_init(void) {\n"));
+                    result = concat(result, str("    __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_t list;\n"));
+                    result = concat(result, str("    list.data = NULL;\n"));
+                    result = concat(result, str("    list.len = 0;\n"));
+                    result = concat(result, str("    list.capacity = 0;\n"));
+                    result = concat(result, str("    return list;\n"));
+                    result = concat(result, str("}\n\n"));
+
+                    result = concat(result, str("static inline void __list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_push(__list_"));
+                    result = concat(result, elemSan);
+                    result = concat(result, str("_t* list, "));
+                    result = concat(result, elementType);
+                    result = concat(result, str(" item) {\n"));
+                    result = concat(result, str("    if (list->len >= list->capacity) {\n"));
+                    result = concat(result, str("        int new_capacity = list->capacity == 0 ? 8 : list->capacity * 2;\n"));
+                    result = concat(result, str("        "));
+                    result = concat(result, elementType);
+                    result = concat(result, str("* new_data = (") );
+                    result = concat(result, elementType);
+                    result = concat(result, str("*)realloc(list->data, new_capacity * sizeof("));
+                    result = concat(result, elementType);
+                    result = concat(result, str("));\n"));
+                    result = concat(result, str("        if (new_data == NULL) { fprintf(stderr, \"Out of memory\\n\"); exit(1); }\n"));
+                    result = concat(result, str("        list->data = new_data;\n"));
+                    result = concat(result, str("        list->capacity = new_capacity;\n"));
+                    result = concat(result, str("    }\n"));
+                    result = concat(result, str("    list->data[list->len++] = item;\n"));
+                    result = concat(result, str("}\n\n"));
+
+                    jj = jj + 1;
+                }
             }
 
             mut i_proto: i32 = 0;
@@ -1515,6 +1797,33 @@ test {
     assert str_contains_c(enum_code, "Color_Green"), "Expected Color_Green value";
     assert str_contains_c(enum_code, "Color_Blue"), "Expected Color_Blue value";
     assert str_contains_c(enum_code, "} Color;"), "Expected } Color;";
+
+    println "\nTest 15: List types tracking and mapping";
+
+    val list_map_val: string = map_axe_type_to_c(str("i32[999]"));
+    assert str_contains_c(list_map_val, "__list_int32_t"), "Expected list(i32) mapping to a __list name";
+
+    val list_map_ref: string = map_axe_type_to_c(str("ref i32[999]"));
+    assert str_contains_c(list_map_ref, "__list_int32_t"), "Expected ref list(i32) mapping to a __list name";
+
+    mut found_int32: bool = false;
+    if g_list_elements != nil {
+        val lstref: ref StringList = g_list_elements;
+        mut k: i32 = 0;
+        loop {
+            if k >= lstref*.len {
+                break;
+            }
+            val s: string = StringList.get(lstref, k);
+            if equals_c(s, str("int32_t")) {
+                found_int32 = true;
+                break;
+            }
+            k = k + 1;
+        }
+    }
+
+    assert found_int32, "Expected int32_t to be tracked as a list element type";
 
     println "\nTest 13: MemberAccess assignment";
     mut member_assign_ast: ASTNode;
