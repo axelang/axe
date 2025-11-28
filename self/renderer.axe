@@ -1084,8 +1084,9 @@ pub def generate_c(ast: ref ASTNode): string {
 
                     mut trimmed_init: string = strip(initializer);
                     if str_len(trimmed_init) > 0 {
+                        val init_norm: string = process_expression(trimmed_init);
                         line = concat(line, str(" = "));
-                        line = concat(line, trimmed_init);
+                        line = concat(line, init_norm);
                     }
 
                     line = concat(line, str(";"));
