@@ -817,6 +817,23 @@ pub def generate_c(ast: ref ASTNode): string {
                 i = i + 1;
             }
 
+            mut i_main_idx: i32 = 0;
+            loop {
+                if i_main_idx >= len(deref(children)) {
+                    break;
+                }
+                val fnn: ref ASTNode = addr_of(children.data[i_main_idx]);
+                if equals_c(fnn.node_type, "Function") {
+                    val namecheck: string = fnn.data.function.name;
+                    if equals_c(namecheck, "main") {
+                        val main_code: string = generate_c(fnn);
+                        result = concat(result, main_code);
+                        break;
+                    }
+                }
+                i_main_idx++;
+            }
+
             i = 0;
             loop {
                 if i >= len(deref(children)) {
@@ -1667,6 +1684,31 @@ test {
     val func_code: string = generate_c(addr_of(func_ast));
     assert str_contains_c(func_code, "int main"), "Expected int main function";
     assert str_contains_c(func_code, "return 0;"), "Expected return 0 in main";
+
+    println "\nTest 16: Program with main and helpers should produce entry point";
+    mut prog: ASTNode;
+    prog.node_type = str("Program");
+    mut f1: ASTNode;
+    f1.node_type = str("Function");
+    f1.data.function.name = str("hello");
+    f1.data.function.return_type = str("");
+    f1.data.function.is_public = false;
+    f1.children = nil;
+
+    mut f2: ASTNode;
+    f2.node_type = str("Function");
+    f2.data.function.name = str("main");
+    f2.data.function.return_type = str("");
+    f2.data.function.is_public = false;
+    f2.children = nil;
+
+    val childrenList: ref list(ASTNode) = list(ASTNode).create(4);
+    list_push(childrenList, addr_of(model_arena), f1);
+    list_push(childrenList, addr_of(model_arena), f2);
+    prog.children = childrenList;
+
+    val code_prog: string = generate_c(addr_of(prog));
+    assert str_contains_c(code_prog, "int main("), "Program should include int main entry point";
     
     println "\nTest 5: Generate simple function";
     mut simple_func: ASTNode;
