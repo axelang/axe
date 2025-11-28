@@ -262,6 +262,9 @@ pub def lex(source: string): list(Token) {
         } elif ch == '~' {
             append(tokens, create_token(TokenType.OPERATOR, "~"));
             pos = pos + 1;
+        } elif ch == '%' {
+            append(tokens, create_token(TokenType.OPERATOR, "%"));
+            pos = pos + 1;
         } elif ch == '$' {
             if pos + 1 < source_len and get_char(source, pos + 1) == '"' {
                 pos = pos + 2;

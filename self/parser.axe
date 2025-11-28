@@ -3590,31 +3590,43 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             enforce_raw(false, "ERROR: Raw C blocks are only allowed in .axec files");
             return node;
         }
-        
+
         consume(ctx); // Skip 'raw'
         skip_whitespace(ctx);
-        
+
         if !expect(ctx, TokenType.LBRACE) {
             enforce_raw(false, "ERROR: Expected '{' after 'raw'");
             return node;
         }
-        consume(ctx);
-        
-        // Collect raw code until closing brace
+        consume(ctx); // '{'
+
         mut raw_code: string = str("");
         loop {
             if ctx.pos >= len(ctx.tokens) {
-                break;
+                enforce_raw(false, "ERROR: Unexpected end of tokens in raw block");
+                return node;
             }
+
             val t: Token = peek(ctx);
             if t.token_type == TokenType.RBRACE {
-                consume(ctx);
                 break;
             }
-            raw_code = concat(raw_code, t.value);
+
+            if t.token_type == TokenType.NEWLINE {
+                raw_code = concat(raw_code, str("\n"));
+            } else {
+                raw_code = concat(raw_code, t.value);
+            }
+
             consume(ctx);
         }
-        
+
+        if !expect(ctx, TokenType.RBRACE) {
+            enforce_raw(false, "ERROR: Expected '}' after raw block body");
+            return node;
+        }
+        consume(ctx); // '}'
+
         node.node_type = str("RawC");
         node.data.raw_c.code = raw_code;
         return node;
