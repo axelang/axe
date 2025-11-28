@@ -197,7 +197,7 @@ pub def parse(tokens: ref list(Token), is_axec: bool, check_entry_point: bool, c
         debug_print_str t.value;
         i = i + 1;
     }
-    debug_print_str str("=== END TOKENS ===");
+    debug_print_raw "=== END TOKENS ===";
 
     mut ast: ASTNode;
     ast.node_type = str("Program");
