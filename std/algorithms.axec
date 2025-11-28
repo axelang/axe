@@ -1,0 +1,38 @@
+use std.string;
+use std.lists;
+
+def strlst_contains(lst: StringList, value: string): bool {
+    for mut i = 0; i < lst.len; i++ {
+        if compare(lst.data[i], value) == 0 {
+            return true;
+        }
+    }
+    return false;
+}
+
+def intlst_contains(lst: IntList, vlue: i32): bool { 
+    for mut i = 0; i < lst.len; i++ {
+        if lst.data[i] == vlue {
+            return true;
+        }
+    }
+    return false;
+}
+
+test {
+    val arena: Arena = Arena.create(1024 * 10);
+
+    println "\nTest 1: StringList contains";
+    val lst: ref StringList = StringList.create(addr_of(arena), 10);
+    StringList.push(lst, addr_of(arena), str("hello"));
+    StringList.push(lst, addr_of(arena), str("world"));
+    assert strlst_contains(deref(lst), str("hello")), "Expected hello to be found in the list";
+    assert !strlst_contains(deref(lst), str("goodbye")), "Expected goodbye not to be found in the list";
+
+    println "\nTest 2: IntList contains";
+    val ilst: ref IntList = IntList.create(addr_of(arena), 10);
+    IntList.push(ilst, addr_of(arena), 42);
+    IntList.push(ilst, addr_of(arena), 1337);
+    assert intlst_contains(deref(ilst), 42), "Expected 42 to be found in the list";
+    assert !intlst_contains(deref(ilst), 7), "Expected 7 not to be found in the list";
+}

@@ -1683,6 +1683,13 @@ pub def generate_c(ast: ref ASTNode): string {
         }
         return result;
     }
+
+    if equals_c(node_type, "RawC") {
+        val raw_code: string = ast.data.raw_c.code;
+        result = concat(result, raw_code);
+        result = concat(result, str("\n"));
+        return result;
+    }
     
     if equals_c(node_type, "Model") {
         val model_name: string = ast.data.model_node.name;
