@@ -8,7 +8,8 @@ use lexer (
 );
 
 use parser (
-    parse
+    parse,
+    add_child_to_ast
 );
 
 use std.io;
@@ -206,6 +207,197 @@ def prefix_enum_node(node: ref ASTNode, module_prefix: string) {
     node.data.enum_node.name = pref;
 }
 
+def build_exported_name_map(imported: ref ASTNode): ref StringBoolMap {
+    mut arena: Arena = Arena.create(1024);
+    mut m: StringBoolMap = deref(StringBoolMap.create(addr_of(arena), 128));
+    if imported.children == nil {
+        return addr_of(m);
+    }
+
+    val children: ref list(ASTNode) = imported.children;
+    mut i: i32 = 0;
+    loop {
+        if i >= len(deref(children)) {
+            break;
+        }
+        val child: ASTNode = children.data[i];
+        if equals_c(child.node_type, "Function") {
+            StringBoolMap.set(addr_of(m), addr_of(arena), child.data.function.name, true);
+        } elif equals_c(child.node_type, "Model") {
+            StringBoolMap.set(addr_of(m), addr_of(arena), child.data.model_node.name, true);
+        } elif equals_c(child.node_type, "Enum") {
+            StringBoolMap.set(addr_of(m), addr_of(arena), child.data.enum_node.name, true);
+        }
+        i = i + 1;
+    }
+
+    return addr_of(m);
+}
+
+def prefix_type_name(type_name: string, module_prefix: string, exported: ref StringBoolMap): string {
+    if str_len(type_name) == 0 {
+        return type_name;
+    }
+
+    mut t: string = strip(type_name);
+
+    if has_prefix(t, str("ref ")) {
+        val rest: string = strip(substr(t, 4, str_len(t) - 4));
+        return concat(str("ref "), prefix_type_name(rest, module_prefix, exported));
+    }
+    if has_prefix(t, str("mut ")) {
+        val rest: string = strip(substr(t, 4, str_len(t) - 4));
+        return concat(str("mut "), prefix_type_name(rest, module_prefix, exported));
+    }
+
+    if has_suffix(t, str("*")) {
+        val base: string = strip(substring_se(t, 0, str_len(t) - 1));
+        return concat(prefix_type_name(base, module_prefix, exported), str("*"));
+    }
+
+    if has_suffix(t, str("[999]")) {
+        val base: string = strip(substring_se(t, 0, str_len(t) - 5));
+        return concat(prefix_type_name(base, module_prefix, exported), str("[999]"));
+    }
+
+    if StringBoolMap.contains(addr_of(exported), t) {
+        if !has_prefix(t, concat(module_prefix, str("__"))) {
+            return concat(concat(module_prefix, str("__")), t);
+        }
+    }
+
+    return type_name;
+}
+
+def prefix_types_in_node(node: ref ASTNode, module_prefix: string, exported: ref StringBoolMap) {
+    if node == nil {
+        return;
+    }
+
+    val nt: string = node.node_type;
+
+    if equals_c(nt, "Function") {
+        node.data.function.return_type = prefix_type_name(node.data.function.return_type, module_prefix, exported);
+
+        mut params: ref list(string) = node.data.function.params;
+        if params != nil {
+            mut i: i32 = 0;
+            loop {
+                if i >= len(deref(params)) {
+                    break;
+                }
+                val p: string = params.data[i];
+                val colon_pos: i32 = find_char_from(p, ':', 0);
+                if colon_pos >= 0 {
+                    val pname: string = strip(substring_se(p, 0, colon_pos));
+                    val ptype: string = strip(substr(p, colon_pos + 1, str_len(p) - colon_pos - 1));
+                    val new_ptype: string = prefix_type_name(ptype, module_prefix, exported);
+                    mut newp: string = concat(pname, str(":"));
+                    if str_len(new_ptype) > 0 {
+                        newp = concat(concat(newp, str(" ")), new_ptype);
+                    }
+                    params.data[i] = newp;
+                }
+                i = i + 1;
+            }
+        }
+    } elif equals_c(nt, "Declaration") {
+        node.data.declaration.type_name = prefix_type_name(node.data.declaration.type_name, module_prefix, exported);
+    } elif equals_c(nt, "ArrayDecl") {
+        node.data.array_decl.element_type = prefix_type_name(node.data.array_decl.element_type, module_prefix, exported);
+    } elif equals_c(nt, "ArrayLiteral") {
+        node.data.array_literal.element_type = prefix_type_name(node.data.array_literal.element_type, module_prefix, exported);
+    } elif equals_c(nt, "Macro") {
+        mut ptypes: ref list(string) = node.data.macro_node.param_types;
+        if ptypes != nil {
+            mut j: i32 = 0;
+            loop {
+                if j >= len(deref(ptypes)) {
+                    break;
+                }
+                ptypes.data[j] = prefix_type_name(ptypes.data[j], module_prefix, exported);
+                j = j + 1;
+            }
+        }
+    } elif equals_c(nt, "For") {
+        node.data.for_loop.var_type = prefix_type_name(node.data.for_loop.var_type, module_prefix, exported);
+    } elif equals_c(nt, "Model") {
+        mut ftypes: ref list(string) = node.data.model_node.field_types;
+        if ftypes != nil {
+            mut k: i32 = 0;
+            loop {
+                if k >= len(deref(ftypes)) {
+                    break;
+                }
+                ftypes.data[k] = prefix_type_name(ftypes.data[k], module_prefix, exported);
+                k = k + 1;
+            }
+        }
+
+        mut umtypes: ref list(string) = node.data.model_node.union_member_types;
+        if umtypes != nil {
+            mut x: i32 = 0;
+            loop {
+                if x >= len(deref(umtypes)) {
+                    break;
+                }
+                umtypes.data[x] = prefix_type_name(umtypes.data[x], module_prefix, exported);
+                x = x + 1;
+            }
+        }
+    } elif equals_c(nt, "Overload") {
+        mut type_names_ref: ref list(string) = node.data.overload_node.type_names;
+        if type_names_ref != nil {
+            mut iov: i32 = 0;
+            loop {
+                if iov >= len(deref(type_names_ref)) {
+                    break;
+                }
+                type_names_ref.data[iov] = prefix_type_name(type_names_ref.data[iov], module_prefix, exported);
+                iov = iov + 1;
+            }
+        }
+    } elif equals_c(nt, "Opaque") {
+        mut tnames: ref list(string) = node.data.opaque_node.type_names;
+        if tnames != nil {
+            mut iy: i32 = 0;
+            loop {
+                if iy >= len(deref(tnames)) {
+                    break;
+                }
+                tnames.data[iy] = prefix_type_name(tnames.data[iy], module_prefix, exported);
+                iy = iy + 1;
+            }
+        }
+    } elif equals_c(nt, "Extern") {
+        mut eparams: ref list(string) = node.data.extern_node.params;
+        if eparams != nil {
+            mut ep: i32 = 0;
+            loop {
+                if ep >= len(deref(eparams)) {
+                    break;
+                }
+                eparams.data[ep] = prefix_type_name(eparams.data[ep], module_prefix, exported);
+                ep = ep + 1;
+            }
+        }
+
+        node.data.extern_node.return_type = prefix_type_name(node.data.extern_node.return_type, module_prefix, exported);
+    }
+
+    if node.children != nil {
+        mut children: ref list(ASTNode) = node.children;
+        mut ii: i32 = 0;
+        loop {
+            if ii >= len(deref(children)) {
+                break;
+            }
+            prefix_types_in_node(addr_of(children.data[ii]), module_prefix, exported);
+            ii = ii + 1;
+        }
+    }
+}
+
 def merge_imported_module(program: ref ASTNode, imported: ref ASTNode, use_module: string) {
     val module_prefix: string = get_module_prefix(use_module);
 
@@ -214,6 +406,7 @@ def merge_imported_module(program: ref ASTNode, imported: ref ASTNode, use_modul
     }
 
     val children: ref list(ASTNode) = imported.children;
+    val exported: ref StringBoolMap = build_exported_name_map(imported);
     mut i: i32 = 0;
     loop {
         if i >= len(deref(children)) {
@@ -229,13 +422,26 @@ def merge_imported_module(program: ref ASTNode, imported: ref ASTNode, use_modul
 
         if equals_c(child.node_type, "Function") {
             prefix_function_node(addr_of(child), module_prefix);
+            prefix_types_in_node(addr_of(child), module_prefix, exported);
         } elif equals_c(child.node_type, "Model") {
             prefix_model_node(addr_of(child), module_prefix);
+            prefix_types_in_node(addr_of(child), module_prefix, exported);
         } elif equals_c(child.node_type, "Enum") {
             prefix_enum_node(addr_of(child), module_prefix);
         }
 
         append_child(program, child);
+        if program.children != nil {
+            val pchildren: ref list(ASTNode) = program.children;
+            mut pi: i32 = 0;
+            loop {
+                if pi >= len(deref(pchildren)) {
+                    break;
+                }
+                prefix_types_in_node(addr_of(pchildren.data[pi]), module_prefix, exported);
+                pi = pi + 1;
+            }
+        }
         i = i + 1;
     }
 }
@@ -305,4 +511,29 @@ pub def process_imports(ast: ref ASTNode, base_dir: string, is_axec: bool, curre
     }
 
     return *ast;
+}
+
+test {
+    mut prog: ASTNode;
+    prog.node_type = str("Program");
+
+    mut fn: ASTNode;
+    fn.node_type = str("Function");
+    fn.data.function.name = str("test_fn");
+    fn.data.function.return_type = str("string");
+
+    append_child(addr_of(prog), fn);
+
+    mut im: ASTNode;
+    im.node_type = str("Program");
+
+    mut model_node: ASTNode;
+    model_node.node_type = str("Model");
+    model_node.data.model_node.name = str("string");
+    append_child(addr_of(im), model_node);
+
+    merge_imported_module(addr_of(prog), addr_of(im), str("std.string"));
+
+    val children: ref list(ASTNode) = prog.children;
+    assert len(deref(children)) >= 2, "Expected at least 2 children after import merge";
 }
