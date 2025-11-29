@@ -9,6 +9,9 @@ import std.process;
 import std.file;
 import std.algorithm;
 
+/** 
+ * Some LSP request to the server.
+ */
 struct LspRequest
 {
     string jsonrpc;
@@ -17,6 +20,9 @@ struct LspRequest
     JSONValue params;
 }
 
+/** 
+ * Some diagnostic from the server.
+ */
 struct Diagnostic
 {
     string message;
@@ -573,6 +579,170 @@ void handleDidClose(LspRequest req)
     sendDiagnostics(uri, Diagnostic[].init);
 }
 
+string[] axeKeywords = [
+    "def", "pub", "mut", "val", "loop", "for", "in", "if", "else",
+    "elif", "switch", "case", "break", "continue", "model", "enum",
+    "use", "test", "assert", "unsafe", "parallel", "single", "platform",
+    "return", "import", "export", "ref", "as", "from"
+];
+
+string[] axeTypes = [
+    "string", "i32", "i64", "u32", "u64", "usize", "f32", "f64",
+    "bool", "void", "char", "i8", "i16", "u8", "u16"
+];
+
+string[] axeBuiltins = [
+    "println", "print", "print_str", "str", "concat", "substr", "strip",
+    "read_file", "write_file", "file_exists", "delete_file", "is_directory",
+    "exec_from_string", "get_cmdline_args", "ref_of", "Arena", "StringList",
+    "compare", "find_char_from", "has_suffix", "trim_suffix"
+];
+
+enum SymbolKind
+{
+    Unknown,
+    Keyword,
+    Type,
+    Function,
+    Variable,
+    Builtin,
+    Model,
+    Property
+}
+
+struct SymbolInfo
+{
+    string name;
+    SymbolKind kind;
+    string context;
+}
+
+SymbolInfo analyzeSymbol(string word, string fullText, size_t line0, size_t char0)
+{
+    SymbolInfo info;
+    info.name = word;
+    info.kind = SymbolKind.Unknown;
+
+    foreach (kw; axeKeywords)
+    {
+        if (word == kw)
+        {
+            info.kind = SymbolKind.Keyword;
+            return info;
+        }
+    }
+
+    foreach (ty; axeTypes)
+    {
+        if (word == ty)
+        {
+            info.kind = SymbolKind.Type;
+            return info;
+        }
+    }
+
+    foreach (bi; axeBuiltins)
+    {
+        if (word == bi)
+        {
+            info.kind = SymbolKind.Builtin;
+            return info;
+        }
+    }
+
+    auto lines = fullText.splitLines();
+    if (line0 < lines.length)
+    {
+        string currentLine = lines[line0];
+
+        if (char0 + word.length < currentLine.length)
+        {
+            size_t nextPos = char0 + word.length;
+            while (nextPos < currentLine.length && currentLine[nextPos] == ' ')
+            {
+                nextPos++;
+            }
+            if (nextPos < currentLine.length && currentLine[nextPos] == '(')
+            {
+                info.kind = SymbolKind.Function;
+                info.context = "function call";
+                return info;
+            }
+        }
+
+        auto defPattern = "def " ~ word;
+        if (currentLine.strip().startsWith(defPattern))
+        {
+            info.kind = SymbolKind.Function;
+            info.context = "function definition";
+            return info;
+        }
+
+        auto modelPattern = "model " ~ word;
+        if (currentLine.strip().startsWith(modelPattern))
+        {
+            info.kind = SymbolKind.Model;
+            info.context = "model definition";
+            return info;
+        }
+
+        if (currentLine.canFind("val " ~ word) || currentLine.canFind("mut " ~ word))
+        {
+            info.kind = SymbolKind.Variable;
+            info.context = "variable";
+            return info;
+        }
+
+        if (char0 > 0 && currentLine[char0 - 1] == '.')
+        {
+            info.kind = SymbolKind.Property;
+            info.context = "property or method";
+            return info;
+        }
+
+        if (currentLine.canFind(word ~ ":"))
+        {
+            info.kind = SymbolKind.Variable;
+            info.context = "parameter";
+            return info;
+        }
+    }
+
+    info.kind = SymbolKind.Variable;
+    return info;
+}
+
+string getHoverText(SymbolInfo info)
+{
+    final switch (info.kind)
+    {
+    case SymbolKind.Keyword:
+        return "**`" ~ info.name ~ "`** *(keyword)*\n\nAxe language keyword";
+    case SymbolKind.Type:
+        return "**`" ~ info.name ~ "`** *(type)*\n\nBuilt-in type";
+    case SymbolKind.Function:
+        if (info.context == "function definition")
+        {
+            return "**`def " ~ info.name ~ "`** *(function)*\n\nFunction definition";
+        }
+        return "**`" ~ info.name ~ "()`** *(function)*\n\nFunction call";
+    case SymbolKind.Variable:
+        if (info.context == "parameter")
+        {
+            return "**`" ~ info.name ~ "`** *(parameter)*\n\nFunction parameter";
+        }
+        return "**`" ~ info.name ~ "`** *(variable)*\n\nVariable";
+    case SymbolKind.Builtin:
+        return "**`" ~ info.name ~ "`** *(builtin)*\n\nBuilt-in function or type";
+    case SymbolKind.Model:
+        return "**`model " ~ info.name ~ "`** *(model)*\n\nModel (struct) definition";
+    case SymbolKind.Property:
+        return "**`" ~ info.name ~ "`** *(property)*\n\nProperty or method access";
+    case SymbolKind.Unknown:
+        return "**`" ~ info.name ~ "`** *(symbol)*\n\nSymbol in Axe code";
+    }
+}
+
 void handleHover(LspRequest req)
 {
     debugLog("Handling hover request");
@@ -624,9 +794,12 @@ void handleHover(LspRequest req)
         return;
     }
 
+    SymbolInfo symbolInfo = analyzeSymbol(word, text, line0, char0);
+    string hoverText = getHoverText(symbolInfo);
+
     JSONValue contents;
-    contents["kind"] = "plaintext";
-    contents["value"] = "Symbol: " ~ word ~ "\n\n(Hover information for Axe language)";
+    contents["kind"] = "markdown";
+    contents["value"] = hoverText;
 
     JSONValue result;
     result["contents"] = contents;
