@@ -836,7 +836,7 @@ pub def generate_c(ast: ref ASTNode): string {
                         }
                     }
                 }
-                i_more = i_more + 1;
+                i_more++;
             }
 
             mut i_models2: i32 = 0;
