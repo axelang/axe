@@ -864,7 +864,7 @@ bool positionInStringOrComment(string text, size_t line0, size_t char0)
         }
         if (ln == line0)
         {
-            if (inString || inBlock || inLineComment)
+            if (inBlock || inLineComment)
                 return true;
             return false;
         }

@@ -244,7 +244,7 @@ To restart the server, run command: "Axe: Restart Language Server"`;
         outputChannel.appendLine(`Document: ${editor.document.uri.toString()}`);
         outputChannel.appendLine(`Client State: ${client ? client.state : 'no-client'}`);
 
-            const callPos = new vscode.Position(3, 6);
+            const callPos = new vscode.Position(7, 6);
         editor.selection = new vscode.Selection(callPos, callPos);
 
         try {
@@ -282,8 +282,8 @@ To restart the server, run command: "Axe: Restart Language Server"`;
                 outputChannel.appendLine('✗ No definition information returned for callsite');
             }
 
-            const pubCallPos = new vscode.Position(4, 6);
-            const commentPos = new vscode.Position(5, 10);
+            const pubCallPos = new vscode.Position(8, 6);
+            const commentPos = new vscode.Position(9, 10);
             const pubHovers = await vscode.commands.executeCommand('vscode.executeHoverProvider', editor.document.uri, pubCallPos);
             if (pubHovers && pubHovers.length > 0) {
                 outputChannel.appendLine(`✓ Pub call hover returned ${pubHovers.length} result(s)`);
@@ -301,12 +301,15 @@ To restart the server, run command: "Axe: Restart Language Server"`;
                 outputChannel.appendLine('✓ Hover inside a comment returned no results (expected)');
             }
 
-            const stringPos = new vscode.Position(5, 10);
+            const stringPos = new vscode.Position(10, 15);
             const stringHovers = await vscode.commands.executeCommand('vscode.executeHoverProvider', editor.document.uri, stringPos);
             if (stringHovers && stringHovers.length > 0) {
-                outputChannel.appendLine(`✗ Hover inside a string returned ${stringHovers.length} result(s) (unexpected)`);
+                outputChannel.appendLine(`✓ Hover inside a string returned ${stringHovers.length} result(s)`);
+                const strContains = stringHovers.some(h => h.contents && h.contents.some(c => (typeof c === 'string' && c.includes('This is a docstring')) || (c.value && c.value.includes && c.value.includes('This is a docstring'))));
+                if (strContains) outputChannel.appendLine('✓ Hover inside string contains docstring');
+                else outputChannel.appendLine('✗ Hover inside string did not contain expected docstring');
             } else {
-                outputChannel.appendLine('✓ Hover inside a string returned no results (expected)');
+                outputChannel.appendLine('✗ Hover inside a string returned no results (unexpected)');
             }
 
         } catch (err) {
