@@ -19,6 +19,10 @@
     "Programming Languages"
   ],
   "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:axe",
+    "onCommand:axe.lsp.showDebugInfo"
+  ],
   "contributes": {
     "languages": [
       {
@@ -48,7 +52,7 @@
         "axe.lsp.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Path to the Axe LSP server executable. If empty, uses 'axe-lsp' or 'axe-lsp.exe' from PATH."
+          "description": "Path to the Axe language server executable. If empty, uses 'axels' or 'axels.exe' from PATH."
         },
         "axe.lsp.trace": {
           "type": "string",
@@ -62,6 +66,25 @@
         }
       }
     }
+  ,
+    "commands": [
+    {
+      "command": "axe.lsp.showDebugInfo",
+      "title": "Axe: Show LSP Debug Info"
+    },
+    {
+      "command": "axe.lsp.restart",
+      "title": "Axe: Restart Language Server"
+    },
+    {
+      "command": "axe.lsp.testCompletion",
+      "title": "Axe: Test Completion"
+    },
+    {
+      "command": "axe.lsp.testHover",
+      "title": "Axe: Test Hover"
+    }
+  ]
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
