@@ -1,4 +1,4 @@
-// use std.io;
+use std.io;
 
 enum State {
     RUNNING,
@@ -8,7 +8,7 @@ enum State {
 
 def main() {
     mut val fixed_state: State = State.CHANGING;
-    // println State.RUNNING;
-    // println fixed_state;
+    println State.RUNNING;
+    println fixed_state;
     fixed_state = State.RUNNING;
 }
