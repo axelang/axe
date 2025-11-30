@@ -5173,7 +5173,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel; obj.some_function(); }");
+        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel = SomeModel.create(); obj.some_function(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5916,7 +5916,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Test { field: i32 } def main() { mut val obj: Test; obj.field = 5; }");
+            "model Test { field: i32 } def main() { mut val obj: Test = Test.create(); obj.field = 5; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5928,7 +5928,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model Test { field: i32 } def main() { mut val ptr: ref Test; ptr.field = 5; }");
+            "model Test { field: i32 } def main() { mut val ptr: ref Test = cast[ref Test](nil); ptr.field = 5; }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5939,7 +5939,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model Node { value: i32, next: Node } def main() { val head: Node; if head.next.value == 5 { println \"yes\"; } }");
+        auto tokens = lex("model Node { value: i32, next: Node } def main() { val head: Node = Node.create(); if head.next.value == 5 { println \"yes\"; } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -5962,7 +5962,7 @@ unittest
     }
 
     {
-        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel; obj.some_function(); }");
+        auto tokens = lex("model SomeModel { value: i32, def some_function() { println \"Hello from model method\"; } } def main() { mut val obj: SomeModel = nil; obj.some_function(); }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
@@ -6040,7 +6040,7 @@ unittest
         }
 
         def main() {
-            mut val counter: Counter;
+            mut val counter: Counter = new Counter(value: 0);
             counter.value = 5;
             counter.value++;
             println counter.value;
@@ -6190,7 +6190,7 @@ unittest
 
     {
         auto tokens = lex(
-            "model StringList { len: i32, data: string } def main() { val items: StringList; for item in items { } }");
+            "model StringList { len: i32, data: string } def main() { val items: StringList = StringList.create(); for item in items { } }");
         auto ast = parse(tokens);
         auto cCode = generateC(ast);
 
