@@ -3873,11 +3873,23 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 import std.algorithm : min;
                 import std.string : startsWith, endsWith;
 
-                bool isListType = typeName.endsWith("[999]");
-                bool isComplexType = (typeName.length > 0 &&
-                    (typeName[0] >= 'A' && typeName[0] <= 'Z'));
+                bool hasTypeName = typeName.length > 0;
+                bool isListType = hasTypeName && typeName.endsWith("[999]");
 
-                if (!isListType && !isComplexType)
+                string baseTypeName = typeName;
+                if (hasTypeName)
+                {
+                    import std.string : lastIndexOf;
+
+                    auto idx = typeName.lastIndexOf("__");
+                    if (idx >= 0 && idx + 2 < typeName.length)
+                        baseTypeName = typeName[idx + 2 .. $];
+                }
+
+                bool isComplexType = hasTypeName && baseTypeName.length > 0 &&
+                    (baseTypeName[0] >= 'A' && baseTypeName[0] <= 'Z');
+
+                if (hasTypeName && !isListType && !isComplexType)
                 {
                     size_t endPos = min(pos + 10, tokens.length);
                     enforce(initializer.length > 0,
