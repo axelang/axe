@@ -3867,8 +3867,15 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
             }
 
             debugWriteln("[VAL case] Before final semicolon check, pos=", pos);
+
+            if (!isAxec) {
+                enforce(initializer.length > 0,
+                    "Local variable '" ~ varName ~ "' must be explicitly initialized at " ~ to!string(pos)
+                    ~ "\nFull context:\n" ~ to!string(tokens[pos..pos + 10]));
+            }
+
             enforce(pos < tokens.length && tokens[pos].type == TokenType.SEMICOLON,
-                "Expected ';' after variable declaration");
+                "Expected ';' after variable declaration at " ~ to!string(pos));
             pos++;
 
             if (typeName.length == 0 && initializer.length > 0)

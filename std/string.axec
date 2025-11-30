@@ -40,7 +40,7 @@ pub model string {
 
     /// Creates a new empty string with specified capacity using arena allocation.
     pub def create_with_capacity(arena: ref Arena, capacity: i32): string {
-        mut result: string;
+        mut result: string = str("");
         raw {
             result.data = NULL;
             result.len  = 0;
@@ -131,7 +131,7 @@ pub def str_len(s: string): usize {
 
 /// Convert some string to titlecase.
 pub def to_title_case(s: string): string {
-    mut result: string;
+    mut result: string = str("");
     raw {
         result.data = NULL;
         result.len  = 0;
@@ -158,7 +158,7 @@ pub def to_title_case(s: string): string {
 
 /// Converts string to uppercase.
 pub def to_upper(s: string): string {
-    mut result: string;
+    mut result: string = str("");
     raw {
         result.data = NULL;
         result.len  = 0;
@@ -181,7 +181,7 @@ pub def to_upper(s: string): string {
 
 /// Converts string to lowercase.
 pub def to_lower(s: string): string {
-    mut result: string;
+    mut result: string = str("");
     raw {
         result.data = NULL;
         result.len  = 0;
@@ -304,7 +304,7 @@ pub def compare(a: string, b: string): i32 {
 
 /// Concatenates a char pointer to a string
 pub def concat_c(original: string, addon: ref char): string {
-    mut result: string;
+    mut result: string = str("");
     unsafe {
         result.data = nil;
         result.len = 0;
@@ -331,7 +331,7 @@ pub def concat_c(original: string, addon: ref char): string {
 
 /// Concatenates source string to destination. Returns a new string.
 pub def concat(dest: string, src: string): string {
-    mut result: string;
+    mut result: string = str("");
     raw {
         result.data = NULL;
         result.len  = 0;

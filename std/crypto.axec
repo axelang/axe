@@ -190,7 +190,7 @@ def sha256(data: char*, len: i32): SHA256Digest {
     val bit_len: i32 = len * 8;
     val pad_len: i32 = (len + 8) / 64 * 64 + 64;
     
-    mut padded: i32[16];
+    mut padded: i32[16] = [i32]{};
     mut block_count: i32 = 0;
     mut byte_idx: i32 = 0;
     
