@@ -1177,6 +1177,158 @@ pub def generate_c(ast: ref ASTNode): string {
             }
         }
         result = replace_all(result, str("(->"), str("->"));
+
+        mut fixed_result: string = str("");
+        mut start_idx: i32 = 0;
+        mut idx_line: i32 = 0;
+        loop {
+            if idx_line >= str_len(result) {
+                if start_idx < idx_line {
+                    val last_line: string = substring_se(result, start_idx, idx_line);
+                    mut line_fixed: string = last_line;
+
+                    val trimmed_last: string = strip(last_line);
+                    if has_suffix(trimmed_last, str(");")) {
+                        val eq_pos: i32 = find_char_from(last_line, '=', 0);
+                        if eq_pos >= 0 {
+                            mut open_p: i32 = 0;
+                            mut close_p: i32 = 0;
+                            mut pi: i32 = eq_pos + 1;
+                            loop {
+                                if pi >= str_len(last_line) {
+                                    break;
+                                }
+                                val c: char = get_char(last_line, pi);
+                                if c == '(' {
+                                    open_p = open_p + 1;
+                                } elif c == ')' {
+                                    close_p = close_p + 1;
+                                } elif c == ';' {
+                                    break;
+                                }
+                                pi = pi + 1;
+                            }
+
+                            if close_p > open_p {
+                                mut semi_idx: i32 = -1;
+                                mut sj: i32 = str_len(last_line) - 1;
+                                loop {
+                                    if sj < 0 {
+                                        break;
+                                    }
+                                    if get_char(last_line, sj) == ';' {
+                                        semi_idx = sj;
+                                        break;
+                                    }
+                                    sj = sj - 1;
+                                }
+
+                                if semi_idx > 0 {
+                                    mut close_idx: i32 = semi_idx - 1;
+                                    loop {
+                                        if close_idx < 0 {
+                                            break;
+                                        }
+                                        val cc: char = get_char(last_line, close_idx);
+                                        if cc == ' ' or cc == '\t' or cc == '\n' {
+                                            close_idx = close_idx - 1;
+                                            continue;
+                                        }
+                                        break;
+                                    }
+
+                                    if close_idx >= 0 and get_char(last_line, close_idx) == ')' {
+                                        mut tmp: string = str("");
+                                        tmp = concat(tmp, substring_se(last_line, 0, close_idx));
+                                        tmp = concat(tmp, substring_se(last_line, close_idx + 1, str_len(last_line)));
+                                        line_fixed = tmp;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    fixed_result = concat(fixed_result, line_fixed);
+                }
+                break;
+            }
+
+            val ch: char = get_char(result, idx_line);
+            if ch == '\n' {
+                val line: string = substring_se(result, start_idx, idx_line + 1);
+                mut line_fixed2: string = line;
+
+                val trimmed: string = strip(line);
+                if has_suffix(trimmed, str(");")) {
+                    val eq_pos2: i32 = find_char_from(line, '=', 0);
+                    if eq_pos2 >= 0 {
+                        mut open_p2: i32 = 0;
+                        mut close_p2: i32 = 0;
+                        mut pi2: i32 = eq_pos2 + 1;
+                        loop {
+                            if pi2 >= str_len(line) {
+                                break;
+                            }
+                            val c2: char = get_char(line, pi2);
+                            if c2 == '(' {
+                                open_p2 = open_p2 + 1;
+                            } elif c2 == ')' {
+                                close_p2 = close_p2 + 1;
+                            } elif c2 == ';' {
+                                break;
+                            }
+                            pi2 = pi2 + 1;
+                        }
+
+                        if close_p2 > open_p2 {
+                            mut semi_idx2: i32 = -1;
+                            mut sj2: i32 = str_len(line) - 1;
+                            loop {
+                                if sj2 < 0 {
+                                    break;
+                                }
+                                if get_char(line, sj2) == ';' {
+                                    semi_idx2 = sj2;
+                                    break;
+                                }
+                                sj2 = sj2 - 1;
+                            }
+
+                            if semi_idx2 > 0 {
+                                mut close_idx2: i32 = semi_idx2 - 1;
+                                loop {
+                                    if close_idx2 < 0 {
+                                        break;
+                                    }
+                                    val cc2: char = get_char(line, close_idx2);
+                                    if cc2 == ' ' or cc2 == '\t' or cc2 == '\n' {
+                                        close_idx2 = close_idx2 - 1;
+                                        continue;
+                                    }
+                                    break;
+                                }
+
+                                if close_idx2 >= 0 and get_char(line, close_idx2) == ')' {
+                                    mut tmp2: string = str("");
+                                    tmp2 = concat(tmp2, substring_se(line, 0, close_idx2));
+                                    tmp2 = concat(tmp2, substring_se(line, close_idx2 + 1, str_len(line)));
+                                    line_fixed2 = tmp2;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                fixed_result = concat(fixed_result, line_fixed2);
+                start_idx = idx_line + 1;
+            }
+
+            idx_line = idx_line + 1;
+        }
+
+        if str_len(fixed_result) > 0 {
+            result = fixed_result;
+        }
     }
 
     if equals_c(node_type, "Test") {
@@ -1538,7 +1690,7 @@ pub def generate_c(ast: ref ASTNode): string {
                             } else {
                                 current = concat_chr(current, ch);
                             }
-                            i2 = i2 + 1;
+                            i2++;
                         }
 
                         mut part_last: string = strip(current);
@@ -1602,7 +1754,7 @@ pub def generate_c(ast: ref ASTNode): string {
         println processed_expr;
         
         val pv: string = processed_var;
-        println "[DBG-ASSIGN]   pv before fix:";
+        println "\n[DBG-ASSIGN]   pv before fix:";
         println pv;
         mut fixed_var: string = str("");
         mut idx_av: i32 = 0;
@@ -1656,9 +1808,9 @@ pub def generate_c(ast: ref ASTNode): string {
                 out_lhs = concat(fixed_var, lhs_suffix);
                 out_rhs = strip(rhs_suffix);
 
-                println "[DBG-ASSIGN]   reconstructed LHS (arrow sugar):";
+                println "\n[DBG-ASSIGN]   reconstructed LHS (arrow sugar):";
                 println out_lhs;
-                println "[DBG-ASSIGN]   reconstructed RHS (arrow sugar):";
+                println "\n[DBG-ASSIGN]   reconstructed RHS (arrow sugar):";
                 println out_rhs;
             }
         }
@@ -1676,22 +1828,19 @@ pub def generate_c(ast: ref ASTNode): string {
         val value: string = ast.data.member_access.value;
         
         println "\n[DBG-MEM] MemberAccess node";
-        println "[DBG-MEM]   object_name:";
+        println "\n[DBG-MEM]   object_name:";
         println object_name;
-        println "[DBG-MEM]   member_name:";
+        println "\n[DBG-MEM]   member_name:";
         println member_name;
-        println "[DBG-MEM]   raw value:";
+        println "\n[DBG-MEM]   raw value:";
         println value;
 
         mut lhs: string = object_name;
+
         lhs = concat(lhs, str("."));
         lhs = concat(lhs, member_name);
-        println "[DBG-MEM]   lhs before process_expression:";
-        println lhs;
 
         val processed_lhs: string = process_expression(lhs);
-        println "[DBG-MEM]   processed_lhs:";
-        println processed_lhs;
 
         mut final_lhs: string = processed_lhs;
         if has_prefix(final_lhs, str("->")) and str_len(object_name) > 0 {
