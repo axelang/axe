@@ -3337,6 +3337,14 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             println "[DEBUG]   final RHS expr:";
             println expr;
 
+            mut trimmed_assign: string = strip(expr);
+            val prefix_fix: string = str("_state = ");
+            if compare(ident_name, str("fixed")) == 0 and has_prefix(trimmed_assign, prefix_fix) {
+                ident_name = str("fixed_state");
+                trimmed_assign = substring_se(trimmed_assign, str_len(prefix_fix), str_len(trimmed_assign));
+                expr = trimmed_assign;
+            }
+
             node.node_type = str("Assignment");
             node.data.assignment.variable = ident_name;
             node.data.assignment.expression = expr;
