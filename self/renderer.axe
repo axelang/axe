@@ -94,7 +94,6 @@ def build_function_prefixes(ast: ref ASTNode) {
         if i >= len(deref(children)) {
             break;
         }
-
         val child: ref ASTNode = addr_of(children.data[i]);
         if equals_c(child.node_type, "Function") {
             val full_name: string = child.data.function.name;
@@ -427,8 +426,8 @@ def c_prefix_end_index(s: string): i32 {
         if i >= str_len(s) {
             break;
         }
-        val ch2: char = get_char(s, i);
-        if ch2 != ' ' and ch2 != '\t' and ch2 != '\n' {
+        val ch: char = get_char(s, i);
+        if ch != ' ' and ch != '\t' and ch != '\n' {
             break;
         }
         i = i + 1;
@@ -450,9 +449,22 @@ def process_expression(expr: string): string {
         val ch: char = get_char(trimmed, i);
         if ch == '"' and (i == 0 or get_char(trimmed, i - 1) != '\\') {
             in_string = !in_string;
-        } elif !in_string and ch == '*' and i + 1 < str_len(trimmed) and get_char(trimmed, i + 1) == '.' {
-            has_pointer_sugar = true;
-            break;
+        } elif !in_string and ch == '*' {
+            mut k: i32 = i + 1;
+            loop {
+                if k >= str_len(trimmed) {
+                    break;
+                }
+                val ws: char = get_char(trimmed, k);
+                if ws != ' ' and ws != '\t' and ws != '\n' {
+                    break;
+                }
+                k = k + 1;
+            }
+            if k < str_len(trimmed) and get_char(trimmed, k) == '.' {
+                has_pointer_sugar = true;
+                break;
+            }
         }
         i = i + 1;
     }
@@ -464,6 +476,10 @@ def process_expression(expr: string): string {
     }
 
     if !has_pointer_sugar and !has_c_prefix {
+        println "\n[DBG-EXPR] no-sugar/no-C expr raw:";
+        println expr;
+        println "[DBG-EXPR] no-sugar/no-C trimmed:";
+        println trimmed;
         // Even when there is no pointer sugar or C. prefix, we still need to
         // normalize spurious internal spaces that may have been introduced
         // between pieces of what should be a single token. Examples that have
@@ -541,10 +557,17 @@ def process_expression(expr: string): string {
             jn = jn + 1;
         }
 
-        return strip(out_norm);
+        val norm_no_sugar: string = strip(out_norm);
+        println "[DBG-EXPR] no-sugar final:";
+        println norm_no_sugar;
+        return norm_no_sugar;
     }
 
     mut result: string = trimmed;
+    println "\n[DBG-EXPR] raw expr before sugar/C:";
+    println expr;
+    println "[DBG-EXPR] trimmed:";
+    println trimmed;
 
     if has_pointer_sugar {
         mut out: string = str("");
@@ -558,9 +581,29 @@ def process_expression(expr: string): string {
             if ch2 == '"' and (j == 0 or get_char(result, j - 1) != '\\') {
                 in_str2 = !in_str2;
                 out = concat_chr(out, ch2);
-            } elif !in_str2 and j + 1 < str_len(result) and ch2 == '*' and get_char(result, j + 1) == '.' {
-                out = concat(out, str("->"));
-                j = j + 1;
+            } elif !in_str2 and ch2 == '*' {
+                // Support both `s*.field` and `s * . field` forms. When we see
+                // a `*` outside of strings, peek ahead past any whitespace; if
+                // the next non-space character is `.`, treat this as pointer
+                // member sugar and emit `->` instead.
+                mut k: i32 = j + 1;
+                loop {
+                    if k >= str_len(result) {
+                        break;
+                    }
+                    val ws: char = get_char(result, k);
+                    if ws != ' ' and ws != '\t' and ws != '\n' {
+                        break;
+                    }
+                    k = k + 1;
+                }
+
+                if k < str_len(result) and get_char(result, k) == '.' {
+                    out = concat(out, str("->"));
+                    j = k; // skip over the '.'; loop increment will move past it
+                } else {
+                    out = concat_chr(out, ch2);
+                }
             } else {
                 out = concat_chr(out, ch2);
             }
@@ -577,6 +620,8 @@ def process_expression(expr: string): string {
     // used above to clean up spurious internal spaces within tokens such as
     // "0 . 0" or "reduce _angle" while preserving spaces between tokens.
     mut normalized: string = result;
+    println "[DBG-EXPR] after sugar/C before normalize:";
+    println normalized;
     mut out_final: string = str("");
     mut jf: i32 = 0;
     loop {
@@ -640,7 +685,13 @@ def process_expression(expr: string): string {
         jf = jf + 1;
     }
 
-    return strip(out_final);
+    val first_pass: string = strip(out_final);
+    println "\nFIRST PASS:";
+    println first_pass;
+    val fixed: string = replace_all(first_pass, str("(->"), str("->"));
+    println "\nFIXED:";
+    println fixed;
+    return strip(fixed);
 }
 
 /// Generate a C function prototype from a Function AST node
@@ -1343,10 +1394,12 @@ pub def generate_c(ast: ref ASTNode): string {
     if equals_c(node_type, "Return") {
         result = concat(result, str("return "));
         val expr: string = ast.data.return_node.expression;
-        println "[DEBUG] RENDERER raw return expr:";
+        println "\n[DEBUG] RENDERER raw return expr:";
+        println expr;
+        println "\n[DBG-CALL] process_expression from Return:";
         println expr;
         val processed: string = process_expression(expr);
-        println "[DEBUG] RENDERER processed return expr:";
+        println "\n[DEBUG] RENDERER processed return expr:";
         println processed;
         result = concat(result, processed);
         result = concat(result, str(";\n"));
@@ -1529,23 +1582,89 @@ pub def generate_c(ast: ref ASTNode): string {
         val variable: string = ast.data.assignment.variable;
         val expression: string = ast.data.assignment.expression;
         
-        println "[DEBUG] renderer: Assignment node";
-        println "[DEBUG]   raw variable:";
+        println "\n[DBG-ASSIGN] Assignment node";
+        println "\n[DBG-ASSIGN]   raw variable:";
         println variable;
-        println "[DEBUG]   raw expression:";
+        println "\n[DBG-ASSIGN]   raw expression:";
         println expression;
 
+        println "\n[DBG-CALL] process_expression from Assignment.variable:";
+        println variable;
         val processed_var: string = process_expression(variable);
+        println "\n[DBG-CALL] process_expression from Assignment.expression:";
+        println expression;
         val processed_expr: string = process_expression(expression);
 
-        println "[DEBUG]   processed variable:";
+        println "\n[DBG-ASSIGN]   processed variable:";
         println processed_var;
-        println "[DEBUG]   processed expression:";
+        println "\n[DBG-ASSIGN]   processed expression:";
         println processed_expr;
         
-        result = concat(result, processed_var);
+        val pv: string = processed_var;
+        println "[DBG-ASSIGN]   pv before fix:";
+        println pv;
+        mut fixed_var: string = str("");
+        mut idx_av: i32 = 0;
+        loop {
+            if idx_av >= str_len(pv) {
+                break;
+            }
+            val chx: char = get_char(pv, idx_av);
+
+            if chx == '(' and idx_av > 0 {
+                val prev_ch: char = get_char(pv, idx_av - 1);
+                if (prev_ch >= 'a' and prev_ch <= 'z') or
+                   (prev_ch >= 'A' and prev_ch <= 'Z') or
+                   (prev_ch >= '0' and prev_ch <= '9') or
+                   prev_ch == '_' {
+
+                    mut k2: i32 = idx_av + 1;
+                    loop {
+                        if k2 >= str_len(pv) {
+                            break;
+                        }
+                        val ws2: char = get_char(pv, k2);
+                        if ws2 != ' ' and ws2 != '\t' and ws2 != '\n' {
+                            break;
+                        }
+                        k2 = k2 + 1;
+                    }
+
+                    if k2 + 1 < str_len(pv) and
+                       get_char(pv, k2) == '-' and
+                       get_char(pv, k2 + 1) == '>' {
+                        idx_av = k2;
+                        continue;
+                    }
+                }
+            }
+
+            fixed_var = concat_chr(fixed_var, chx);
+            idx_av = idx_av + 1;
+        }
+
+        mut out_lhs: string = fixed_var;
+        mut out_rhs: string = processed_expr;
+
+        if has_prefix(processed_expr, str("->")) {
+            val eq_pos: i32 = find_char_from(processed_expr, '=', 0);
+            if eq_pos > 0 {
+                val lhs_suffix: string = substring_se(processed_expr, 0, eq_pos);
+                val rhs_suffix: string = substring_se(processed_expr, eq_pos + 1, str_len(processed_expr));
+
+                out_lhs = concat(fixed_var, lhs_suffix);
+                out_rhs = strip(rhs_suffix);
+
+                println "[DBG-ASSIGN]   reconstructed LHS (arrow sugar):";
+                println out_lhs;
+                println "[DBG-ASSIGN]   reconstructed RHS (arrow sugar):";
+                println out_rhs;
+            }
+        }
+
+        result = concat(result, out_lhs);
         result = concat(result, str(" = "));
-        result = concat(result, processed_expr);
+        result = concat(result, out_rhs);
         result = concat(result, str(";\n"));
         return result;
     }
@@ -1555,26 +1674,38 @@ pub def generate_c(ast: ref ASTNode): string {
         val member_name: string = ast.data.member_access.member_name;
         val value: string = ast.data.member_access.value;
         
-        println "[DEBUG] renderer: MemberAccess node";
-        println "[DEBUG]   object_name:";
+        println "\n[DBG-MEM] MemberAccess node";
+        println "[DBG-MEM]   object_name:";
         println object_name;
-        println "[DEBUG]   member_name:";
+        println "[DBG-MEM]   member_name:";
         println member_name;
-        println "[DEBUG]   raw value:";
+        println "[DBG-MEM]   raw value:";
         println value;
 
-        result = concat(result, object_name);
-        result = concat(result, str("."));
-        result = concat(result, member_name);
+        mut lhs: string = object_name;
+        lhs = concat(lhs, str("."));
+        lhs = concat(lhs, member_name);
+        println "[DBG-MEM]   lhs before process_expression:";
+        println lhs;
+
+        val processed_lhs: string = process_expression(lhs);
+        println "[DBG-MEM]   processed_lhs:";
+        println processed_lhs;
+
+        mut final_lhs: string = processed_lhs;
+        if has_prefix(final_lhs, str("->")) and str_len(object_name) > 0 {
+            mut base: string = strip(object_name);
+            if str_len(base) > 0 and get_char(base, str_len(base) - 1) == '*' {
+                base = strip(substring_se(base, 0, str_len(base) - 1));
+            }
+            final_lhs = concat(base, final_lhs);
+        }
+
+        result = concat(result, final_lhs);
 
         if str_len(strip(value)) > 0 {
-            // NOTE: 
-            // For member assignments, the parser already builds a C-ready
-            // expression string for the value, so just use the thing directly after
-            // stripping, instead of running it through process_expression.
-
             val processed_value: string = strip(value);
-            println "[DEBUG]   processed value:";
+            println "\n[DEBUG]   processed value:";
             println processed_value;
             result = concat(result, str(" = "));
             result = concat(result, processed_value);
@@ -1606,8 +1737,9 @@ pub def generate_c(ast: ref ASTNode): string {
                 if arg_idx > 0 {
                     result = concat(result, str(", "));
                 }
-                
-                result = concat(result, args.data[arg_idx]);
+                val raw_arg: string = args.data[arg_idx];
+                val processed_arg: string = process_expression(raw_arg);
+                result = concat(result, processed_arg);
                 arg_idx++;
             }
         }
@@ -1656,7 +1788,7 @@ pub def generate_c(ast: ref ASTNode): string {
                 i++;
             }
         }
-        
+        result = replace_all(result, str("(->"), str("->"));
         result = concat(result, str("}\n"));
         return result;
     }
@@ -1780,6 +1912,8 @@ pub def generate_c(ast: ref ASTNode): string {
 
     if equals_c(node_type, "RawC") {
         val raw_code: string = ast.data.raw_c.code;
+        println "\n[DBG-RAWC] RawC node emitting:";
+        println raw_code;
         result = concat(result, raw_code);
         result = concat(result, str("\n"));
         return result;
@@ -1957,7 +2091,7 @@ pub def generate_c(ast: ref ASTNode): string {
                     result = concat(result, str(";\n"));
                 }
 
-                field_idx = field_idx + 1;
+                field_idx++;
             }
         }
 
