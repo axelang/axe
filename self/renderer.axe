@@ -81,6 +81,130 @@ pub def initialize_renderer() {
     StringStringMap.set(addr_of(g_type_mappings), addr_of(arena), str("ptrdiff"), str("isize"));
 }
 
+/// Rewrite member access on pointer-typed variables...
+def rewrite_pointer_member_accesses(expr: string): string {
+    mut out: string = str("");
+    mut i: i32 = 0;
+    mut in_string: bool = false;
+
+    loop {
+        if i >= str_len(expr) {
+            break;
+        }
+
+        val ch: char = get_char(expr, i);
+
+        if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
+            in_string = !in_string;
+            out = concat_chr(out, ch);
+            i = i + 1;
+            continue;
+        }
+
+        if !in_string and is_ident_start(ch) {
+            mut base: string = str("");
+            mut j: i32 = i;
+            loop {
+                if j >= str_len(expr) {
+                    break;
+                }
+                val cj: char = get_char(expr, j);
+                if !is_token_char(cj) {
+                    break;
+                }
+                base = concat_chr(base, cj);
+                j = j + 1;
+            }
+
+            mut k: i32 = j;
+            loop {
+                if k >= str_len(expr) {
+                    break;
+                }
+                val ws: char = get_char(expr, k);
+                if ws != ' ' and ws != '\t' and ws != '\n' {
+                    break;
+                }
+                k = k + 1;
+            }
+
+            if k < str_len(expr) and get_char(expr, k) == '.' {
+                val start_slice: i32 = i;
+
+                mut p: i32 = k + 1;
+                loop {
+                    if p >= str_len(expr) {
+                        break;
+                    }
+                    val ws2: char = get_char(expr, p);
+                    if ws2 != ' ' and ws2 != '\t' and ws2 != '\n' {
+                        break;
+                    }
+                    p = p + 1;
+                }
+
+                mut member: string = str("");
+                mut m: i32 = p;
+                if m < str_len(expr) and is_ident_start(get_char(expr, m)) {
+                    loop {
+                        if m >= str_len(expr) {
+                            break;
+                        }
+                        val cm: char = get_char(expr, m);
+                        if !is_token_char(cm) {
+                            break;
+                        }
+                        member = concat_chr(member, cm);
+                        m = m + 1;
+                    }
+                }
+
+                if str_len(member) > 0 {
+                    val trimmed_base: string = strip(base);
+                    mut is_pointer: bool = false;
+
+                    if StringStringMap.contains(addr_of(g_var_types), trimmed_base) {
+                        val raw_type: string = StringStringMap.get(addr_of(g_var_types), trimmed_base);
+                        mut t: string = strip(raw_type);
+
+                        if has_prefix(t, str("mut ")) {
+                            t = strip(substr(t, 4, str_len(t) - 4));
+                        }
+
+                        if has_prefix(t, str("ref ")) or has_suffix(t, str("*")) {
+                            is_pointer = true;
+                        }
+                    }
+
+                    if is_pointer {
+                        out = concat(out, trimmed_base);
+                        out = concat(out, str("->"));
+                        out = concat(out, member);
+                        i = m;
+                        continue;
+                    }
+
+                    // Not a pointer: fall through and emit original slice
+                    val original: string = substring_se(expr, start_slice, m);
+                    out = concat(out, original);
+                    i = m;
+                    continue;
+                }
+            }
+
+            // Not a member access; emit the identifier as-is
+            out = concat(out, base);
+            i = j;
+            continue;
+        }
+
+        out = concat_chr(out, ch);
+        i = i + 1;
+    }
+
+    return out;
+}
+
 def build_function_prefixes(ast: ref ASTNode) {
     StringStringMap.clear(addr_of(g_function_prefixes));
 
@@ -139,17 +263,17 @@ def map_type(axe_type: string): string {
 
 /// Get canonical model C name from g_model_names
 def canonical_model_c_name(name: string): string {
-    println "[DBG-MODEL] canonical_model_c_name lookup:";
+    println "\n[DBG-MODEL] canonical_model_c_name lookup:";
     println name;
 
     if StringStringMap.contains(addr_of(g_model_names), name) {
         val mapped: string = StringStringMap.get(addr_of(g_model_names), name);
-        println "[DBG-MODEL]   found canonical name:";
+        println "\n[DBG-MODEL]   found canonical name:";
         println mapped;
         return mapped;
     }
 
-    println "[DBG-MODEL]   no canonical name found";
+    println "\n[DBG-MODEL]   no canonical name found";
     return str("");
 }
 
@@ -242,7 +366,7 @@ def sanitize_list_element_name(c_elem: string): string {
         }
         i = i + 1;
     }
-    println "[DBG-ENUM] rewrite_enum_member_refs output:";
+    println "\n[DBG-ENUM] rewrite_enum_member_refs output:";
     println out;    return out;
 }
 
@@ -1044,7 +1168,7 @@ def strip_all_c_prefixes(s: string): string {
 def rewrite_enum_member_refs(s: string): string {
     mut trimmed: string = strip(s);
 
-    println "[DBG-ENUM] rewrite_enum_member_refs input:";
+    println "\n[DBG-ENUM] rewrite_enum_member_refs input:";
     println trimmed;
 
     if str_len(trimmed) == 0 {
@@ -1053,7 +1177,7 @@ def rewrite_enum_member_refs(s: string): string {
 
     val dot_pos: i32 = find_char_from(trimmed, '.', 0);
     if dot_pos <= 0 or dot_pos + 1 >= str_len(trimmed) {
-        println "[DBG-ENUM]   no dot pattern found";
+        println "\n[DBG-ENUM]   no dot pattern found";
         return s;
     }
 
@@ -1061,17 +1185,17 @@ def rewrite_enum_member_refs(s: string): string {
     val right_raw: string = strip(substring_se(trimmed, dot_pos + 1, str_len(trimmed)));
 
     if str_len(left_raw) == 0 or str_len(right_raw) == 0 {
-        println "[DBG-ENUM]   empty left/right after split";
+        println "\n[DBG-ENUM]   empty left/right after split";
         return s;
     }
 
-    println "[DBG-ENUM]   candidate enum/member:";
+    println "\n[DBG-ENUM]   candidate enum/member:";
     println left_raw;
     println right_raw;
 
     val enum_c_name: string = canonical_model_c_name(left_raw);
     if str_len(enum_c_name) == 0 {
-        println "[DBG-ENUM]   canonical lookup failed";
+        println "\n[DBG-ENUM]   canonical lookup failed";
         return s;
     }
 
@@ -1079,7 +1203,7 @@ def rewrite_enum_member_refs(s: string): string {
     repl = concat(repl, str("_"));
     repl = concat(repl, right_raw);
 
-    println "[DBG-ENUM]   rewritten to:";
+    println "\n[DBG-ENUM]   rewritten to:";
     println repl;
 
     return repl;
@@ -1194,7 +1318,7 @@ def process_expression(expr: string): string {
     if !has_pointer_sugar and !has_c_prefix {
         println "\n[DBG-EXPR] no-sugar/no-C expr raw:";
         println expr;
-        println "[DBG-EXPR] no-sugar/no-C trimmed:";
+        println "\n[DBG-EXPR] no-sugar/no-C trimmed:";
         println trimmed;
 
         val single_quote_pos: i32 = find_char_from(trimmed, '\'', 0);
@@ -1282,7 +1406,7 @@ def process_expression(expr: string): string {
         }
 
         val norm_no_sugar: string = strip(out_norm);
-        println "[DBG-EXPR] no-sugar final:";
+        println "\n[DBG-EXPR] no-sugar final:";
         println norm_no_sugar;
 
         val methods_fixed: string = rewrite_method_calls(norm_no_sugar);
@@ -1295,7 +1419,7 @@ def process_expression(expr: string): string {
     mut result: string = trimmed;
     println "\n[DBG-EXPR] raw expr before sugar/C:";
     println expr;
-    println "[DBG-EXPR] trimmed:";
+    println "\n[DBG-EXPR] trimmed:";
     println trimmed;
 
     if has_pointer_sugar {
@@ -1351,7 +1475,7 @@ def process_expression(expr: string): string {
     // used above to clean up spurious internal spaces within tokens such as
     // "0 . 0" or "reduce _angle" while preserving spaces between tokens.
     mut normalized: string = result;
-    println "[DBG-EXPR] after sugar/C before normalize:";
+    println "\n[DBG-EXPR] after sugar/C before normalize:";
     println normalized;
     mut out_final: string = str("");
     mut jf: i32 = 0;
@@ -2111,6 +2235,7 @@ pub def generate_c(ast: ref ASTNode): string {
         result = replace_all(result, str("C."), str(""));
         result = collapse_duplicate_segments(result);
         result = rewrite_method_calls(result);
+        result = rewrite_pointer_member_accesses(result);
     }
 
     if equals_c(node_type, "Test") {
