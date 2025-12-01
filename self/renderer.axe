@@ -81,6 +81,52 @@ pub def initialize_renderer() {
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("ptrdiff"), str("isize"));
 }
 
+/// Remove stray spaces around '.' in numeric C literals.
+def normalize_numeric_dots(s: string): string {
+    mut out: string = str("");
+    val n: i32 = str_len(s);
+    mut i: i32 = 0;
+
+    loop {
+        if i >= n {
+            break;
+        }
+
+        val ch: char = get_char(s, i);
+
+        if ch >= '0' and ch <= '9' and i + 1 < n and get_char(s, i + 1) == '.' {
+            out = concat_chr(out, ch);
+            out = concat_chr(out, '.');
+
+            mut j: i32 = i + 2;
+            loop {
+                if j >= n {
+                    break;
+                }
+                val cj: char = get_char(s, j);
+                if cj != ' ' and cj != '\t' and cj != '\n' {
+                    break;
+                }
+                j = j + 1;
+            }
+
+            if j < n and get_char(s, j) >= '0' and get_char(s, j) <= '9' {
+                out = concat_chr(out, get_char(s, j));
+                i = j + 1;
+                continue;
+            } else {
+                i = j;
+                continue;
+            }
+        }
+
+        out = concat_chr(out, ch);
+        i = i + 1;
+    }
+
+    return out;
+}
+
 /// Rewrite member access on pointer-typed variables...
 def rewrite_pointer_member_accesses(expr: string): string {
     mut out: string = str("");
@@ -1382,16 +1428,16 @@ def process_expression(expr: string): string {
                     knext = knext + 1;
                 }
 
-                if is_token_char(prev) and is_token_char(next) {
+                if (prev >= '0' and prev <= '9' and next == '.') or
+                   (prev == '.' and next >= '0' and next <= '9') {
+                    // Merge numeric fragments around the decimal point.
+                } elif is_token_char(prev) and is_token_char(next) {
                     if next == '_' {
                         // ok.
-                    } elif (prev >= '0' and prev <= '9' and next == '.') or
-                          (prev == '.' and next >= '0' and next <= '9') {
-                        // Merge numeric fragments around the decimal point.
                     } elif (prev == '+' and next == '=') or (prev == '-' and next == '=') {
                         // Merge `+ =` or `- =` into `+=` / `-=` to avoid split operators in generated C.
                     } elif !is_ident_start(next) {
-                        // Merge other token fragments such as `0 . 0`.
+                        // Merge other token fragments such as `reduce _angle`.
                     } else {
                         out_norm = concat(out_norm, str(" "));
                     }
@@ -1517,16 +1563,16 @@ def process_expression(expr: string): string {
                 kn = kn + 1;
             }
 
-            if is_token_char(prev2) and is_token_char(next2) {
+            if (prev2 >= '0' and prev2 <= '9' and next2 == '.') or
+               (prev2 == '.' and next2 >= '0' and next2 <= '9') {
+                // Merge numeric fragments around the decimal point.
+            } elif is_token_char(prev2) and is_token_char(next2) {
                 if next2 == '_' {
                     // Merge space before underscore into the identifier.
-                } elif (prev2 >= '0' and prev2 <= '9' and next2 == '.') or
-                      (prev2 == '.' and next2 >= '0' and next2 <= '9') {
-                    // Merge numeric fragments around the decimal point.
                 } elif (prev2 == '+' and next2 == '=') or (prev2 == '-' and next2 == '=') {
                     // Merge `+ =` or `- =` into `+=` / `-=`.
                 } elif !is_ident_start(next2) {
-                    // Drop the space between token characters (e.g. `0 . 0`).
+                    // Drop the space between token characters (e.g. `reduce _angle`).
                 } else {
                     out_final = concat(out_final, str(" "));
                 }
@@ -2236,6 +2282,7 @@ pub def generate_c(ast: ref ASTNode): string {
         result = collapse_duplicate_segments(result);
         result = rewrite_method_calls(result);
         result = rewrite_pointer_member_accesses(result);
+        result = normalize_numeric_dots(result);
     }
 
     if equals_c(node_type, "Test") {
