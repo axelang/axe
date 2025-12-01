@@ -446,6 +446,72 @@ def c_prefix_end_index(s: string): i32 {
     return i;
 }
 
+/// Strip any C. prefixes (C, optional spaces, '.', optional spaces) that may
+/// appear anywhere in a C expression string, not just at the beginning.
+def strip_all_c_prefixes(s: string): string {
+    mut cleaned: string = str("");
+    mut i: i32 = 0;
+    loop {
+        if i >= str_len(s) {
+            break;
+        }
+
+        val ch: char = get_char(s, i);
+
+        if ch == 'C' {
+            mut prev_idx: i32 = i - 1;
+            mut prev_ch: char = '\0';
+            loop {
+                if prev_idx < 0 {
+                    break;
+                }
+                val pc: char = get_char(s, prev_idx);
+                if pc != ' ' and pc != '\t' and pc != '\n' {
+                    prev_ch = pc;
+                    break;
+                }
+                prev_idx = prev_idx - 1;
+            }
+
+            if prev_idx < 0 or !is_ident_start(prev_ch) {
+                mut k: i32 = i + 1;
+                loop {
+                    if k >= str_len(s) {
+                        break;
+                    }
+                    val ws: char = get_char(s, k);
+                    if ws != ' ' and ws != '\t' and ws != '\n' {
+                        break;
+                    }
+                    k = k + 1;
+                }
+
+                if k < str_len(s) and get_char(s, k) == '.' {
+                    k = k + 1;
+                    loop {
+                        if k >= str_len(s) {
+                            break;
+                        }
+                        val ws2: char = get_char(s, k);
+                        if ws2 != ' ' and ws2 != '\t' and ws2 != '\n' {
+                            break;
+                        }
+                        k = k + 1;
+                    }
+
+                    i = k;
+                    continue;
+                }
+            }
+        }
+
+        cleaned = concat_chr(cleaned, ch);
+        i = i + 1;
+    }
+
+    return cleaned;
+}
+
 def rewrite_enum_member_refs(s: string): string {
     mut trimmed: string = strip(s);
 
@@ -671,6 +737,8 @@ def process_expression(expr: string): string {
     if has_c_prefix {
         result = substring_se(result, c_prefix_end, str_len(result));
     }
+
+    result = strip_all_c_prefixes(result);
 
     // After pointer-sugar and C. stripping, run the same normalization pass
     // used above to clean up spurious internal spaces within tokens such as
@@ -1379,6 +1447,12 @@ pub def generate_c(ast: ref ASTNode): string {
         }
     }
 
+    if equals_c(node_type, "Program") {
+        result = strip_all_c_prefixes(result);
+        result = replace_all(result, str("C . "), str(""));
+        result = replace_all(result, str("C."), str(""));
+    }
+
     if equals_c(node_type, "Test") {
         result = concat(result, str("int main(int argc, char** argv) {\n"));
         result = concat(result, str("    int passed = 0;\n"));
@@ -2061,6 +2135,7 @@ pub def generate_c(ast: ref ASTNode): string {
             return result;
         }
 
+        result = strip_all_c_prefixes(result);
         return result;
     }
     
@@ -2204,7 +2279,8 @@ pub def generate_c(ast: ref ASTNode): string {
         val raw_code: string = ast.data.raw_c.code;
         println "\n[DBG-RAWC] RawC node emitting:";
         println raw_code;
-        result = concat(result, raw_code);
+        val cleaned_raw: string = strip_all_c_prefixes(raw_code);
+        result = concat(result, cleaned_raw);
         result = concat(result, str("\n"));
         return result;
     }
