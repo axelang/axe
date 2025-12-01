@@ -153,6 +153,42 @@ def canonical_model_c_name(name: string): string {
     return str("");
 }
 
+def normalize_method_function_name(name: string): string {
+    mut sep: i32 = -1;
+    mut i: i32 = 0;
+    val n: i32 = str_len(name);
+
+    loop {
+        if i + 1 >= n {
+            break;
+        }
+        val c1: char = get_char(name, i);
+        val c2: char = get_char(name, i + 1);
+        if c1 == '_' and c2 == '_' {
+            sep = i;
+            break;
+        }
+        i = i + 1;
+    }
+
+    if sep < 0 or sep + 2 >= n {
+        return name;
+    }
+
+    val model_part: string = substring_se(name, 0, sep);
+    val method_part: string = substring_se(name, sep + 2, n);
+    val canon: string = canonical_model_c_name(model_part);
+
+    if str_len(canon) == 0 {
+        return name;
+    }
+
+    mut full: string = canon;
+    full = concat(full, str("__"));
+    full = concat(full, method_part);
+    return full;
+}
+
 /// Map Axe type to C type (comprehensive version for model fields)
 def map_axe_type_to_c(axe_type: string): string {
     mut result: string = axe_type;
@@ -1299,6 +1335,10 @@ def generate_function_prototype(ast: ref ASTNode): string {
     }
 
     mut func_name: string = func_name_raw;
+    func_name = normalize_method_function_name(func_name);
+    if StringStringMap.contains(addr_of(g_function_prefixes), func_name) {
+        func_name = StringStringMap.get(addr_of(g_function_prefixes), func_name);
+    }
     mut return_type: string = ast.data.function.return_type;
 
     if str_len(return_type) == 0 {
@@ -2035,6 +2075,7 @@ pub def generate_c(ast: ref ASTNode): string {
         val is_public: bool = ast.data.function.is_public;
         
         if !equals_c(func_name, "main") {
+            func_name = normalize_method_function_name(func_name);
             if StringStringMap.contains(addr_of(g_function_prefixes), func_name) {
                 func_name = StringStringMap.get(addr_of(g_function_prefixes), func_name);
             }
