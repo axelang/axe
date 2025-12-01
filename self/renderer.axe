@@ -2113,7 +2113,9 @@ pub def generate_c(ast: ref ASTNode): string {
                     break;
                 }
                 val child2: ref ASTNode = addr(children.data[i]);
-                if !equals_c(child2.node_type, "Overload") and !equals_c(child2.node_type, "Function") and !equals_c(child2.node_type, "Model") and !equals_c(child2.node_type, "Enum") and !equals_c(child2.node_type, "Declaration") {
+                if !equals_c(child2.node_type, "Overload") and !equals_c(child2.node_type, "Function") 
+                    and !equals_c(child2.node_type, "Model") and !equals_c(child2.node_type, "Enum") 
+                    and !equals_c(child2.node_type, "Declaration") {
                     val child_code: string = generate_c(child2);
                     result = concat(result, child_code);
                 }
