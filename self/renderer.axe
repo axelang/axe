@@ -1761,8 +1761,12 @@ pub def generate_c(ast: ref ASTNode): string {
             }
 
             val axe_type: string = type_names_ref.data[i_ov];
-            val target_name: string = targets_ref.data[i_ov];
+            mut target_name: string = targets_ref.data[i_ov];
             val mapped_type: string = map_axe_type_to_c(axe_type);
+
+            if StringStringMap.contains(addr(g_function_prefixes), target_name) {
+                target_name = StringStringMap.get(addr(g_function_prefixes), target_name);
+            }
 
             result = concat(result, str("    "));
             result = concat(result, mapped_type);
