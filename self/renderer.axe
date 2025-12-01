@@ -247,6 +247,240 @@ def sanitize_list_element_name(c_elem: string): string {
     return out;
 }
 
+/// Rewrite method-style calls of the form `Base.method(...)` into a single
+/// C identifier using the canonical model name when available. For example:
+///   Arena.alloc_array(arena, ...)
+/// becomes:
+///   std__arena__Arena_Arena__alloc_array(arena, ...)
+def rewrite_method_calls(expr: string): string {
+    mut out: string = str("");
+    mut i: i32 = 0;
+    mut in_string: bool = false;
+
+    loop {
+        if i >= str_len(expr) {
+            break;
+        }
+
+        val ch: char = get_char(expr, i);
+
+        if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
+            in_string = !in_string;
+            out = concat_chr(out, ch);
+            i = i + 1;
+            continue;
+        }
+
+        if !in_string and is_ident_start(ch) {
+            mut base: string = str("");
+            mut j: i32 = i;
+            loop {
+                if j >= str_len(expr) {
+                    break;
+                }
+                val cj: char = get_char(expr, j);
+                if !is_token_char(cj) {
+                    break;
+                }
+                base = concat_chr(base, cj);
+                j = j + 1;
+            }
+
+            mut k: i32 = j;
+            loop {
+                if k >= str_len(expr) {
+                    break;
+                }
+                val ws: char = get_char(expr, k);
+                if ws != ' ' and ws != '\t' and ws != '\n' {
+                    break;
+                }
+                k = k + 1;
+            }
+
+            if k < str_len(expr) and get_char(expr, k) == '.' {
+                k = k + 1;
+
+                loop {
+                    if k >= str_len(expr) {
+                        break;
+                    }
+                    val ws2: char = get_char(expr, k);
+                    if ws2 != ' ' and ws2 != '\t' and ws2 != '\n' {
+                        break;
+                    }
+                    k = k + 1;
+                }
+
+                mut method: string = str("");
+                mut m: i32 = k;
+                if m < str_len(expr) and is_ident_start(get_char(expr, m)) {
+                    loop {
+                        if m >= str_len(expr) {
+                            break;
+                        }
+                        val cm: char = get_char(expr, m);
+                        if !is_token_char(cm) {
+                            break;
+                        }
+                        method = concat_chr(method, cm);
+                        m = m + 1;
+                    }
+                }
+
+                mut p: i32 = m;
+                loop {
+                    if p >= str_len(expr) {
+                        break;
+                    }
+                    val ws3: char = get_char(expr, p);
+                    if ws3 != ' ' and ws3 != '\t' and ws3 != '\n' {
+                        break;
+                    }
+                    p = p + 1;
+                }
+
+                if str_len(method) > 0 and p < str_len(expr) and get_char(expr, p) == '(' {
+                    val canon: string = canonical_model_c_name(base);
+                    mut full_name: string = str("");
+                    if str_len(canon) > 0 {
+                        full_name = canon;
+                    } else {
+                        full_name = base;
+                    }
+                    full_name = concat(full_name, str("__"));
+                    full_name = concat(full_name, method);
+
+                    out = concat(out, full_name);
+                    i = m;
+                    continue;
+                }
+            }
+
+            out = concat(out, base);
+            i = j;
+            continue;
+        }
+
+        out = concat_chr(out, ch);
+        i = i + 1;
+    }
+
+    return out;
+}
+
+/// Rewrite sizeof argument types so that constructs like `sizeof(IntList)`
+/// or `sizeof ( i32 )` use the mapped C type (e.g. `sizeof(std__lists__IntList)`.
+def rewrite_sizeof_types(expr: string): string {
+    mut out: string = str("");
+    mut i: i32 = 0;
+    mut in_string: bool = false;
+
+    loop {
+        if i >= str_len(expr) {
+            break;
+        }
+
+        val ch: char = get_char(expr, i);
+
+        if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
+            in_string = !in_string;
+            out = concat_chr(out, ch);
+            i = i + 1;
+            continue;
+        }
+
+        if !in_string and is_ident_start(ch) {
+            mut ident: string = str("");
+            mut j: i32 = i;
+            loop {
+                if j >= str_len(expr) {
+                    break;
+                }
+                val cj: char = get_char(expr, j);
+                if !is_token_char(cj) {
+                    break;
+                }
+                ident = concat_chr(ident, cj);
+                j = j + 1;
+            }
+
+            if str_len(ident) == 6 and get_char(ident, 0) == 's' and get_char(ident, 1) == 'i' and get_char(ident, 2) == 'z' and get_char(ident, 3) == 'e' and get_char(ident, 4) == 'o' and get_char(ident, 5) == 'f' {
+                out = concat(out, ident);
+
+                mut k: i32 = j;
+                loop {
+                    if k >= str_len(expr) {
+                        break;
+                    }
+                    val ws: char = get_char(expr, k);
+                    if ws != ' ' and ws != '\t' and ws != '\n' {
+                        break;
+                    }
+                    k = k + 1;
+                }
+
+                if k < str_len(expr) and get_char(expr, k) == '(' {
+                    out = concat_chr(out, '(');
+                    k = k + 1;
+
+                    mut start_type: i32 = k;
+                    loop {
+                        if start_type >= str_len(expr) {
+                            break;
+                        }
+                        val ws2: char = get_char(expr, start_type);
+                        if ws2 != ' ' and ws2 != '\t' and ws2 != '\n' {
+                            break;
+                        }
+                        start_type = start_type + 1;
+                    }
+
+                    mut end_type: i32 = start_type;
+                    loop {
+                        if end_type >= str_len(expr) {
+                            break;
+                        }
+                        val ct: char = get_char(expr, end_type);
+                        if ct == ')' {
+                            break;
+                        }
+                        end_type = end_type + 1;
+                    }
+
+                    if end_type <= str_len(expr) {
+                        val raw_type: string = strip(substring_se(expr, start_type, end_type));
+                        if str_len(raw_type) > 0 {
+                            val mapped: string = map_axe_type_to_c(raw_type);
+                            out = concat(out, mapped);
+                        }
+
+                        if end_type < str_len(expr) and get_char(expr, end_type) == ')' {
+                            out = concat(out, str(")"));
+                            end_type = end_type + 1;
+                        }
+
+                        i = end_type;
+                        continue;
+                    }
+                }
+
+                i = j;
+                continue;
+            }
+
+            out = concat(out, ident);
+            i = j;
+            continue;
+        }
+
+        out = concat_chr(out, ch);
+        i = i + 1;
+    }
+
+    return out;
+}
+
 /// Rewrite Axe-style cast expressions of the form
 ///   `cast [ T ] ( expr )`
 /// into  C-style casts using the mapped C type, e.g.:
@@ -905,7 +1139,9 @@ def process_expression(expr: string): string {
         println "[DBG-EXPR] no-sugar final:";
         println norm_no_sugar;
 
-        val calls_fixed_no_sugar: string = rewrite_function_calls(norm_no_sugar);
+        val methods_fixed: string = rewrite_method_calls(norm_no_sugar);
+        val sizeof_fixed: string = rewrite_sizeof_types(methods_fixed);
+        val calls_fixed_no_sugar: string = rewrite_function_calls(sizeof_fixed);
         val enum_fixed_no_sugar: string = rewrite_enum_member_refs(calls_fixed_no_sugar);
         return strip(enum_fixed_no_sugar);
     }
@@ -1041,7 +1277,9 @@ def process_expression(expr: string): string {
     println "\nFIXED:";
     println fixed;
 
-    val calls_fixed: string = rewrite_function_calls(fixed);
+    val methods_fixed2: string = rewrite_method_calls(fixed);
+    val sizeof_fixed2: string = rewrite_sizeof_types(methods_fixed2);
+    val calls_fixed: string = rewrite_function_calls(sizeof_fixed2);
     val enum_fixed: string = rewrite_enum_member_refs(calls_fixed);
     return strip(enum_fixed);
 }
