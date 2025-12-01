@@ -453,6 +453,7 @@ string generateC(ASTNode ast)
         __typeMapCache[t] = r;
         return r;
     }
+
     string[string] variables;
     string currentFunction = "";
     string[] functionParams;
@@ -889,7 +890,8 @@ string generateC(ASTNode ast)
                                         {
                                             nestedElementType = nestedElementType[4 .. $].strip();
                                         }
-                                        string nestedCElementType = cachedMapAxeTypeToC(nestedElementType);
+                                        string nestedCElementType = cachedMapAxeTypeToC(
+                                            nestedElementType);
                                         g_listElementTypes[nestedCElementType] = true;
                                     }
                                 }
@@ -2955,6 +2957,13 @@ string generateC(ASTNode ast)
     default:
         enforce(false, "Unsupported node type for C generation: " ~ ast.nodeType);
     }
+
+    // Final cleanup: Fix invalid double-initializer pattern produced by the
+    // interaction between implicit struct init and list macros.
+
+    import std.string : replace;
+
+    cCode = cCode.replace(" = {} = {0}", " = {0}");
 
     return cCode;
 }
