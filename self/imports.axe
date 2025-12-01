@@ -533,7 +533,16 @@ def merge_imported_module(program: ref ASTNode, imported: ref ASTNode, use_modul
             continue;
         }
 
+        if equals_c(child.node_type, "Test") {
+            i++;
+            continue;
+        }
+
         if equals_c(child.node_type, "Function") {
+            if equals_c(child.data.function.name, "main") {
+                i++;
+                continue;
+            }
             prefix_function_node(addr(child), module_prefix);
             prefix_types_in_node(addr(child), module_prefix, addr(exported));
         } elif equals_c(child.node_type, "Model") {
