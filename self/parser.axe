@@ -3646,6 +3646,8 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx); // '{'
 
         mut raw_code: string = str("");
+        mut depth: i32 = 1;
+
         loop {
             if ctx.pos >= len(ctx.tokens) {
                 enforce_raw(false, "ERROR: Unexpected end of tokens in raw block");
@@ -3653,8 +3655,21 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             }
 
             val t: Token = peek(ctx);
-            if t.token_type == TokenType.RBRACE {
-                break;
+
+            if t.token_type == TokenType.LBRACE {
+                raw_code = concat(raw_code, str("{"));
+                depth = depth + 1;
+                consume(ctx);
+                continue;
+            } elif t.token_type == TokenType.RBRACE {
+                depth = depth - 1;
+                if depth == 0 {
+                    break;
+                } else {
+                    raw_code = concat(raw_code, str("}"));
+                    consume(ctx);
+                    continue;
+                }
             }
 
             if t.token_type == TokenType.NEWLINE {
