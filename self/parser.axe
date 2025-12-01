@@ -3659,6 +3659,14 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
 
             if t.token_type == TokenType.NEWLINE {
                 raw_code = concat(raw_code, str("\n"));
+            } elif t.token_type == TokenType.STR {
+                raw_code = concat(raw_code, str("\""));
+                raw_code = concat(raw_code, t.value);
+                raw_code = concat(raw_code, str("\""));
+            } elif t.token_type == TokenType.CHAR {
+                raw_code = concat(raw_code, str("'"));
+                raw_code = concat(raw_code, t.value);
+                raw_code = concat(raw_code, str("'"));
             } else {
                 raw_code = concat(raw_code, t.value);
             }

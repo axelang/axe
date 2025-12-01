@@ -2293,8 +2293,7 @@ pub def generate_c(ast: ref ASTNode): string {
         val raw_code: string = ast.data.raw_c.code;
         println "\n[DBG-RAWC] RawC node emitting:";
         println raw_code;
-        val cleaned_raw: string = strip_all_c_prefixes(raw_code);
-        result = concat(result, cleaned_raw);
+        result = concat(result, raw_code);
         result = concat(result, str("\n"));
         return result;
     }
