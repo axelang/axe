@@ -2366,16 +2366,35 @@ pub def generate_c(ast: ref ASTNode): string {
 
                     mut mapped_type: string = map_axe_type_to_c(type_name);
                     mut line: string = str("");
+                    mut array_suffix: string = str("");
+                    val br: i32 = find_char_from(type_name, '[', 0);
+
+                    if br >= 0 {
+                        val suffix: string = substring_se(type_name, br, str_len(type_name));
+                        if !equals_c(suffix, "[999]") {
+                            val base_raw: string = strip(substring_se(type_name, 0, br));
+                            if str_len(base_raw) > 0 {
+                                mapped_type = map_axe_type_to_c(base_raw);
+                                array_suffix = suffix;
+                            }
+                        }
+                    }
 
                     if is_mutable {
                         line = concat(line, mapped_type);
                         line = concat(line, str(" "));
                         line = concat(line, var_name);
+                        if str_len(array_suffix) > 0 {
+                            line = concat(line, array_suffix);
+                        }
                     } else {
                         line = concat(line, str("const "));
                         line = concat(line, mapped_type);
                         line = concat(line, str(" "));
                         line = concat(line, var_name);
+                        if str_len(array_suffix) > 0 {
+                            line = concat(line, array_suffix);
+                        }
                     }
 
                     mut trimmed_init: string = strip(initializer);
@@ -2772,15 +2791,34 @@ pub def generate_c(ast: ref ASTNode): string {
             mapped_type = enum_model_name;
         }
 
+        mut array_suffix: string = str("");
+        val br: i32 = find_char_from(type_name, '[', 0);
+        if br >= 0 {
+            val suffix: string = substring_se(type_name, br, str_len(type_name));
+            if !equals_c(suffix, "[999]") {
+                val base_raw: string = strip(substring_se(type_name, 0, br));
+                if str_len(base_raw) > 0 {
+                    mapped_type = map_axe_type_to_c(base_raw);
+                    array_suffix = suffix;
+                }
+            }
+        }
+
         if is_mutable {
             result = concat(result, mapped_type);
             result = concat(result, str(" "));
             result = concat(result, var_name);
+            if str_len(array_suffix) > 0 {
+                result = concat(result, array_suffix);
+            }
         } else {
             result = concat(result, str("const "));
             result = concat(result, mapped_type);
             result = concat(result, str(" "));
             result = concat(result, var_name);
+            if str_len(array_suffix) > 0 {
+                result = concat(result, array_suffix);
+            }
         }
         
         if str_len(initializer) > 0 {
