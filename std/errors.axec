@@ -44,7 +44,7 @@ pub def enforce_raw(condition: bool, msg: ref char) {
 }
 
 def test_error(): error {
-    return new error(msg: string.create("Some bad thing happened"));
+    return error{msg: string.create("Some bad thing happened")};
 }
 
 test {
