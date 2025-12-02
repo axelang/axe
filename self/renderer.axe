@@ -2591,6 +2591,7 @@ pub def generate_c(ast: ref ASTNode): string {
         println expr;
 
         mut trimmed_ret: string = strip(expr);
+
         val paren_pos_ret: i32 = find_char_from(trimmed_ret, '(', 0);
         if paren_pos_ret > 0 {
             val call_name_ret: string = strip(substring_se(trimmed_ret, 0, paren_pos_ret));
@@ -2602,11 +2603,101 @@ pub def generate_c(ast: ref ASTNode): string {
             }
         }
 
-        println "\n[DBG-CALL] process_expression from Return:";
-        println expr;
-        val processed: string = process_expression(expr);
-        println "\n[DEBUG] RENDERER processed return expr:";
-        println processed;
+        mut processed: string = str("");
+
+        val brace_pos_ret: i32 = find_char_from(trimmed_ret, '{', 0);
+        if brace_pos_ret > 0 and get_char(trimmed_ret, str_len(trimmed_ret) - 1) == '}' {
+            val prefix_ret: string = strip(substring_se(trimmed_ret, 0, brace_pos_ret));
+            val inner_ret: string = substring_se(trimmed_ret, brace_pos_ret + 1, str_len(trimmed_ret) - 1);
+
+            if str_len(prefix_ret) > 0 {
+                val canon_ret: string = canonical_model_c_name(prefix_ret);
+                mut c_type_ret: string = canon_ret;
+                if str_len(c_type_ret) == 0 {
+                    c_type_ret = map_axe_type_to_c(prefix_ret);
+                }
+
+                if str_len(c_type_ret) > 0 {
+                    mut init_code_ret: string = str("(");
+                    init_code_ret = concat(init_code_ret, c_type_ret);
+                    init_code_ret = concat(init_code_ret, str("){"));
+
+                    mut current_ret: string = str("");
+                    mut depth_ret: i32 = 0;
+                    mut first_field_ret: bool = true;
+                    mut i_ret: i32 = 0;
+
+                    loop {
+                        if i_ret >= str_len(inner_ret) {
+                            break;
+                        }
+                        val ch_ret: char = get_char(inner_ret, i_ret);
+                        if ch_ret == '(' {
+                            depth_ret = depth_ret + 1;
+                            current_ret = concat_chr(current_ret, ch_ret);
+                        } elif ch_ret == ')' {
+                            if depth_ret > 0 {
+                                depth_ret = depth_ret - 1;
+                            }
+                            current_ret = concat_chr(current_ret, ch_ret);
+                        } elif ch_ret == ',' and depth_ret == 0 {
+                            mut part_ret: string = strip(current_ret);
+                            if str_len(part_ret) > 0 {
+                                val colon_pos_ret2: i32 = find_char_from(part_ret, ':', 0);
+                                if colon_pos_ret2 >= 0 {
+                                    val field_name_ret: string = strip(substring_se(part_ret, 0, colon_pos_ret2));
+                                    val value_expr_ret: string = strip(substr(part_ret, colon_pos_ret2 + 1, str_len(part_ret) - colon_pos_ret2 - 1));
+                                    if str_len(field_name_ret) > 0 and str_len(value_expr_ret) > 0 {
+                                        if !first_field_ret {
+                                            init_code_ret = concat(init_code_ret, str(", "));
+                                        }
+                                        init_code_ret = concat(init_code_ret, str("."));
+                                        init_code_ret = concat(init_code_ret, field_name_ret);
+                                        init_code_ret = concat(init_code_ret, str(" = "));
+                                        val processed_val_ret: string = process_expression(value_expr_ret);
+                                        init_code_ret = concat(init_code_ret, processed_val_ret);
+                                        first_field_ret = false;
+                                    }
+                                }
+                            }
+                            current_ret = str("");
+                        } else {
+                            current_ret = concat_chr(current_ret, ch_ret);
+                        }
+                        i_ret = i_ret + 1;
+                    }
+
+                    mut part_last_ret: string = strip(current_ret);
+                    if str_len(part_last_ret) > 0 {
+                        val colon_pos_last_ret: i32 = find_char_from(part_last_ret, ':', 0);
+                        if colon_pos_last_ret >= 0 {
+                            val field_name_last_ret: string = strip(substring_se(part_last_ret, 0, colon_pos_last_ret));
+                            val value_expr_last_ret: string = strip(substr(part_last_ret, colon_pos_last_ret + 1, str_len(part_last_ret) - colon_pos_last_ret - 1));
+                            if str_len(field_name_last_ret) > 0 and str_len(value_expr_last_ret) > 0 {
+                                if !first_field_ret {
+                                    init_code_ret = concat(init_code_ret, str(", "));
+                                }
+                                init_code_ret = concat(init_code_ret, str("."));
+                                init_code_ret = concat(init_code_ret, field_name_last_ret);
+                                init_code_ret = concat(init_code_ret, str(" = "));
+                                val processed_last_ret: string = process_expression(value_expr_last_ret);
+                                init_code_ret = concat(init_code_ret, processed_last_ret);
+                                first_field_ret = false;
+                            }
+                        }
+                    }
+
+                    init_code_ret = concat(init_code_ret, str("}"));
+                    processed = init_code_ret;
+                }
+            }
+        }
+
+        if str_len(processed) == 0 {
+            println "\n[DBG-CALL] process_expression from Return:";
+            println expr;
+            processed = process_expression(expr);
+        }
         result = concat(result, processed);
         result = concat(result, str(";\n"));
         return result;
