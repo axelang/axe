@@ -11,7 +11,7 @@ pub model error {
     msg: string;
 
     pub def create(msg: ref char): error {
-        return new error(msg: string.create(msg));
+        return error{msg: string.create(msg)};
     }
 
     pub def print_self(err: error) {

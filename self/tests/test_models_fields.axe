@@ -4,5 +4,5 @@ model SomeModel {
 }
 
 def main() {
-    val md = new SomeModel(x: 20, y: 40);
+    val md = SomeModel{x: 20, y: 40};
 }
