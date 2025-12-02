@@ -282,7 +282,11 @@ pub def lex(source: string): list(Token) {
                         ending = ending + 1;
                     }
                 }
-                append(tokens, create_token(TokenType.INTERPOLATED_STR, substring_scse(source, str_start, ending)));
+                mut raw_inter: string = str(substring_scse(source, str_start, ending));
+                mut wrapped: string = str("__INTERPOLATED__");
+                wrapped = concat(wrapped, raw_inter);
+                wrapped = concat(wrapped, str("__INTERPOLATED__"));
+                append(tokens, create_token(TokenType.INTERPOLATED_STR, wrapped.data));
                 pos = ending + 1;
             }
         } elif ch == '"' {

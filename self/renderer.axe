@@ -8,6 +8,7 @@ use std.lists   (StringList);
 use std.string;
 use std.io;
 use std.maps;
+use std.errors;
 
 /// Type mappings from Axe to C
 mut g_type_mappings: StringStringMap;
@@ -993,6 +994,250 @@ def process_parameter_type(param_type: string): string {
     return map_axe_type_to_c(result);
 }
 
+def int_to_ascii(n: i32): string {
+    if n == 0 {
+        return str("0");
+    }
+
+    mut neg: bool = false;
+    mut v: i32 = n;
+    if v < 0 {
+        neg = true;
+        v = -v;
+    }
+
+    mut rev: string = str("");
+    loop {
+        if v == 0 {
+            break;
+        }
+        val digit: i32 = v mod 10;
+        rev = concat_chr(rev, cast[char]('0' + digit));
+        v = v / 10;
+    }
+
+    mut out: string = str("");
+    mut i: i32 = str_len(rev) - 1;
+    loop {
+        if i < 0 {
+            break;
+        }
+        out = concat_chr(out, get_char(rev, i));
+        i = i - 1;
+    }
+
+    if neg {
+        out = concat(str("-"), out);
+    }
+
+    return out;
+}
+
+def get_type_format_specifier(var_type: string): string {
+    mut t: string = strip(var_type);
+
+    if equals_c(t, "int32_t") or has_suffix(t, str("int32_t")) {
+        return str("%d");
+    }
+    if equals_c(t, "uint32_t") or has_suffix(t, str("uint32_t")) {
+        return str("%u");
+    }
+    if equals_c(t, "int64_t") or has_suffix(t, str("int64_t")) {
+        return str("%lld");
+    }
+    if equals_c(t, "uint64_t") or has_suffix(t, str("uint64_t")) {
+        return str("%llu");
+    }
+    if equals_c(t, "float") or has_suffix(t, str("float")) {
+        return str("%f");
+    }
+    if equals_c(t, "double") or has_suffix(t, str("double")) {
+        return str("%f");
+    }
+    if equals_c(t, "char") or has_suffix(t, str("char")) {
+        return str("%c");
+    }
+
+    return str("%d");
+}
+
+def lookup_expression_type(expr: string): string {
+    mut e: string = strip(expr);
+
+    if StringStringMap.contains(addr(g_var_types), e) {
+        return StringStringMap.get(addr(g_var_types), e);
+    }
+
+    if str_len(e) >= 2 and get_char(e, 0) == '"' and get_char(e, str_len(e) - 1) == '"' {
+        return str("string");
+    }
+
+    if str_len(e) >= 2 and get_char(e, 0) == '\'' and get_char(e, str_len(e) - 1) == '\'' {
+        return str("char");
+    }
+
+    if str_len(e) > 0 {
+        val c0: char = get_char(e, 0);
+        if c0 >= '0' and c0 <= '9' {
+            if find_char_from(e, '.', 0) >= 0 {
+                return str("f64");
+            }
+            return str("i32");
+        }
+    }
+
+    return str("i32");
+}
+
+def process_interpolated_string(interp_content: string, return_struct: bool): string {
+    mut parts: list(string);
+    mut expressions: list(string);
+
+    mut pos: i32 = 0;
+    mut current_part: string = str("");
+
+    loop {
+        if pos >= str_len(interp_content) {
+            break;
+        }
+
+        val ch: char = get_char(interp_content, pos);
+
+        if ch == '{' and (pos == 0 or get_char(interp_content, pos - 1) != '\\') {
+            if pos > 0 and get_char(interp_content, pos - 1) == '$' and str_len(current_part) > 0 {
+                current_part = substring_se(current_part, 0, str_len(current_part) - 1);
+            }
+
+            append(parts, current_part);
+            current_part = str("");
+
+            mut brace_start: i32 = pos + 1;
+            mut brace_depth: i32 = 1;
+            mut brace_end: i32 = brace_start;
+
+            loop {
+                if brace_end >= str_len(interp_content) or brace_depth == 0 {
+                    break;
+                }
+                val cc: char = get_char(interp_content, brace_end);
+                if cc == '{' {
+                    brace_depth = brace_depth + 1;
+                } elif cc == '}' {
+                    brace_depth = brace_depth - 1;
+                }
+                brace_end = brace_end + 1;
+            }
+
+            if brace_depth != 0 {
+                enforce_raw(false, "Unmatched braces in interpolated string");
+            }
+
+            val expr: string = strip(substring_se(interp_content, brace_start, brace_end - 1));
+            append(expressions, expr);
+            pos = brace_end;
+            continue;
+        }
+
+        current_part = concat_chr(current_part, ch);
+        pos = pos + 1;
+    }
+
+    append(parts, current_part);
+
+    if len(parts) == 0 {
+        return str("");
+    }
+
+    if len(expressions) == 0 {
+        mut q: string = str("\"");
+        q = concat(q, interp_content);
+        q = concat(q, str("\""));
+        return q;
+    }
+
+    mut code: string = str("({ size_t _axe_interp_len = 0");
+
+    mut i_part_size: i32 = 0;
+    loop {
+        if i_part_size >= len(parts) {
+            break;
+        }
+
+        val part_sz: string = parts.data[i_part_size];
+        if str_len(part_sz) > 0 {
+            mut escaped_sz: string = replace_all(part_sz, str("\\"), str("\\\\"));
+            escaped_sz = replace_all(escaped_sz, str("\""), str("\\\""));
+            escaped_sz = replace_all(escaped_sz, str("\n"), str("\\n"));
+            escaped_sz = replace_all(escaped_sz, str("\t"), str("\\t"));
+
+            code = concat(code, str(" + sizeof(\""));
+            code = concat(code, escaped_sz);
+            code = concat(code, str("\") - 1"));
+        }
+
+        if i_part_size < len(expressions) {
+            code = concat(code, str(" + 32"));
+        }
+
+        i_part_size = i_part_size + 1;
+    }
+
+    code = concat(code, str("; char* _axe_interp = (char*)malloc(_axe_interp_len + 1); char* _axe_interp_p = _axe_interp; "));
+
+    mut i_part: i32 = 0;
+    loop {
+        if i_part >= len(parts) {
+            break;
+        }
+
+        val part: string = parts.data[i_part];
+        if str_len(part) > 0 {
+            mut escaped: string = replace_all(part, str("\\"), str("\\\\"));
+            escaped = replace_all(escaped, str("\""), str("\\\""));
+            escaped = replace_all(escaped, str("\n"), str("\\n"));
+            escaped = replace_all(escaped, str("\t"), str("\\t"));
+
+            code = concat(code, str("memcpy(_axe_interp_p, \""));
+            code = concat(code, escaped);
+            code = concat(code, str("\", sizeof(\""));
+            code = concat(code, escaped);
+            code = concat(code, str("\") - 1); _axe_interp_p += sizeof(\""));
+            code = concat(code, escaped);
+            code = concat(code, str("\") - 1; "));
+        }
+
+        if i_part < len(expressions) {
+            val e: string = expressions.data[i_part];
+            val etype: string = lookup_expression_type(e);
+            val processed_e: string = process_expression(e);
+
+            if str_len(etype) > 0 and (equals_c(etype, "string") or has_suffix(etype, str("_string")) or equals_c(etype, "std__string__string")) {
+                code = concat(code, str("{ struct std__string__string _s = "));
+                code = concat(code, processed_e);
+                code = concat(code, str("; memcpy(_axe_interp_p, _s.data, _s.len); _axe_interp_p += _s.len; } "));
+            } else {
+                code = concat(code, str("{ int _len = snprintf(_axe_interp_p, 32, \""));
+                code = concat(code, get_type_format_specifier(etype));
+                code = concat(code, str("\", "));
+                code = concat(code, processed_e);
+                code = concat(code, str("); _axe_interp_p += _len; } "));
+            }
+        }
+
+        i_part = i_part + 1;
+    }
+
+    code = concat(code, str("*_axe_interp_p = '\\0'; "));
+
+    if return_struct {
+        code = concat(code, str("struct std__string__string _sret = {0}; _sret.data = _axe_interp; _sret.len = _axe_interp_p - _axe_interp; _sret.cap = _axe_interp_len + 1; _sret; })"));
+    } else {
+        code = concat(code, str("_axe_interp; })"));
+    }
+
+    return code;
+}
+
 /// Process an expression string for C interop and pointer sugar
 def is_token_char(c: char): bool {
     if (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') {
@@ -1327,6 +1572,54 @@ def process_expression(expr: string): string {
     mut has_pointer_sugar: bool = false;
     mut in_string: bool = false;
     mut i: i32 = 0;
+
+    if has_prefix(trimmed, str("__INTERPOLATED__")) and has_suffix(trimmed, str("__INTERPOLATED__")) {
+        val inner_len: i32 = str_len(trimmed) - 32;
+        if inner_len > 0 {
+            val inner: string = substring_se(trimmed, 16, 16 + inner_len);
+            return process_interpolated_string(inner, false);
+        }
+    }
+
+    mut open_idx: i32 = find_char_from(trimmed, '(', 0);
+    if open_idx > 0 {
+        val func_name_raw: string = strip(substring_se(trimmed, 0, open_idx));
+        if equals_c(func_name_raw, "str") or has_suffix(func_name_raw, str("__str")) {
+            mut depth: i32 = 0;
+            mut in_str_arg: bool = false;
+            mut j: i32 = open_idx;
+            loop {
+                if j >= str_len(trimmed) {
+                    break;
+                }
+                val chj: char = get_char(trimmed, j);
+                if chj == '"' and (j == 0 or get_char(trimmed, j - 1) != '\\') {
+                    in_str_arg = !in_str_arg;
+                } elif !in_str_arg {
+                    if chj == '(' {
+                        depth = depth + 1;
+                    } elif chj == ')' {
+                        depth = depth - 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                }
+                j = j + 1;
+            }
+
+            if depth == 0 and j > open_idx {
+                val inner_raw: string = strip(substring_se(trimmed, open_idx + 1, j));
+                if has_prefix(inner_raw, str("__INTERPOLATED__")) and has_suffix(inner_raw, str("__INTERPOLATED__")) {
+                    val inner_len2: i32 = str_len(inner_raw) - 32;
+                    if inner_len2 > 0 {
+                        val inner2: string = substring_se(inner_raw, 16, 16 + inner_len2);
+                        return process_interpolated_string(inner2, true);
+                    }
+                }
+            }
+        }
+    }
 
     trimmed = rewrite_casts(trimmed);
 
