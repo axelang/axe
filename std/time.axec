@@ -32,38 +32,36 @@ def wait(ms: i32) {
 /// Returns the current date and time
 def now(): DateTime {
     platform posix {
-        raw {
-            struct timeval tv;
-            gettimeofday(&tv, NULL);            
-            long long epoch_ms = (long long)tv.tv_sec * 1000 + (long long)tv.tv_usec / 1000;
-            time_t t = tv.tv_sec;
-            struct tm *tm = localtime(&t);
-            std_time_DateTime dt;
-            dt.year = tm->tm_year + 1900;
-            dt.month = tm->tm_mon + 1;
-            dt.day = tm->tm_mday;
-            dt.hour = tm->tm_hour;
-            dt.minute = tm->tm_min;
-            dt.second = tm->tm_sec;
-            dt.millisecond = (int)(tv.tv_usec / 1000);
+        unsafe {
+            C.gettimeofday(addr(tv), nil);
+            mut epoch_ms: i64 = cast[i64](tv.tv_sec) * 1000 + cast[i64](tv.tv_usec) / 1000;
+            mut t: time_t = tv.tv_sec;
+            mut tm: ref tm = C.localtime(addr(t));
+            mut dt: DateTime;
+            dt.year = tm.tm_year + 1900;
+            dt.month = tm.tm_mon + 1;
+            dt.day = tm.tm_mday;
+            dt.hour = tm.tm_hour;
+            dt.minute = tm.tm_min;
+            dt.second = tm.tm_sec;
+            dt.millisecond = cast[i32](tv.tv_usec / 1000);
             dt.epoch_ms = epoch_ms;
             return dt;
         }
     }
     platform windows {
-        raw {
-            SYSTEMTIME st;
-            GetLocalTime(&st);
-            FILETIME ft;
-            GetSystemTimeAsFileTime(&ft);
-            ULARGE_INTEGER uli;
+        unsafe {
+            mut st: SYSTEMTIME;
+            C.GetLocalTime(addr(st));
+            mut ft: FILETIME;
+            C.GetSystemTimeAsFileTime(addr(ft));
+            mut uli: ULARGE_INTEGER;
             uli.LowPart = ft.dwLowDateTime;
             uli.HighPart = ft.dwHighDateTime;
-            long long win_time_100ns = uli.QuadPart;
-            long long unix_time_100ns = win_time_100ns - 116444736000000000LL;
-            long long epoch_ms = unix_time_100ns / 10000;
-
-            std_time_DateTime dt;
+            mut win_time_100ns: i64 = uli.QuadPart;
+            mut unix_time_100ns: i64 = win_time_100ns - 116444736000000000;
+            mut epoch_ms: i64 = unix_time_100ns / 10000;
+            mut dt: DateTime;
             dt.year = st.wYear;
             dt.month = st.wMonth;
             dt.day = st.wDay;
