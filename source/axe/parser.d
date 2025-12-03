@@ -585,7 +585,8 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
                 goto case TokenType.DEF;
             else if (pos < tokens.length && tokens[pos].type == TokenType.MODEL)
                 goto case TokenType.MODEL;
-            else if (pos < tokens.length && (tokens[pos].type == TokenType.VAL || tokens[pos].type == TokenType.MUT))
+            else if (pos < tokens.length && (tokens[pos].type == TokenType.VAL || tokens[pos].type == TokenType
+                    .MUT))
                 goto case TokenType.VAL; // pub mut/val at top level
             else
                 enforce(false, "Expected 'def', 'model' or 'val' after 'pub'");
@@ -2724,7 +2725,7 @@ ASTNode parse(Token[] tokens, bool isAxec = false, bool checkEntryPoint = true, 
 
             enforce(pos < tokens.length && tokens[pos].type == TokenType.IDENTIFIER,
                 "Expected variable name after 'val', full context: " ~ tokens[max(0, cast(int) pos - 5) .. pos].map!(
-                t => t.value).join(", "));
+                    t => t.value).join(", "));
             string varName = tokens[pos].value;
             pos++;
 
@@ -3893,8 +3894,9 @@ private ASTNode parseStatementHelper(ref size_t pos, Token[] tokens, ref Scope c
                 {
                     size_t endPos = min(pos + 10, tokens.length);
                     enforce(initializer.length > 0,
-                        "Local variable '" ~ varName ~ "' must be explicitly initialized at " ~ to!string(pos)
-                        ~ "\nFull context:\n" ~ to!string(tokens[pos .. endPos]));
+                        "Local variable '" ~ varName ~ "' must be explicitly initialized at " ~ to!string(
+                            pos)
+                            ~ "\nFull context:\n" ~ to!string(tokens[pos .. endPos]));
                 }
             }
 
@@ -5142,7 +5144,12 @@ private IfNode parseIfHelper(ref size_t pos, Token[] tokens, ref Scope currentSc
 /**
  * Parse a loop statement recursively (module-level helper).
  */
-private ParallelForNode parseParallelForHelper(ref size_t pos, Token[] tokens, ref Scope currentScope, ref ASTNode currentScopeNode, bool isAxec)
+private ParallelForNode parseParallelForHelper(
+    ref size_t pos, Token[] tokens,
+    ref Scope currentScope,
+    ref ASTNode currentScopeNode,
+    bool isAxec
+)
 {
     import std.stdio : writeln;
 
@@ -5341,7 +5348,11 @@ private ParallelForNode parseParallelForHelper(ref size_t pos, Token[] tokens, r
     return parallelForNode;
 }
 
-private LoopNode parseLoopHelper(ref size_t pos, Token[] tokens, ref Scope currentScope, ref ASTNode currentScopeNode, bool isAxec)
+private LoopNode parseLoopHelper(
+    ref size_t pos, Token[] tokens,
+    ref Scope currentScope,
+    ref ASTNode currentScopeNode, bool isAxec
+)
 {
     import std.stdio : writeln;
 
