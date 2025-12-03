@@ -23,7 +23,7 @@ use renderer;
 use std.io;
 use std.os;
 
-// Helper to detect if a name already has a module-style "__" prefix.
+/// Detect if a name already has a module-style "__" prefix.
 def has_double_underscore(name: string): bool {
     val nlen: i32 = str_len(name);
     mut k: i32 = 0;
