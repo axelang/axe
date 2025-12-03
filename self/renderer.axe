@@ -110,7 +110,7 @@ def normalize_numeric_dots(s: string): string {
                 if cj != ' ' and cj != '\t' and cj != '\n' {
                     break;
                 }
-                j = j + 1;
+                j++;
             }
 
             if j < n and get_char(s, j) >= '0' and get_char(s, j) <= '9' {
@@ -124,7 +124,7 @@ def normalize_numeric_dots(s: string): string {
         }
 
         out = concat_chr(out, ch);
-        i = i + 1;
+        i++;
     }
 
     return out;
