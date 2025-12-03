@@ -208,7 +208,7 @@ def compile_file(filename: string, is_axec: bool): bool {
 
     prefix_root_enums(addr(ast), module_prefix);
     
-    println "14 | PFCCG VI (Renderer INIT)";
+    println "14| PFCCG VI (Renderer INIT)";
     
     initialize_renderer();
 

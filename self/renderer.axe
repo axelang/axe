@@ -3,7 +3,6 @@
 // 
 // Handles the rendering process.
 
-use gstate;
 use structs     (ASTNode);
 use std.lists   (StringList);
 use std.string;
@@ -1573,7 +1572,7 @@ def rewrite_enum_member_refs(s: string): string {
     mut in_string: bool = false;
 
     debug_print_raw "\n[DBG-ENUM] rewrite_enum_member_refs input:";
-    println s;
+    debug_print_str s;
 
     loop {
         if i >= str_len(s) {
@@ -1684,7 +1683,7 @@ def rewrite_enum_member_refs(s: string): string {
     }
 
     debug_print_raw "\n[DBG-ENUM] rewrite_enum_member_refs output:";
-    println result;
+    debug_print_str result;
 
     return result;
 }
@@ -1916,9 +1915,9 @@ def process_expression(expr: string): string {
 
     if !has_pointer_sugar and !has_c_prefix {
         debug_print_raw "\n[DBG-EXPR] no-sugar/no-C expr raw:";
-        println expr;
+        debug_print_str expr;
         debug_print_raw "\n[DBG-EXPR] no-sugar/no-C trimmed:";
-        println trimmed;
+        debug_print_str trimmed;
 
         val single_quote_pos: i32 = find_char_from(trimmed, '\'', 0);
         if single_quote_pos >= 0 {
@@ -2007,7 +2006,7 @@ def process_expression(expr: string): string {
 
         val norm_no_sugar: string = strip(out_norm);
         debug_print_raw "\n[DBG-EXPR] no-sugar final:";
-        println norm_no_sugar;
+        debug_print_str norm_no_sugar;
 
         val addr_fixed: string = rewrite_adr(norm_no_sugar);
         val methods_fixed: string = rewrite_method_calls(addr_fixed);
@@ -2019,9 +2018,9 @@ def process_expression(expr: string): string {
 
     mut result: string = trimmed;
     debug_print_raw "\n[DBG-EXPR] raw expr before sugar/C:";
-    println expr;
+    debug_print_str expr;
     debug_print_raw "\n[DBG-EXPR] trimmed:";
-    println trimmed;
+    debug_print_str trimmed;
 
     if has_pointer_sugar {
         mut out: string = str("");
@@ -2077,7 +2076,7 @@ def process_expression(expr: string): string {
     // "0 . 0" or "reduce _angle" while preserving spaces between tokens.
     mut normalized: string = result;
     debug_print_raw "\n[DBG-EXPR] after sugar/C before normalize:";
-    println normalized;
+    debug_print_str normalized;
     mut out_final: string = str("");
     mut jf: i32 = 0;
     loop {
@@ -2142,11 +2141,11 @@ def process_expression(expr: string): string {
     }
 
     val first_pass: string = strip(out_final);
-    println "\nFIRST PASS:";
-    println first_pass;
+    debug_print_raw "\nFIRST PASS:";
+    debug_print_str first_pass;
     val fixed: string = replace_all(first_pass, str("(->"), str("->"));
-    println "\nFIXED:";
-    println fixed;
+    debug_print_raw "\nFIXED:";
+    debug_print_str fixed;
 
     val addr_fixed2: string = rewrite_adr(fixed);
     val methods_fixed2: string = rewrite_method_calls(addr_fixed2);
@@ -3822,7 +3821,7 @@ pub def generate_c(ast: ref ASTNode): string {
         if str_len(trimmed_value) > 0 {
             val processed_value: string = process_expression(trimmed_value);
             debug_print_raw "\n[DEBUG]   processed value:";
-            println processed_value;
+            debug_print_str processed_value;
             result = concat(result, str(" = "));
             result = concat(result, processed_value);
         }
@@ -3835,13 +3834,13 @@ pub def generate_c(ast: ref ASTNode): string {
         val func_name: string = ast.data.func_call.function_name;
 
         debug_print_raw "\n[DBG-FUNCCALL] Looking up function:";
-        println func_name;
+        debug_print_str func_name;
 
         mut emitted_name: string = func_name;
         if StringStringMap.contains(addr(g_function_prefixes), func_name) {
             emitted_name = StringStringMap.get(addr(g_function_prefixes), func_name);
             debug_print_raw "\n[DBG-FUNCCALL]   Found prefix, emitting:";
-            println emitted_name;
+            debug_print_str emitted_name;
         } else {
             debug_print_raw "\n[DBG-FUNCCALL]   No prefix found, emitting as-is";
         }
