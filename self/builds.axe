@@ -41,10 +41,10 @@ def has_double_underscore(name: string): bool {
     return false;
 }
 
-// Prefix only root enums (those without an existing module-style prefix)
-// so that their C enums and members become unique symbols like
-//   tests__enums__State
-//   tests__enums__State_RUNNING
+/// Prefix only root enums (those without an existing module-style prefix)
+/// so that their C enums and members become unique symbols like:
+///   - tests__enums__State
+///   - tests__enums__State_RUNNING
 def prefix_root_enums(node: ref ASTNode, mprefix: string) {
     if node == nil {
         return;
