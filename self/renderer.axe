@@ -2349,7 +2349,7 @@ def generate_function_prototype(ast: ref ASTNode): string {
     return result;
 }
 
-/// Generate C code from AST
+/// Generate C from AST.
 pub def generate_c(ast: ref ASTNode): string {
     mut result: string = str("");
 
@@ -2440,7 +2440,7 @@ pub def generate_c(ast: ref ASTNode): string {
             result = concat(result, str("#define NOGDI\n"));
             result = concat(result, str("#define WIN32_LEAN_AND_MEAN\n"));
         }
-        
+
         result = concat(result, str("\n"));
         result = concat(result, str("int __axe_argc = 0;\n"));
         result = concat(result, str("char** __axe_argv = NULL;\n\n"));
