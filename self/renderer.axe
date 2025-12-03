@@ -248,7 +248,7 @@ def rewrite_pointer_member_accesses(expr: string): string {
         }
 
         out = concat_chr(out, ch);
-        i = i + 1;
+        i++;
     }
 
     return out;
