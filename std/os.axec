@@ -59,10 +59,11 @@ pub def read_file(path: string): string {
 
     raw {
         FILE *f = fopen(path.data, "rb");
-        if (!f) {
-            std__errors__panic(std__errors__error__create("Failed to open file"));
-        }
-
+    }
+    if (!f) {
+        panic(error.create("Failed to open file"));
+    }
+    raw {
         fseek(f, 0, SEEK_END);
         long size = ftell(f);
         fseek(f, 0, SEEK_SET);
