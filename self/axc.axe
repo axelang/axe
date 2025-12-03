@@ -43,7 +43,7 @@ def main() {
         quit(0);
     }
 
-    if has_suffix(other_arg, str("-tokens")) {
+    if has_suffix(other_arg, str("-l")) {
         set_loud_logger(true);
     }
 
