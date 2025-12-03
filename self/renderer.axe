@@ -46,6 +46,15 @@ mut g_list_element_types: StringBoolMap;
 /// Ordered list of discovered element type strings (for deterministic emission)
 mut g_list_elements: ref StringList;
 
+/// Global external headers (from use external statements)
+mut g_global_external_headers: ref StringList;
+
+/// Windows-specific external headers
+mut g_windows_external_headers: ref StringList;
+
+/// POSIX-specific external headers
+mut g_posix_external_headers: ref StringList;
+
 /// Initialize renderer globals.
 ///
 /// This must be called before using the renderer at all.
@@ -64,6 +73,9 @@ pub def initialize_renderer() {
     g_var_types = deref(StringStringMap.create(addr(arena), 128));
     g_list_element_types = deref(StringBoolMap.create(addr(arena), 128));
     g_list_elements = StringList.create(addr(arena), 64);
+    g_global_external_headers = StringList.create(addr(arena), 32);
+    g_windows_external_headers = StringList.create(addr(arena), 32);
+    g_posix_external_headers = StringList.create(addr(arena), 32);
     
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("i8"), str("int8_t"));
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("u8"), str("uint8_t"));
@@ -82,6 +94,64 @@ pub def initialize_renderer() {
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("rchar"), str("char*"));
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("byte"), str("uint8_t"));
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("ptrdiff"), str("isize"));
+}
+
+/// Collect external imports from AST recursively.
+/// current_platform is "" for global, "windows" or "posix" for platform-specific.
+def collect_external_imports(node: ref ASTNode, current_platform: string, arena: ref Arena) {
+    if node == nil {
+        return;
+    }
+    
+    if equals_c(node.node_type, "ExternalImport") {
+        val header: string = node.data.external_import.header_file;
+        
+        if equals_c(current_platform, "") {
+            // Global header
+            if !StringList.contains(g_global_external_headers, header) {
+                StringList.push(g_global_external_headers, arena, header);
+            }
+        } elif equals_c(current_platform, "windows") {
+            if !StringList.contains(g_windows_external_headers, header) {
+                StringList.push(g_windows_external_headers, arena, header);
+            }
+        } elif equals_c(current_platform, "posix") {
+            if !StringList.contains(g_posix_external_headers, header) {
+                StringList.push(g_posix_external_headers, arena, header);
+            }
+        }
+        return;
+    }
+    
+    if equals_c(node.node_type, "Platform") {
+        val platform_name: string = node.data.platform_node.platform_name;
+        // Recurse into platform children with platform context
+        if node.children != nil {
+            val children: ref list(ASTNode) = node.children;
+            mut i: i32 = 0;
+            loop {
+                if i >= len(deref(children)) {
+                    break;
+                }
+                collect_external_imports(addr(children.data[i]), platform_name, arena);
+                i = i + 1;
+            }
+        }
+        return;
+    }
+    
+    // Recurse into all children with current platform context
+    if node.children != nil {
+        val children: ref list(ASTNode) = node.children;
+        mut i: i32 = 0;
+        loop {
+            if i >= len(deref(children)) {
+                break;
+            }
+            collect_external_imports(addr(children.data[i]), current_platform, arena);
+            i = i + 1;
+        }
+    }
 }
 
 /// Remove stray spaces around '.' in numeric C literals.
@@ -2429,6 +2499,12 @@ pub def generate_c(ast: ref ASTNode): string {
     }
     
     if equals_c(node_type, "Program") {
+        mut ext_arena: Arena = Arena.create(4096);
+        StringList.clear(g_global_external_headers);
+        StringList.clear(g_windows_external_headers);
+        StringList.clear(g_posix_external_headers);
+        collect_external_imports(ast, str(""), addr(ext_arena));
+        
         result = concat(result, str("#define nil ((void*)0)\n"));
         result = concat(result, str("#include <stdio.h>\n"));
         result = concat(result, str("#include <stdbool.h>\n"));
@@ -2441,6 +2517,50 @@ pub def generate_c(ast: ref ASTNode): string {
             result = concat(result, str("#define NOMINMAX\n"));
             result = concat(result, str("#define NOGDI\n"));
             result = concat(result, str("#define WIN32_LEAN_AND_MEAN\n"));
+        }
+        
+        mut ghi: i32 = 0;
+        loop {
+            if ghi >= g_global_external_headers*.len {
+                break;
+            }
+            val gh: string = StringList.get(g_global_external_headers, ghi);
+            result = concat(result, str("#include <"));
+            result = concat(result, gh);
+            result = concat(result, str(">\n"));
+            ghi = ghi + 1;
+        }
+        
+        if g_windows_external_headers*.len > 0 {
+            result = concat(result, str("#ifdef _WIN32\n"));
+            mut whi: i32 = 0;
+            loop {
+                if whi >= g_windows_external_headers*.len {
+                    break;
+                }
+                val wh: string = StringList.get(g_windows_external_headers, whi);
+                result = concat(result, str("#include <"));
+                result = concat(result, wh);
+                result = concat(result, str(">\n"));
+                whi = whi + 1;
+            }
+            result = concat(result, str("#endif\n"));
+        }
+        
+        if g_posix_external_headers*.len > 0 {
+            result = concat(result, str("#ifndef _WIN32\n"));
+            mut phi: i32 = 0;
+            loop {
+                if phi >= g_posix_external_headers*.len {
+                    break;
+                }
+                val ph: string = StringList.get(g_posix_external_headers, phi);
+                result = concat(result, str("#include <"));
+                result = concat(result, ph);
+                result = concat(result, str(">\n"));
+                phi = phi + 1;
+            }
+            result = concat(result, str("#endif\n"));
         }
 
         result = concat(result, str("\nint __axe_argc = 0;\n"));

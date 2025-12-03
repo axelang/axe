@@ -10,7 +10,8 @@ use std.io (
 );
 
 use std.string (
-    string
+    string,
+    string_equals
 );
 
 use std.errors (
@@ -66,6 +67,19 @@ macro make_list(
             return lst.data[index];
         }
 
+        pub def clear(lst: ref name) {
+            lst.len = 0;
+        }
+
+        pub def contains(lst: ref name, value: type): bool {
+            for mut i = 0; i < lst.len; i++ {
+                if cep(lst.data[i], value) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         pub def print_all(lst: ref name) {
             for mut i = 0; i < lst.len; i++ {
                 printer(lst.data[i]);
@@ -76,13 +90,20 @@ macro make_list(
     }
 }
 
-make_list(IntList, i32, 0, int, print_i32);
-make_list(FloatList, f32, 0.0, float, print_i32);
-make_list(CharList, char, "", char, print_char);
-make_list(LongList, i64, 0, long, print_i32);
-make_list(DoubleList, f64, 0.0, double, print_i32);
-make_list(StringList, std__string__string, string.create(""), std__string__string, print_str);
-make_list(BoolList, bool, false, bool, print_i32);
+def int_eq(a: i32, b: i32): bool { return a == b; }
+def long_eq(a: i64, b: i64): bool { return a == b; }
+def float_eq(a: f32, b: f32): bool { return a == b; }
+def double_eq(a: f64, b: f64): bool { return a == b; }
+def char_eq(a: char, b: char): bool { return a == b; }
+def bool_eq(a: bool, b: bool): bool { return a == b; }
+
+make_list(IntList, i32, 0, int_eq, print_i32);
+make_list(FloatList, f32, 0.0, float_eq, print_i32);
+make_list(CharList, char, "", char_eq, print_char);
+make_list(LongList, i64, 0, long_eq, print_i32);
+make_list(DoubleList, f64, 0.0, double_eq, print_i32);
+make_list(StringList, std__string__string, string.create(""), string_equals, print_str);
+make_list(BoolList, bool, false, bool_eq, print_i32);
 
 test {
     mut arena: Arena = Arena.create(65536);

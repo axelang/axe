@@ -300,6 +300,11 @@ pub def compare(a: string, b: string): i32 {
     return 0;
 }
 
+/// Checks if two strings are equal. Returns true if equal.
+pub def string_equals(a: string, b: string): bool {
+    return compare(a, b) == 0;
+}
+
 /// Concatenates a char pointer to a string
 pub def concat_c(original: string, addon: ref char): string {
     mut result: string = str("");
