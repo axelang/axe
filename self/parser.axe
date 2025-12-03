@@ -1339,33 +1339,9 @@ def parse_top_level(ctx: ref ParserContext, ast: ref ASTNode) {
     }
     
     if token_type == TokenType.PLATFORM {
-        ctx.pos++;
-        skip_whitespace(ctx);
-        
-        if ctx.pos < len(ctx.tokens) {
-            ctx.pos++;
-        }
-        
-        skip_whitespace(ctx);
-        if ctx.pos < len(ctx.tokens) and ctx.tokens.data[ctx.pos].token_type == TokenType.LBRACE {
-            ctx.pos++;
-            mut depth: i32 = 1;
-            loop {
-                if ctx.pos >= len(ctx.tokens) {
-                    break;
-                }
-                if ctx.tokens.data[ctx.pos].token_type == TokenType.LBRACE {
-                    depth = depth + 1;
-                }
-                if ctx.tokens.data[ctx.pos].token_type == TokenType.RBRACE {
-                    depth = depth - 1;
-                    if depth == 0 {
-                        ctx.pos++;
-                        break;
-                    }
-                }
-                ctx.pos++;
-            }
+        mut node: ASTNode = parse_statement_helper(ctx, addr(ctx.current_scope));
+        if str_len(node.node_type) > 0 {
+            add_child_to_ast(ast, node);
         }
         return;
     }
@@ -4149,6 +4125,13 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
         
         return node;
+    }
+    
+    // Handle DEF inside platform blocks and globally
+    if token_type == TokenType.DEF {
+        consume(ctx); // Skip 'def'
+        mut func_node: ASTNode = parse_function(ctx);
+        return func_node;
     }
     
     // Handle EXTERN (only in .axec files)

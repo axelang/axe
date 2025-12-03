@@ -2732,6 +2732,57 @@ pub def generate_c(ast: ref ASTNode): string {
                 }
             }
 
+            mut i_opaque_plat: i32 = 0;
+            loop {
+                if i_opaque_plat >= len(deref(children)) {
+                    break;
+                }
+                val op_plat: ref ASTNode = addr(children.data[i_opaque_plat]);
+                if equals_c(op_plat.node_type, "Platform") {
+                    val platform_name: string = op_plat.data.platform_node.platform_name;
+                    mut has_opaque: bool = false;
+                    
+                    if op_plat.children != nil {
+                        val plat_children: ref list(ASTNode) = op_plat.children;
+                        mut oc: i32 = 0;
+                        loop {
+                            if oc >= len(deref(plat_children)) {
+                                break;
+                            }
+                            val oc_child: ref ASTNode = addr(plat_children.data[oc]);
+                            if equals_c(oc_child.node_type, "Opaque") {
+                                has_opaque = true;
+                                break;
+                            }
+                            oc++;
+                        }
+                    }
+                    
+                    if has_opaque {
+                        if equals_c(platform_name, "windows") {
+                            result = concat(result, str("#ifdef _WIN32\n"));
+                        } elif equals_c(platform_name, "posix") {
+                            result = concat(result, str("#ifndef _WIN32\n"));
+                        }
+                        val plat_children2: ref list(ASTNode) = op_plat.children;
+                        mut oc2: i32 = 0;
+                        loop {
+                            if oc2 >= len(deref(plat_children2)) {
+                                break;
+                            }
+                            val oc_child2: ref ASTNode = addr(plat_children2.data[oc2]);
+                            if equals_c(oc_child2.node_type, "Opaque") {
+                                val opaque_code: string = generate_c(oc_child2);
+                                result = concat(result, opaque_code);
+                            }
+                            oc2++;
+                        }
+                        result = concat(result, str("#endif\n"));
+                    }
+                }
+                i_opaque_plat++;
+            }
+
             mut i_models_fd: i32 = 0;
             loop {
                 if i_models_fd >= len(deref(children)) {
@@ -2835,6 +2886,32 @@ pub def generate_c(ast: ref ASTNode): string {
                         result = concat(result, proto_code);
                     }
                 }
+                if equals_c(proto_child.node_type, "Platform") {
+                    val platform_name: string = proto_child.data.platform_node.platform_name;
+                    if equals_c(platform_name, "windows") {
+                        result = concat(result, str("#ifdef _WIN32\n"));
+                    } elif equals_c(platform_name, "posix") {
+                        result = concat(result, str("#ifndef _WIN32\n"));
+                    }
+                    if proto_child.children != nil {
+                        val plat_children: ref list(ASTNode) = proto_child.children;
+                        mut pi: i32 = 0;
+                        loop {
+                            if pi >= len(deref(plat_children)) {
+                                break;
+                            }
+                            val plat_child: ref ASTNode = addr(plat_children.data[pi]);
+                            if equals_c(plat_child.node_type, "Function") {
+                                val plat_proto: string = generate_function_prototype(plat_child);
+                                if str_len(plat_proto) > 0 {
+                                    result = concat(result, plat_proto);
+                                }
+                            }
+                            pi = pi + 1;
+                        }
+                    }
+                    result = concat(result, str("#endif\n"));
+                }
                 i_proto = i_proto + 1;
             }
             result = concat(result, str("\n"));
@@ -2866,6 +2943,33 @@ pub def generate_c(ast: ref ASTNode): string {
                         result = concat(result, fn_code);
                     }
                 }
+                if equals_c(fn_child.node_type, "Platform") {
+                    val platform_name: string = fn_child.data.platform_node.platform_name;
+                    if equals_c(platform_name, "windows") {
+                        result = concat(result, str("#ifdef _WIN32\n"));
+                    } elif equals_c(platform_name, "posix") {
+                        result = concat(result, str("#ifndef _WIN32\n"));
+                    }
+                    if fn_child.children != nil {
+                        val plat_children: ref list(ASTNode) = fn_child.children;
+                        mut pi: i32 = 0;
+                        loop {
+                            if pi >= len(deref(plat_children)) {
+                                break;
+                            }
+                            val plat_child: ref ASTNode = addr(plat_children.data[pi]);
+                            if equals_c(plat_child.node_type, "Function") {
+                                val plat_fn_name: string = plat_child.data.function.name;
+                                if !equals_c(plat_fn_name, "main") {
+                                    val plat_fn_code: string = generate_c(plat_child);
+                                    result = concat(result, plat_fn_code);
+                                }
+                            }
+                            pi = pi + 1;
+                        }
+                    }
+                    result = concat(result, str("#endif\n"));
+                }
                 i = i + 1;
             }
 
@@ -2894,11 +2998,65 @@ pub def generate_c(ast: ref ASTNode): string {
                 val child2: ref ASTNode = addr(children.data[i]);
                 if !equals_c(child2.node_type, "Overload") and !equals_c(child2.node_type, "Function") 
                     and !equals_c(child2.node_type, "Model") and !equals_c(child2.node_type, "Enum") 
-                    and !equals_c(child2.node_type, "Declaration") {
+                    and !equals_c(child2.node_type, "Declaration") and !equals_c(child2.node_type, "Platform") {
                     val child_code: string = generate_c(child2);
                     result = concat(result, child_code);
                 }
                 i = i + 1;
+            }
+            
+            i = 0;
+            loop {
+                if i >= len(deref(children)) {
+                    break;
+                }
+                val plat_node: ref ASTNode = addr(children.data[i]);
+                if equals_c(plat_node.node_type, "Platform") {
+                    val platform_name: string = plat_node.data.platform_node.platform_name;
+                    mut has_non_func_content: bool = false;
+                    
+                    if plat_node.children != nil {
+                        val plat_children: ref list(ASTNode) = plat_node.children;
+                        mut pc: i32 = 0;
+                        loop {
+                            if pc >= len(deref(plat_children)) {
+                                break;
+                            }
+                            val pc_child: ref ASTNode = addr(plat_children.data[pc]);
+                            if !equals_c(pc_child.node_type, "Function") {
+                                has_non_func_content = true;
+                                break;
+                            }
+                            pc++;
+                        }
+                    }
+                    
+                    if has_non_func_content {
+                        if equals_c(platform_name, "windows") {
+                            result = concat(result, str("#ifdef _WIN32\n"));
+                        } elif equals_c(platform_name, "posix") {
+                            result = concat(result, str("#ifndef _WIN32\n"));
+                        }
+                        if plat_node.children != nil {
+                            val plat_children2: ref list(ASTNode) = plat_node.children;
+                            mut pc2: i32 = 0;
+                            loop {
+                                if pc2 >= len(deref(plat_children2)) {
+                                    break;
+                                }
+                                val pc_child2: ref ASTNode = addr(plat_children2.data[pc2]);
+                                // Skip functions - they were already emitted
+                                if !equals_c(pc_child2.node_type, "Function") {
+                                    val pc_code: string = generate_c(pc_child2);
+                                    result = concat(result, pc_code);
+                                }
+                                pc2 = pc2 + 1;
+                            }
+                        }
+                        result = concat(result, str("#endif\n"));
+                    }
+                }
+                i++;
             }
         }
         result = replace_all(result, str("(->"), str("->"));
@@ -4714,6 +4872,26 @@ pub def generate_c(ast: ref ASTNode): string {
         mut arena: Arena = Arena.create(256);
         StringBoolMap.set(addr(g_generated_functions), addr(arena), func_name, true);
         return str("");
+    }
+    
+    if equals_c(node_type, "Opaque") {
+        mut onames: ref list(string) = ast.data.opaque_node.type_names;
+        if onames != nil {
+            mut oi: i32 = 0;
+            loop {
+                if oi >= len(deref(onames)) {
+                    break;
+                }
+                val type_name: string = onames.data[oi];
+                result = concat(result, str("typedef struct "));
+                result = concat(result, type_name);
+                result = concat(result, str(" "));
+                result = concat(result, type_name);
+                result = concat(result, str(";\n"));
+                oi++;
+            }
+        }
+        return result;
     }
     
     if equals_c(node_type, "IncDec") {
