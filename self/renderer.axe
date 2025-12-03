@@ -4390,6 +4390,17 @@ pub def generate_c(ast: ref ASTNode): string {
                     result = concat(result, processed_init);
                 }
             }
+        } else {
+            if StringStringMap.contains(addr(g_list_of_types), var_name) {
+                val element_type: string = StringStringMap.get(addr(g_list_of_types), var_name);
+                val elem_mapped: string = map_axe_type_to_c(element_type);
+                val san_elem: string = sanitize_list_element_name(elem_mapped);
+                result = concat_c(result, " = __list_");
+                result = concat(result, san_elem);
+                result = concat_c(result, "_init()");
+            } else {
+                result = concat_c(result, " = {0}");
+            }
         }
         
         result = concat_c(result, ";\n");
