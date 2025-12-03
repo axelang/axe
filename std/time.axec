@@ -4,7 +4,7 @@ use std.io (
 );
 
 /// Represents the current date and time
-model DateTime {
+pub model DateTime {
     year: i32;
     month: i32;
     day: i32;
@@ -16,7 +16,7 @@ model DateTime {
 }
 
 /// Suspends the current thread for the specified number of milliseconds
-def wait(ms: i32) {
+pub def wait(ms: i32) {
     platform posix {
         unsafe {
             C.sleep(ms / 1000);
@@ -30,7 +30,7 @@ def wait(ms: i32) {
 }
 
 /// Returns the current date and time
-def now(): DateTime {
+pub def now(): DateTime {
     platform posix {
         unsafe {
             C.gettimeofday(addr(tv), nil);
@@ -76,12 +76,12 @@ def now(): DateTime {
 }
 
 /// Simple and accurate epoch-based difference calculation
-def difference(dt1: DateTime, dt2: DateTime): i64 {
+pub def difference(dt1: DateTime, dt2: DateTime): i64 {
     return dt2.epoch_ms - dt1.epoch_ms;
 }
 
 /// Prints the date and time in the format "YYYY-MM-DD HH:MM:SS.mmm" with optional newline
-def print_time(dt: DateTime, newline: bool) {
+pub def print_time(dt: DateTime, newline: bool) {
     print_i32(dt.year);
     print "-";
     print_i32(dt.month);
