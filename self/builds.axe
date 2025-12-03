@@ -372,10 +372,10 @@ def collect_model_names(ast: ref ASTNode) {
     
     val node_type: string = ast.node_type;
     
-    if equals_c(node_type, "Model") {
-        val model_name: string = ast.data.model_node.name;
-        println concat(str("Found model: "), model_name);
-    }
+    // if equals_c(node_type, "Model") {
+    //     val model_name: string = ast.data.model_node.name;
+    //     println concat(str("Found model: "), model_name);
+    // }
     
     if ast.children != nil {
         val children: ref list(ASTNode) = ast.children;
@@ -399,11 +399,11 @@ def collect_declared_functions(ast: ref ASTNode) {
     
     val node_type: string = ast.node_type;
     
-    if equals_c(node_type, "Function") {
-        // TODO: Store function name in global map
-        val func_name: string = ast.data.function.name;
-        println concat(str("Found function: "), func_name);
-    }
+    // if equals_c(node_type, "Function") {
+    //     // TODO: Store function name in global map
+    //     val func_name: string = ast.data.function.name;
+    //     println concat(str("Found function: "), func_name);
+    // }
     
     if ast.children != nil {
         val children: ref list(ASTNode) = ast.children;

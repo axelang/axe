@@ -113,9 +113,9 @@ def register_variable(var_name: string, is_mutable: bool) {
     debug_print_str var_name;
     debug_print_raw "\n[DEBUG]   is_mutable:";
     if is_mutable {
-        println "true";
+        debug_print_raw "true";
     } else {
-        println "false";
+        debug_print_raw "false";
     }
     StringBoolMap.set(addr(g_var_mutability), addr(arena), var_name, is_mutable);
 }
@@ -124,7 +124,7 @@ def register_variable(var_name: string, is_mutable: bool) {
 def is_variable_declared(var_name: string): bool {
     val declared: bool = StringBoolMap.contains(addr(g_var_mutability), var_name);
     debug_print_raw "\n[DEBUG] is_variable_declared:";
-    println var_name;
+    debug_print_str var_name;
     if declared {
         debug_print_raw "\n[DEBUG]   declared: true";
     } else {
@@ -137,7 +137,7 @@ def is_variable_declared(var_name: string): bool {
 def is_variable_mutable(var_name: string): bool {
     if !is_variable_declared(var_name) {
         debug_print_raw "\n[DEBUG] is_variable_mutable: not declared, treating as mutable:";
-        println var_name;
+        debug_print_str var_name;
         return true;
     }
     val mut_val: bool = StringBoolMap.get(addr(g_var_mutability), var_name);
@@ -209,8 +209,8 @@ pub def parse(tokens: ref list(Token), is_axec: bool, check_entry_point: bool, c
     
     if str_len(current_module) > 0 {
         // g_imported_modules[current_module] = true
-        println "Auto-imported current module: ";
-        println current_module;
+        debug_print_raw "Auto-imported current module: ";
+        debug_print_str current_module;
     }
     
     loop {
@@ -1563,13 +1563,13 @@ def parse_function(ctx: ref ParserContext): ASTNode {
 
         mut dbg: string = str("  func_name = ");
         dbg = concat(dbg, func_name);
-        println dbg;
+        debug_print_str dbg;
         mut buffer: char[64] = {};
         dbg = str("  ctx.pos = ");
         dbg = concat_c(dbg, int_to_str(ctx.pos, buffer));
         dbg = concat(dbg, str(" / "));
         dbg = concat_c(dbg, int_to_str(len(ctx.tokens), buffer));
-        println dbg;
+        debug_print_str dbg;
 
         if ctx.pos < len(ctx.tokens) {
             dbg = str("  current token type = ");
@@ -1577,9 +1577,9 @@ def parse_function(ctx: ref ParserContext): ASTNode {
             dbg = concat(dbg, str(", value = '"));
             dbg = concat(dbg, ctx.tokens.data[ctx.pos].value);
             dbg = concat(dbg, str("'"));
-            println dbg;
+            debug_print_str dbg;
         } else {
-            println "  current token = <eof>";
+            debug_print_raw "  current token = <eof>";
         }
 
         mut start_dbg: i32 = ctx.pos - 5;
@@ -1608,7 +1608,7 @@ def parse_function(ctx: ref ParserContext): ASTNode {
             dbg = concat(dbg, str(", value='"));
             dbg = concat(dbg, tok_dbg.value);
             dbg = concat(dbg, str("'"));
-            println dbg;
+            debug_print_str dbg;
             i_dbg = i_dbg + 1;
         }
 
@@ -3858,7 +3858,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             }
 
             debug_print_raw "\n[DEBUG]   final RHS expr:";
-            println expr;
+            debug_print_str expr;
 
             mut trimmed_assign: string = strip(expr);
             val prefix_fix: string = str("_state = ");
@@ -3890,7 +3890,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
             }
             if !is_variable_mutable(ident_name) {
                 debug_print_raw "\n[DEBUG] Variable is not mutable:";
-                println ident_name;
+                debug_print_str ident_name;
                 mut err: string = str("ERROR: Cannot increment/decrement immutable variable: ");
                 err = concat(err, ident_name);
                 enforce_raw(false, err.data);
