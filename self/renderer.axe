@@ -226,8 +226,8 @@ def get_base_type_from_field(field_type: string): string {
 
 /// Remove stray spaces around '.' in numeric C literals.
 def normalize_numeric_dots(s: string): string {
-    mut out: string = str("");
-    val n: i32 = str_len(s);
+    mut sb: StringBuilder = StringBuilder.init(str_len(s) + 16);
+    val n: i32 = cast[i32](str_len(s));
     mut i: i32 = 0;
 
     loop {
@@ -238,8 +238,8 @@ def normalize_numeric_dots(s: string): string {
         val ch: char = get_char(s, i);
 
         if ch >= '0' and ch <= '9' and i + 1 < n and get_char(s, i + 1) == '.' {
-            out = concat_chr(out, ch);
-            out = concat_chr(out, '.');
+            StringBuilder.append_char(addr(sb), ch);
+            StringBuilder.append_char(addr(sb), '.');
 
             mut j: i32 = i + 2;
             loop {
@@ -254,7 +254,7 @@ def normalize_numeric_dots(s: string): string {
             }
 
             if j < n and get_char(s, j) >= '0' and get_char(s, j) <= '9' {
-                out = concat_chr(out, get_char(s, j));
+                StringBuilder.append_char(addr(sb), get_char(s, j));
                 i = j + 1;
                 continue;
             } else {
@@ -263,21 +263,24 @@ def normalize_numeric_dots(s: string): string {
             }
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i++;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite member access on pointer-typed variables...
 def rewrite_pointer_member_accesses(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -285,29 +288,29 @@ def rewrite_pointer_member_accesses(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i++;
             continue;
         }
 
         if !in_string and is_ident_start(ch) {
-            mut base: string = str("");
+            val base_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                base = concat_chr(base, cj);
                 j++;
             }
+            val base: string = substring_se(expr, base_start, j);
 
             mut k: i32 = j;
             loop {
-                if k >= str_len(expr) {
+                if k >= expr_len {
                     break;
                 }
                 val ws: char = get_char(expr, k);
@@ -317,12 +320,12 @@ def rewrite_pointer_member_accesses(expr: string): string {
                 k++;
             }
 
-            if k < str_len(expr) and get_char(expr, k) == '.' {
+            if k < expr_len and get_char(expr, k) == '.' {
                 val start_slice: i32 = i;
 
                 mut p: i32 = k + 1;
                 loop {
-                    if p >= str_len(expr) {
+                    if p >= expr_len {
                         break;
                     }
                     val ws2: char = get_char(expr, p);
@@ -332,21 +335,21 @@ def rewrite_pointer_member_accesses(expr: string): string {
                     p++;
                 }
 
-                mut member: string = str("");
+                val member_start: i32 = p;
                 mut m: i32 = p;
-                if m < str_len(expr) and is_ident_start(get_char(expr, m)) {
+                if m < expr_len and is_ident_start(get_char(expr, m)) {
                     loop {
-                        if m >= str_len(expr) {
+                        if m >= expr_len {
                             break;
                         }
                         val cm: char = get_char(expr, m);
                         if !is_token_char(cm) {
                             break;
                         }
-                        member = concat_chr(member, cm);
                         m++;
                     }
                 }
+                val member: string = substring_se(expr, member_start, m);
 
                 if str_len(member) > 0 {
                     val trimmed_base: string = strip(base);
@@ -366,32 +369,34 @@ def rewrite_pointer_member_accesses(expr: string): string {
                     }
 
                     if is_pointer {
-                        out = concat(out, trimmed_base);
-                        out = concat(out, str("->"));
-                        out = concat(out, member);
+                        StringBuilder.append(addr(sb), trimmed_base);
+                        StringBuilder.append_c(addr(sb), "->");
+                        StringBuilder.append(addr(sb), member);
                         i = m;
                         continue;
                     }
 
                     // Not a pointer: fall through and emit original slice
                     val original: string = substring_se(expr, start_slice, m);
-                    out = concat(out, original);
+                    StringBuilder.append(addr(sb), original);
                     i = m;
                     continue;
                 }
             }
 
             // Not a member access; emit the identifier as-is
-            out = concat(out, base);
+            StringBuilder.append(addr(sb), base);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i++;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Register a single function name in g_function_prefixes
@@ -556,24 +561,26 @@ def map_axe_type_to_c(axe_type: string): string {
 
 /// Sanitize a C element type string to be used as part of a generated list type name
 def sanitize_list_element_name(c_elem: string): string {
-    mut n: string = c_elem;
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(c_elem) + 32);
     mut i: i32 = 0;
+    val n_len: i32 = cast[i32](str_len(c_elem));
     loop {
-        if i >= str_len(n) {
+        if i >= n_len {
             break;
         }
-        val ch: char = get_char(n, i);
+        val ch: char = get_char(c_elem, i);
         if ch == '*' {
-            out = concat(out, str("_ptr"));
+            StringBuilder.append_c(addr(sb), "_ptr");
         } elif ch == ' ' {
-            out = concat(out, str("_"));
+            StringBuilder.append_c(addr(sb), "_");
         } else {
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
         }
         i = i + 1;
     }
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Collapse all duplicate segments in the specified string expression.
@@ -592,12 +599,13 @@ def collapse_duplicate_segments(s: string): string {
 /// is known to be a pointer type (ref or pointer) according to g_var_types.
 /// For example, if `lst` has type `ref IntList`, then `lst.len` becomes `lst->len`.
 def rewrite_ref_member_access(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -605,29 +613,29 @@ def rewrite_ref_member_access(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i++;
             continue;
         }
 
         if !in_string and is_ident_start(ch) {
-            mut ident: string = str("");
+            val ident_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                ident = concat_chr(ident, cj);
                 j++;
             }
+            val ident: string = substring_se(expr, ident_start, j);
 
             mut k: i32 = j;
             loop {
-                if k >= str_len(expr) {
+                if k >= expr_len {
                     break;
                 }
                 val ws: char = get_char(expr, k);
@@ -637,9 +645,9 @@ def rewrite_ref_member_access(expr: string): string {
                 k++;
             }
 
-            if k < str_len(expr) and get_char(expr, k) == '.' {
+            if k < expr_len and get_char(expr, k) == '.' {
                 mut is_arrow: bool = false;
-                if k + 1 < str_len(expr) and get_char(expr, k + 1) == '>' {
+                if k + 1 < expr_len and get_char(expr, k + 1) == '>' {
                     is_arrow = true;
                 }
 
@@ -653,24 +661,26 @@ def rewrite_ref_member_access(expr: string): string {
                     }
 
                     if is_ptr_type {
-                        out = concat(out, ident);
-                        out = concat(out, str("->"));
+                        StringBuilder.append(addr(sb), ident);
+                        StringBuilder.append_c(addr(sb), "->");
                         i = k + 1;
                         continue;
                     }
                 }
             }
 
-            out = concat(out, ident);
+            StringBuilder.append(addr(sb), ident);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i++;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite method-style calls of the form `Base.method(...)` into a single
@@ -684,12 +694,13 @@ def rewrite_ref_member_access(expr: string): string {
 ///
 ///   std__arena__Arena_Arena__alloc_array(arena, ...)
 def rewrite_method_calls(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 128);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -697,29 +708,29 @@ def rewrite_method_calls(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         if !in_string and is_ident_start(ch) {
-            mut base: string = str("");
+            val base_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                base = concat_chr(base, cj);
                 j = j + 1;
             }
+            val base: string = substring_se(expr, base_start, j);
 
             mut k: i32 = j;
             loop {
-                if k >= str_len(expr) {
+                if k >= expr_len {
                     break;
                 }
                 val ws: char = get_char(expr, k);
@@ -729,11 +740,11 @@ def rewrite_method_calls(expr: string): string {
                 k = k + 1;
             }
 
-            if k < str_len(expr) and get_char(expr, k) == '.' {
+            if k < expr_len and get_char(expr, k) == '.' {
                 k = k + 1;
 
                 loop {
-                    if k >= str_len(expr) {
+                    if k >= expr_len {
                         break;
                     }
                     val ws2: char = get_char(expr, k);
@@ -743,25 +754,25 @@ def rewrite_method_calls(expr: string): string {
                     k = k + 1;
                 }
 
-                mut method: string = str("");
+                val method_start: i32 = k;
                 mut m: i32 = k;
-                if m < str_len(expr) and is_ident_start(get_char(expr, m)) {
+                if m < expr_len and is_ident_start(get_char(expr, m)) {
                     loop {
-                        if m >= str_len(expr) {
+                        if m >= expr_len {
                             break;
                         }
                         val cm: char = get_char(expr, m);
                         if !is_token_char(cm) {
                             break;
                         }
-                        method = concat_chr(method, cm);
                         m = m + 1;
                     }
                 }
+                val method: string = substring_se(expr, method_start, m);
 
                 mut p: i32 = m;
                 loop {
-                    if p >= str_len(expr) {
+                    if p >= expr_len {
                         break;
                     }
                     val ws3: char = get_char(expr, p);
@@ -771,11 +782,11 @@ def rewrite_method_calls(expr: string): string {
                     p = p + 1;
                 }
 
-                if str_len(method) > 0 and p < str_len(expr) and get_char(expr, p) == '(' {
+                if str_len(method) > 0 and p < expr_len and get_char(expr, p) == '(' {
                     mut fixed_method: string = method;
                     mut inner_sep: i32 = -1;
                     mut mi: i32 = 0;
-                    val mlen: i32 = str_len(method);
+                    val mlen: i32 = cast[i32](str_len(method));
                     loop {
                         if mi + 1 >= mlen {
                             break;
@@ -794,7 +805,7 @@ def rewrite_method_calls(expr: string): string {
                         mut base_tail: string = base;
                         mut bsep: i32 = -1;
                         mut bi: i32 = 0;
-                        val blen: i32 = str_len(base);
+                        val blen: i32 = cast[i32](str_len(base));
 
                         loop {
                             if bi + 1 >= blen {
@@ -825,34 +836,37 @@ def rewrite_method_calls(expr: string): string {
                     }
                     full_name = concat(full_name, str("__"));
                     full_name = concat(full_name, fixed_method);
-                    out = concat(out, full_name);
+                    StringBuilder.append(addr(sb), full_name);
                     i = m;
                     continue;
                 }
             }
 
-            out = concat(out, base);
+            StringBuilder.append(addr(sb), base);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i = i + 1;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite function calls to use their full module-prefixed names.
 /// For example, `Arena__alloc(...)` becomes `std__arena__Arena__alloc(...)`
 /// using the g_function_prefixes map.
 def rewrite_function_prefixes(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 128);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -860,7 +874,7 @@ def rewrite_function_prefixes(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i++;
             continue;
         }
@@ -868,23 +882,23 @@ def rewrite_function_prefixes(expr: string): string {
         val is_start: bool = is_ident_start(ch);
 
         if !in_string and is_start {
-            mut func_name: string = str("");
+            val func_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                func_name = concat_chr(func_name, cj);
                 j++;
             }
+            val func_name: string = substring_se(expr, func_start, j);
 
             mut k: i32 = j;
             loop {
-                if k >= str_len(expr) {
+                if k >= expr_len {
                     break;
                 }
                 val ws: char = get_char(expr, k);
@@ -894,36 +908,39 @@ def rewrite_function_prefixes(expr: string): string {
                 k++;
             }
 
-            if k < str_len(expr) and get_char(expr, k) == '(' {
+            if k < expr_len and get_char(expr, k) == '(' {
                 if StringStringMap.contains(addr(g_function_prefixes), func_name) {
                     val full_name: string = StringStringMap.get(addr(g_function_prefixes), func_name);
-                    out = concat(out, full_name);
+                    StringBuilder.append(addr(sb), full_name);
                     i = j;
                     continue;
                 }
             }
 
-            out = concat(out, func_name);
+            StringBuilder.append(addr(sb), func_name);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i++;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite sizeof argument types so that constructs like `sizeof(IntList)`
 /// or `sizeof ( i32 )` use the mapped C type (e.g. `sizeof(std__lists__IntList)`.
 def rewrite_sizeof_types(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -931,34 +948,34 @@ def rewrite_sizeof_types(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         if !in_string and is_ident_start(ch) {
-            mut ident: string = str("");
+            val ident_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                ident = concat_chr(ident, cj);
                 j++;
             }
+            val ident: string = substring_se(expr, ident_start, j);
 
             if str_len(ident) == 6 and get_char(ident, 0) == 's' and get_char(ident, 1) == 'i' 
                 and get_char(ident, 2) == 'z' and get_char(ident, 3) == 'e' and get_char(ident, 4) == 'o' 
                 and get_char(ident, 5) == 'f' {
-                out = concat(out, ident);
+                StringBuilder.append(addr(sb), ident);
 
                 mut k: i32 = j;
                 loop {
-                    if k >= str_len(expr) {
+                    if k >= expr_len {
                         break;
                     }
                     val ws: char = get_char(expr, k);
@@ -968,13 +985,13 @@ def rewrite_sizeof_types(expr: string): string {
                     k++;
                 }
 
-                if k < str_len(expr) and get_char(expr, k) == '(' {
-                    out = concat_chr(out, '(');
+                if k < expr_len and get_char(expr, k) == '(' {
+                    StringBuilder.append_char(addr(sb), '(');
                     k++;
 
                     mut start_type: i32 = k;
                     loop {
-                        if start_type >= str_len(expr) {
+                        if start_type >= expr_len {
                             break;
                         }
                         val ws2: char = get_char(expr, start_type);
@@ -986,7 +1003,7 @@ def rewrite_sizeof_types(expr: string): string {
 
                     mut end_type: i32 = start_type;
                     loop {
-                        if end_type >= str_len(expr) {
+                        if end_type >= expr_len {
                             break;
                         }
                         val ct: char = get_char(expr, end_type);
@@ -996,15 +1013,15 @@ def rewrite_sizeof_types(expr: string): string {
                         end_type = end_type + 1;
                     }
 
-                    if end_type <= str_len(expr) {
+                    if end_type <= expr_len {
                         val raw_type: string = strip(substring_se(expr, start_type, end_type));
                         if str_len(raw_type) > 0 {
                             val mapped: string = map_axe_type_to_c(raw_type);
-                            out = concat(out, mapped);
+                            StringBuilder.append(addr(sb), mapped);
                         }
 
-                        if end_type < str_len(expr) and get_char(expr, end_type) == ')' {
-                            out = concat(out, str(")"));
+                        if end_type < expr_len and get_char(expr, end_type) == ')' {
+                            StringBuilder.append_c(addr(sb), ")");
                             end_type = end_type + 1;
                         }
 
@@ -1017,16 +1034,18 @@ def rewrite_sizeof_types(expr: string): string {
                 continue;
             }
 
-            out = concat(out, ident);
+            StringBuilder.append(addr(sb), ident);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i++;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite Axe-style cast expressions of the form
@@ -1034,12 +1053,13 @@ def rewrite_sizeof_types(expr: string): string {
 /// into  C-style casts using the mapped C type, e.g.:
 ///   `(int32_t)(expr)`
 def rewrite_casts(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -1047,30 +1067,30 @@ def rewrite_casts(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         if !in_string and is_ident_start(ch) {
-            mut ident: string = str("");
+            val ident_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                ident = concat_chr(ident, cj);
                 j = j + 1;
             }
+            val ident: string = substring_se(expr, ident_start, j);
 
             if str_len(ident) == 4 and get_char(ident, 0) == 'c' and get_char(ident, 1) == 'a' and get_char(ident, 2) == 's' and get_char(ident, 3) == 't' {
                 mut k: i32 = j;
                 loop {
-                    if k >= str_len(expr) {
+                    if k >= expr_len {
                         break;
                     }
                     val ws: char = get_char(expr, k);
@@ -1080,13 +1100,13 @@ def rewrite_casts(expr: string): string {
                     k = k + 1;
                 }
 
-                if k < str_len(expr) and get_char(expr, k) == '[' {
+                if k < expr_len and get_char(expr, k) == '[' {
                     mut t_start: i32 = k + 1;
                     mut t_end: i32 = -1;
                     mut in_str_type: bool = false;
                     mut p: i32 = t_start;
                     loop {
-                        if p >= str_len(expr) {
+                        if p >= expr_len {
                             break;
                         }
                         val ct: char = get_char(expr, p);
@@ -1105,7 +1125,7 @@ def rewrite_casts(expr: string): string {
 
                         mut a: i32 = t_end + 1;
                         loop {
-                            if a >= str_len(expr) {
+                            if a >= expr_len {
                                 break;
                             }
                             val wa: char = get_char(expr, a);
@@ -1115,13 +1135,13 @@ def rewrite_casts(expr: string): string {
                             a = a + 1;
                         }
 
-                        if a < str_len(expr) and get_char(expr, a) == '(' {
+                        if a < expr_len and get_char(expr, a) == '(' {
                             mut depth: i32 = 0;
                             mut in_str_paren: bool = false;
                             mut q: i32 = a;
                             mut end_paren: i32 = -1;
                             loop {
-                                if q >= str_len(expr) {
+                                if q >= expr_len {
                                     break;
                                 }
                                 val cp: char = get_char(expr, q);
@@ -1144,15 +1164,12 @@ def rewrite_casts(expr: string): string {
 
                             if end_paren >= 0 {
                                 val mapped_type: string = map_axe_type_to_c(type_raw);
-                                mut repl: string = str("(");
-
-                                repl = concat(repl, mapped_type);
-                                repl = concat(repl, str(")"));
+                                StringBuilder.append_char(addr(sb), '(');
+                                StringBuilder.append(addr(sb), mapped_type);
+                                StringBuilder.append_char(addr(sb), ')');
 
                                 val inner_full: string = substring_se(expr, a, end_paren + 1);
-                                repl = concat(repl, inner_full);
-
-                                out = concat(out, repl);
+                                StringBuilder.append(addr(sb), inner_full);
                                 i = end_paren + 1;
 
                                 continue;
@@ -1161,21 +1178,23 @@ def rewrite_casts(expr: string): string {
                     }
                 }
 
-                out = concat(out, ident);
+                StringBuilder.append(addr(sb), ident);
                 i = j;
                 continue;
             }
 
-            out = concat(out, ident);
+            StringBuilder.append(addr(sb), ident);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i = i + 1;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Add a list element type to tracking structures (map + ordered list)
@@ -1324,26 +1343,31 @@ def int_to_ascii(n: i32): string {
         v = -v;
     }
 
-    mut rev: string = str("");
+    mut sb_rev: StringBuilder = StringBuilder.init(16);
     loop {
         if v == 0 {
             break;
         }
         val digit: i32 = v mod 10;
-        rev = concat_chr(rev, cast[char]('0' + digit));
+        StringBuilder.append_char(addr(sb_rev), cast[char]('0' + digit));
         v = v / 10;
     }
 
-    mut out: string = str("");
-    mut i: i32 = str_len(rev) - 1;
+    val rev: string = StringBuilder.to_string(addr(sb_rev));
+    StringBuilder.destroy(addr(sb_rev));
+
+    mut sb_out: StringBuilder = StringBuilder.init(str_len(rev) + 2);
+    mut i: i32 = cast[i32](str_len(rev)) - 1;
     loop {
         if i < 0 {
             break;
         }
-        out = concat_chr(out, get_char(rev, i));
+        StringBuilder.append_char(addr(sb_out), get_char(rev, i));
         i = i - 1;
     }
 
+    mut out: string = StringBuilder.to_string(addr(sb_out));
+    StringBuilder.destroy(addr(sb_out));
     if neg {
         out = concat(str("-"), out);
     }
@@ -1412,29 +1436,30 @@ def process_interpolated_string(interp_content: string, return_struct: bool): st
     mut expressions: list(string);
 
     mut pos: i32 = 0;
-    mut current_part: string = str("");
+    mut sb_part: StringBuilder = StringBuilder.init(str_len(interp_content) + 16);
+    val content_len: i32 = cast[i32](str_len(interp_content));
 
     loop {
-        if pos >= str_len(interp_content) {
+        if pos >= content_len {
             break;
         }
 
         val ch: char = get_char(interp_content, pos);
 
         if ch == '{' and (pos == 0 or get_char(interp_content, pos - 1) != '\\') {
-            if pos > 0 and get_char(interp_content, pos - 1) == '$' and str_len(current_part) > 0 {
-                current_part = substring_se(current_part, 0, str_len(current_part) - 1);
+            if pos > 0 and get_char(interp_content, pos - 1) == '$' and sb_part.len > 0 {
+                sb_part.len = sb_part.len - 1;
             }
 
-            append(parts, current_part);
-            current_part = str("");
+            append(parts, StringBuilder.to_string(addr(sb_part)));
+            StringBuilder.clear(addr(sb_part));
 
             mut brace_start: i32 = pos + 1;
             mut brace_depth: i32 = 1;
             mut brace_end: i32 = brace_start;
 
             loop {
-                if brace_end >= str_len(interp_content) or brace_depth == 0 {
+                if brace_end >= content_len or brace_depth == 0 {
                     break;
                 }
                 val cc: char = get_char(interp_content, brace_end);
@@ -1456,11 +1481,12 @@ def process_interpolated_string(interp_content: string, return_struct: bool): st
             continue;
         }
 
-        current_part = concat_chr(current_part, ch);
+        StringBuilder.append_char(addr(sb_part), ch);
         pos = pos + 1;
     }
 
-    append(parts, current_part);
+    append(parts, StringBuilder.to_string(addr(sb_part)));
+    StringBuilder.destroy(addr(sb_part));
 
     if len(parts) == 0 {
         return str("");
@@ -1634,9 +1660,9 @@ def c_prefix_end_index(s: string): i32 {
 /// For example, 'std__string__string__create' stays the same, but
 /// 'std__string__string_string__create' becomes 'std__string__string__create'.
 def collapse_duplicate_segments_once(s: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(s) + 16);
     mut i: i32 = 0;
-    val n: i32 = str_len(s);
+    val n: i32 = cast[i32](str_len(s));
 
     loop {
         if i >= n {
@@ -1645,7 +1671,7 @@ def collapse_duplicate_segments_once(s: string): string {
 
         if i + 2 < n and get_char(s, i) == '_' and get_char(s, i + 1) == '_' {
             mut j: i32 = i + 2;
-            mut seg1: string = str("");
+            val seg1_start: i32 = j;
             loop {
                 if j >= n {
                     break;
@@ -1654,14 +1680,14 @@ def collapse_duplicate_segments_once(s: string): string {
                 if ch == '_' {
                     break;
                 }
-                seg1 = concat_chr(seg1, ch);
                 j = j + 1;
             }
+            val seg1: string = substring_se(s, seg1_start, j);
 
             if str_len(seg1) > 0 {
                 if j + 2 < n and get_char(s, j) == '_' and get_char(s, j + 1) == '_' {
                     mut k: i32 = j + 2;
-                    mut seg2: string = str("");
+                    val seg2_start: i32 = k;
                     loop {
                         if k >= n {
                             break;
@@ -1670,14 +1696,14 @@ def collapse_duplicate_segments_once(s: string): string {
                         if ch2 == '_' {
                             break;
                         }
-                        seg2 = concat_chr(seg2, ch2);
                         k = k + 1;
                     }
+                    val seg2: string = substring_se(s, seg2_start, k);
 
                     if compare(seg1, seg2) == 0 {
                         if (k < n and get_char(s, k) == '_' and (k + 1 >= n or get_char(s, k + 1) != '_')) {
-                            out = concat(out, str("__"));
-                            out = concat(out, seg1);
+                            StringBuilder.append_c(addr(sb), "__");
+                            StringBuilder.append(addr(sb), seg1);
                             i = k;
                             continue;
                         }
@@ -1686,7 +1712,7 @@ def collapse_duplicate_segments_once(s: string): string {
 
                 if j + 3 < n and get_char(s, j) == '_' and get_char(s, j + 1) != '_' {
                     mut k2: i32 = j + 1;
-                    mut seg2b: string = str("");
+                    val seg2b_start: i32 = k2;
                     loop {
                         if k2 >= n {
                             break;
@@ -1695,15 +1721,15 @@ def collapse_duplicate_segments_once(s: string): string {
                         if ch3 == '_' {
                             break;
                         }
-                        seg2b = concat_chr(seg2b, ch3);
                         k2 = k2 + 1;
                     }
+                    val seg2b: string = substring_se(s, seg2b_start, k2);
 
                     if k2 + 1 < n and get_char(s, k2) == '_' and get_char(s, k2 + 1) == '_' {
                         if compare(seg1, seg2b) == 0 {
-                            out = concat(out, str("__"));
-                            out = concat(out, seg1);
-                            out = concat(out, str("__"));
+                            StringBuilder.append_c(addr(sb), "__");
+                            StringBuilder.append(addr(sb), seg1);
+                            StringBuilder.append_c(addr(sb), "__");
                             i = k2 + 2;
                             continue;
                         }
@@ -1712,20 +1738,23 @@ def collapse_duplicate_segments_once(s: string): string {
             }
         }
 
-        out = concat_chr(out, get_char(s, i));
+        StringBuilder.append_char(addr(sb), get_char(s, i));
         i = i + 1;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Strip any C. prefixes (C, optional spaces, '.', optional spaces) that may
 /// appear anywhere in a C expression string, not just at the beginning.
 def strip_all_c_prefixes(s: string): string {
-    mut cleaned: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(s) + 16);
     mut i: i32 = 0;
+    val s_len: i32 = cast[i32](str_len(s));
     loop {
-        if i >= str_len(s) {
+        if i >= s_len {
             break;
         }
 
@@ -1749,7 +1778,7 @@ def strip_all_c_prefixes(s: string): string {
             if prev_idx < 0 or !is_ident_start(prev_ch) {
                 mut k: i32 = i + 1;
                 loop {
-                    if k >= str_len(s) {
+                    if k >= s_len {
                         break;
                     }
                     val ws: char = get_char(s, k);
@@ -1759,10 +1788,10 @@ def strip_all_c_prefixes(s: string): string {
                     k = k + 1;
                 }
 
-                if k < str_len(s) and get_char(s, k) == '.' {
+                if k < s_len and get_char(s, k) == '.' {
                     k = k + 1;
                     loop {
-                        if k >= str_len(s) {
+                        if k >= s_len {
                             break;
                         }
                         val ws2: char = get_char(s, k);
@@ -1778,26 +1807,29 @@ def strip_all_c_prefixes(s: string): string {
             }
         }
 
-        cleaned = concat_chr(cleaned, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i = i + 1;
     }
 
-    return cleaned;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 /// Rewrite all enum member references (EnumName.MEMBER) within a string to the
 /// proper C prefixed form (EnumName_MEMBER). This scans the entire expression
 /// and transforms all occurrences, not just simple standalone patterns.
 def rewrite_enum_member_refs(s: string): string {
-    mut result: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(s) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val s_len: i32 = cast[i32](str_len(s));
 
     debug_print_raw "\n[DBG-ENUM] rewrite_enum_member_refs input:";
     debug_print_str s;
 
     loop {
-        if i >= str_len(s) {
+        if i >= s_len {
             break;
         }
 
@@ -1806,37 +1838,37 @@ def rewrite_enum_member_refs(s: string): string {
         // Track string literals to avoid modifying contents
         if ch == '"' and (i == 0 or get_char(s, i - 1) != '\\') {
             in_string = !in_string;
-            result = concat_chr(result, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         if in_string {
-            result = concat_chr(result, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         // Look for identifier followed by '.' and another identifier
         if is_ident_start(ch) {
-            mut ident: string = str("");
+            val ident_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(s) {
+                if j >= s_len {
                     break;
                 }
                 val cj: char = get_char(s, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                ident = concat_chr(ident, cj);
                 j = j + 1;
             }
+            val ident: string = substring_se(s, ident_start, j);
 
             // Skip any whitespace after identifier
             mut k: i32 = j;
             loop {
-                if k >= str_len(s) {
+                if k >= s_len {
                     break;
                 }
                 val ws: char = get_char(s, k);
@@ -1847,13 +1879,13 @@ def rewrite_enum_member_refs(s: string): string {
             }
 
             // Check for '.'
-            if k < str_len(s) and get_char(s, k) == '.' {
+            if k < s_len and get_char(s, k) == '.' {
                 mut dot_pos: i32 = k;
                 k = k + 1;
 
                 // Skip whitespace after '.'
                 loop {
-                    if k >= str_len(s) {
+                    if k >= s_len {
                         break;
                     }
                     val ws2: char = get_char(s, k);
@@ -1864,29 +1896,29 @@ def rewrite_enum_member_refs(s: string): string {
                 }
 
                 // Parse member name
-                if k < str_len(s) and is_ident_start(get_char(s, k)) {
-                    mut member: string = str("");
+                if k < s_len and is_ident_start(get_char(s, k)) {
+                    val member_start: i32 = k;
                     mut m: i32 = k;
                     loop {
-                        if m >= str_len(s) {
+                        if m >= s_len {
                             break;
                         }
                         val cm: char = get_char(s, m);
                         if !is_token_char(cm) {
                             break;
                         }
-                        member = concat_chr(member, cm);
                         m = m + 1;
                     }
+                    val member: string = substring_se(s, member_start, m);
 
                     if str_len(member) > 0 {
                         // Check if this identifier is a known enum name
                         val enum_c_name: string = canonical_model_c_name(ident);
                         if str_len(enum_c_name) > 0 and StringBoolMap.contains(addr(g_enum_names), enum_c_name) {
                             // This is an enum member access - emit EnumName_Member
-                            result = concat(result, enum_c_name);
-                            result = concat(result, str("_"));
-                            result = concat(result, member);
+                            StringBuilder.append(addr(sb), enum_c_name);
+                            StringBuilder.append_char(addr(sb), '_');
+                            StringBuilder.append(addr(sb), member);
                             i = m;
                             continue;
                         }
@@ -1895,14 +1927,17 @@ def rewrite_enum_member_refs(s: string): string {
             }
 
             // Not an enum member access, emit the identifier as-is
-            result = concat(result, ident);
+            StringBuilder.append(addr(sb), ident);
             i = j;
             continue;
         }
 
-        result = concat_chr(result, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i = i + 1;
     }
+
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
 
     debug_print_raw "\n[DBG-ENUM] rewrite_enum_member_refs output:";
     debug_print_str result;
@@ -1981,12 +2016,13 @@ def rewrite_adr(expr: string): string {
 }
 
 def rewrite_function_calls(expr: string): string {
-    mut out: string = str("");
+    mut sb: StringBuilder = StringBuilder.init(str_len(expr) + 64);
     mut i: i32 = 0;
     mut in_string: bool = false;
+    val expr_len: i32 = cast[i32](str_len(expr));
 
     loop {
-        if i >= str_len(expr) {
+        if i >= expr_len {
             break;
         }
 
@@ -1994,30 +2030,30 @@ def rewrite_function_calls(expr: string): string {
 
         if ch == '"' and (i == 0 or get_char(expr, i - 1) != '\\') {
             in_string = !in_string;
-            out = concat_chr(out, ch);
+            StringBuilder.append_char(addr(sb), ch);
             i = i + 1;
             continue;
         }
 
         val is_id_start: bool = is_ident_start(ch);
         if !in_string and is_id_start {
-            mut ident: string = str("");
+            val ident_start: i32 = i;
             mut j: i32 = i;
             loop {
-                if j >= str_len(expr) {
+                if j >= expr_len {
                     break;
                 }
                 val cj: char = get_char(expr, j);
                 if !is_token_char(cj) {
                     break;
                 }
-                ident = concat_chr(ident, cj);
                 j = j + 1;
             }
+            val ident: string = substring_se(expr, ident_start, j);
 
             mut k: i32 = j;
             loop {
-                if k >= str_len(expr) {
+                if k >= expr_len {
                     break;
                 }
                 val ws: char = get_char(expr, k);
@@ -2028,22 +2064,24 @@ def rewrite_function_calls(expr: string): string {
             }
 
             mut replaced_ident: string = ident;
-            if k < str_len(expr) and get_char(expr, k) == '(' {
+            if k < expr_len and get_char(expr, k) == '(' {
                 if StringStringMap.contains(addr(g_function_prefixes), ident) {
                     replaced_ident = StringStringMap.get(addr(g_function_prefixes), ident);
                 }
             }
 
-            out = concat(out, replaced_ident);
+            StringBuilder.append(addr(sb), replaced_ident);
             i = j;
             continue;
         }
 
-        out = concat_chr(out, ch);
+        StringBuilder.append_char(addr(sb), ch);
         i = i + 1;
     }
 
-    return out;
+    val result: string = StringBuilder.to_string(addr(sb));
+    StringBuilder.destroy(addr(sb));
+    return result;
 }
 
 def process_expression(expr: string): string {
@@ -2162,11 +2200,12 @@ def process_expression(expr: string): string {
         // normalization pass below on the already-trimmed expression.
 
         mut normalized_only: string = trimmed;
-        mut out_norm: string = str("");
+        mut sb_norm: StringBuilder = StringBuilder.init(str_len(normalized_only) + 16);
         mut jn: i32 = 0;
+        val norm_len: i32 = cast[i32](str_len(normalized_only));
         
         loop {
-            if jn >= str_len(normalized_only) {
+            if jn >= norm_len {
                 break;
             }
             val chn: char = get_char(normalized_only, jn);
@@ -2191,7 +2230,7 @@ def process_expression(expr: string): string {
                 mut knext: i32 = jn + 1;
                 mut next_pos: i32 = -1;
                 loop {
-                    if knext >= str_len(normalized_only) {
+                    if knext >= norm_len {
                         break;
                     }
                     val cnext: char = get_char(normalized_only, knext);
@@ -2214,18 +2253,20 @@ def process_expression(expr: string): string {
                     } elif !is_ident_start(next) {
                         // Merge other token fragments such as `reduce _angle`.
                     } else {
-                        out_norm = concat(out_norm, str(" "));
+                        StringBuilder.append_char(addr(sb_norm), ' ');
                     }
                 } else {
-                    out_norm = concat(out_norm, str(" "));
+                    StringBuilder.append_char(addr(sb_norm), ' ');
                 }
             } else {
-                out_norm = concat_chr(out_norm, chn);
+                StringBuilder.append_char(addr(sb_norm), chn);
             }
 
             jn = jn + 1;
         }
 
+        val out_norm: string = StringBuilder.to_string(addr(sb_norm));
+        StringBuilder.destroy(addr(sb_norm));
         val norm_no_sugar: string = strip(out_norm);
         debug_print_raw "\n[DBG-EXPR] no-sugar final:";
         debug_print_str norm_no_sugar;
@@ -2246,17 +2287,18 @@ def process_expression(expr: string): string {
     debug_print_str trimmed;
 
     if has_pointer_sugar {
-        mut out: string = str("");
+        mut sb_sugar: StringBuilder = StringBuilder.init(str_len(result) + 32);
         mut in_str2: bool = false;
         mut j: i32 = 0;
+        val result_len: i32 = cast[i32](str_len(result));
         loop {
-            if j >= str_len(result) {
+            if j >= result_len {
                 break;
             }
             val ch2: char = get_char(result, j);
             if ch2 == '"' and (j == 0 or get_char(result, j - 1) != '\\') {
                 in_str2 = !in_str2;
-                out = concat_chr(out, ch2);
+                StringBuilder.append_char(addr(sb_sugar), ch2);
             } elif !in_str2 and ch2 == '*' {
                 // Support both `s*.field` and `s * . field` forms. When we see
                 // a `*` outside of strings, peek ahead past any whitespace; if
@@ -2264,7 +2306,7 @@ def process_expression(expr: string): string {
                 // member sugar and emit `->` instead.
                 mut k: i32 = j + 1;
                 loop {
-                    if k >= str_len(result) {
+                    if k >= result_len {
                         break;
                     }
                     val ws: char = get_char(result, k);
@@ -2274,18 +2316,19 @@ def process_expression(expr: string): string {
                     k = k + 1;
                 }
 
-                if k < str_len(result) and get_char(result, k) == '.' {
-                    out = concat(out, str("->"));
+                if k < result_len and get_char(result, k) == '.' {
+                    StringBuilder.append_c(addr(sb_sugar), "->");
                     j = k; // skip over the '.'; loop increment will move past it
                 } else {
-                    out = concat_chr(out, ch2);
+                    StringBuilder.append_char(addr(sb_sugar), ch2);
                 }
             } else {
-                out = concat_chr(out, ch2);
+                StringBuilder.append_char(addr(sb_sugar), ch2);
             }
             j = j + 1;
         }
-        result = out;
+        result = StringBuilder.to_string(addr(sb_sugar));
+        StringBuilder.destroy(addr(sb_sugar));
     }
 
     if has_c_prefix {
@@ -2300,10 +2343,11 @@ def process_expression(expr: string): string {
     mut normalized: string = result;
     debug_print_raw "\n[DBG-EXPR] after sugar/C before normalize:";
     debug_print_str normalized;
-    mut out_final: string = str("");
+    mut sb_final: StringBuilder = StringBuilder.init(str_len(normalized) + 32);
     mut jf: i32 = 0;
+    val normalized_len: i32 = cast[i32](str_len(normalized));
     loop {
-        if jf >= str_len(normalized) {
+        if jf >= normalized_len {
             break;
         }
         val chf: char = get_char(normalized, jf);
@@ -2328,7 +2372,7 @@ def process_expression(expr: string): string {
             mut kn: i32 = jf + 1;
             mut next_pos2: i32 = -1;
             loop {
-                if kn >= str_len(normalized) {
+                if kn >= normalized_len {
                     break;
                 }
                 val cn: char = get_char(normalized, kn);
@@ -2351,18 +2395,20 @@ def process_expression(expr: string): string {
                 } elif !is_ident_start(next2) {
                     // Drop the space between token characters (e.g. `reduce _angle`).
                 } else {
-                    out_final = concat(out_final, str(" "));
+                    StringBuilder.append_c(addr(sb_final), " ");
                 }
             } else {
-                out_final = concat(out_final, str(" "));
+                StringBuilder.append_c(addr(sb_final), " ");
             }
         } else {
-            out_final = concat_chr(out_final, chf);
+            StringBuilder.append_char(addr(sb_final), chf);
         }
 
         jf = jf + 1;
     }
 
+    val out_final: string = StringBuilder.to_string(addr(sb_final));
+    StringBuilder.destroy(addr(sb_final));
     val first_pass: string = strip(out_final);
     debug_print_raw "\nFIRST PASS:";
     debug_print_str first_pass;
@@ -3736,33 +3782,35 @@ pub def generate_c(ast: ref ASTNode): string {
                 } else {
                     val stmt_code: string = generate_c(child);
                     if str_len(stmt_code) > 0 {
-                        mut line: string = str("");
+                        mut sb_line: StringBuilder = StringBuilder.init(256);
                         mut buf: string = stmt_code;
                         mut idx: i32 = 0;
+                        val buf_len: i32 = cast[i32](str_len(buf));
 
                         loop {
-                            if idx >= str_len(buf) {
+                            if idx >= buf_len {
                                 break;
                             }
                             val ch: char = get_char(buf, idx);
                             if ch == '\n' {
-                                if str_len(line) > 0 {
+                                if sb_line.len > 0 {
                                     result = concat_c(result, "    ");
-                                    result = concat(result, line);
+                                    result = concat(result, StringBuilder.to_string(addr(sb_line)));
                                     result = concat_c(result, "\n");
-                                    line = str("");
+                                    StringBuilder.clear(addr(sb_line));
                                 }
                             } else {
-                                line = concat_chr(line, ch);
+                                StringBuilder.append_char(addr(sb_line), ch);
                             }
                             idx = idx + 1;
                         }
 
-                        if str_len(line) > 0 {
+                        if sb_line.len > 0 {
                             result = concat_c(result, "    ");
-                            result = concat(result, line);
+                            result = concat(result, StringBuilder.to_string(addr(sb_line)));
                             result = concat_c(result, "\n");
                         }
+                        StringBuilder.destroy(addr(sb_line));
                     }
                 }
 
@@ -3984,26 +4032,27 @@ pub def generate_c(ast: ref ASTNode): string {
                     init_code_ret = concat(init_code_ret, c_type_ret);
                     init_code_ret = concat(init_code_ret, str("){"));
 
-                    mut current_ret: string = str("");
+                    mut sb_current_ret: StringBuilder = StringBuilder.init(str_len(inner_ret) + 16);
                     mut depth_ret: i32 = 0;
                     mut first_field_ret: bool = true;
                     mut i_ret: i32 = 0;
+                    val inner_ret_len: i32 = cast[i32](str_len(inner_ret));
 
                     loop {
-                        if i_ret >= str_len(inner_ret) {
+                        if i_ret >= inner_ret_len {
                             break;
                         }
                         val ch_ret: char = get_char(inner_ret, i_ret);
                         if ch_ret == '(' {
                             depth_ret = depth_ret + 1;
-                            current_ret = concat_chr(current_ret, ch_ret);
+                            StringBuilder.append_char(addr(sb_current_ret), ch_ret);
                         } elif ch_ret == ')' {
                             if depth_ret > 0 {
                                 depth_ret = depth_ret - 1;
                             }
-                            current_ret = concat_chr(current_ret, ch_ret);
+                            StringBuilder.append_char(addr(sb_current_ret), ch_ret);
                         } elif ch_ret == ',' and depth_ret == 0 {
-                            mut part_ret: string = strip(current_ret);
+                            mut part_ret: string = strip(StringBuilder.to_string(addr(sb_current_ret)));
                             if str_len(part_ret) > 0 {
                                 val colon_pos_ret2: i32 = find_char_from(part_ret, ':', 0);
                                 if colon_pos_ret2 >= 0 {
@@ -4022,14 +4071,15 @@ pub def generate_c(ast: ref ASTNode): string {
                                     }
                                 }
                             }
-                            current_ret = str("");
+                            StringBuilder.clear(addr(sb_current_ret));
                         } else {
-                            current_ret = concat_chr(current_ret, ch_ret);
+                            StringBuilder.append_char(addr(sb_current_ret), ch_ret);
                         }
                         i_ret = i_ret + 1;
                     }
 
-                    mut part_last_ret: string = strip(current_ret);
+                    mut part_last_ret: string = strip(StringBuilder.to_string(addr(sb_current_ret)));
+                    StringBuilder.destroy(addr(sb_current_ret));
                     if str_len(part_last_ret) > 0 {
                         val colon_pos_last_ret: i32 = find_char_from(part_last_ret, ':', 0);
                         if colon_pos_last_ret >= 0 {
@@ -4222,26 +4272,27 @@ pub def generate_c(ast: ref ASTNode): string {
                         val args_str: string = substring_se(trimmed, first_paren + 1, last_paren);
                         mut init_code: string = str(" = {");
 
-                        mut current: string = str("");
+                        mut sb_current: StringBuilder = StringBuilder.init(str_len(args_str) + 16);
                         mut depth: i32 = 0;
                         mut first_field: bool = true;
                         mut i2: i32 = 0;
+                        val args_str_len: i32 = cast[i32](str_len(args_str));
 
                         loop {
-                            if i2 >= str_len(args_str) {
+                            if i2 >= args_str_len {
                                 break;
                             }
                             val ch: char = get_char(args_str, i2);
                             if ch == '(' {
                                 depth = depth + 1;
-                                current = concat_chr(current, ch);
+                                StringBuilder.append_char(addr(sb_current), ch);
                             } elif ch == ')' {
                                 if depth > 0 {
                                     depth = depth - 1;
                                 }
-                                current = concat_chr(current, ch);
+                                StringBuilder.append_char(addr(sb_current), ch);
                             } elif ch == ',' and depth == 0 {
-                                mut part: string = strip(current);
+                                mut part: string = strip(StringBuilder.to_string(addr(sb_current)));
                                 if str_len(part) > 0 {
                                     val colon_pos: i32 = find_char_from(part, ':', 0);
                                     if colon_pos >= 0 {
@@ -4259,14 +4310,15 @@ pub def generate_c(ast: ref ASTNode): string {
                                         }
                                     }
                                 }
-                                current = str("");
+                                StringBuilder.clear(addr(sb_current));
                             } else {
-                                current = concat_chr(current, ch);
+                                StringBuilder.append_char(addr(sb_current), ch);
                             }
                             i2++;
                         }
 
-                        mut part_last: string = strip(current);
+                        mut part_last: string = strip(StringBuilder.to_string(addr(sb_current)));
+                        StringBuilder.destroy(addr(sb_current));
                         if str_len(part_last) > 0 {
                             val colon_pos_last: i32 = find_char_from(part_last, ':', 0);
                             if colon_pos_last >= 0 {
@@ -4302,26 +4354,27 @@ pub def generate_c(ast: ref ASTNode): string {
                     if (str_len(type_name) == 0 or equals_c(prefix, type_name.data)) {
                         mut init_code2: string = str(" = {");
 
-                        mut current2: string = str("");
+                        mut sb_current2: StringBuilder = StringBuilder.init(str_len(inner) + 16);
                         mut depth2: i32 = 0;
                         mut first_field2: bool = true;
                         mut i3: i32 = 0;
+                        val inner_len: i32 = cast[i32](str_len(inner));
 
                         loop {
-                            if i3 >= str_len(inner) {
+                            if i3 >= inner_len {
                                 break;
                             }
                             val ch2: char = get_char(inner, i3);
                             if ch2 == '(' {
                                 depth2 = depth2 + 1;
-                                current2 = concat_chr(current2, ch2);
+                                StringBuilder.append_char(addr(sb_current2), ch2);
                             } elif ch2 == ')' {
                                 if depth2 > 0 {
                                     depth2 = depth2 - 1;
                                 }
-                                current2 = concat_chr(current2, ch2);
+                                StringBuilder.append_char(addr(sb_current2), ch2);
                             } elif ch2 == ',' and depth2 == 0 {
-                                mut part2: string = strip(current2);
+                                mut part2: string = strip(StringBuilder.to_string(addr(sb_current2)));
                                 if str_len(part2) > 0 {
                                     val colon_pos2: i32 = find_char_from(part2, ':', 0);
                                     if colon_pos2 >= 0 {
@@ -4339,14 +4392,15 @@ pub def generate_c(ast: ref ASTNode): string {
                                         }
                                     }
                                 }
-                                current2 = str("");
+                                StringBuilder.clear(addr(sb_current2));
                             } else {
-                                current2 = concat_chr(current2, ch2);
+                                StringBuilder.append_char(addr(sb_current2), ch2);
                             }
                             i3 = i3 + 1;
                         }
 
-                        mut part_last2: string = strip(current2);
+                        mut part_last2: string = strip(StringBuilder.to_string(addr(sb_current2)));
+                        StringBuilder.destroy(addr(sb_current2));
                         if str_len(part_last2) > 0 {
                             val colon_pos_last2: i32 = find_char_from(part_last2, ':', 0);
                             if colon_pos_last2 >= 0 {
@@ -4435,10 +4489,11 @@ pub def generate_c(ast: ref ASTNode): string {
         debug_print_raw "\n[DBG-ASSIGN]   pv before fix:";
         debug_print_str pv;
 
-        mut fixed_var: string = str("");
+        mut sb_fixed_var: StringBuilder = StringBuilder.init(str_len(pv) + 16);
         mut idx_av: i32 = 0;
+        val pv_len: i32 = cast[i32](str_len(pv));
         loop {
-            if idx_av >= str_len(pv) {
+            if idx_av >= pv_len {
                 break;
             }
             val chx: char = get_char(pv, idx_av);
@@ -4452,7 +4507,7 @@ pub def generate_c(ast: ref ASTNode): string {
 
                     mut k2: i32 = idx_av + 1;
                     loop {
-                        if k2 >= str_len(pv) {
+                        if k2 >= pv_len {
                             break;
                         }
                         val ws2: char = get_char(pv, k2);
@@ -4462,7 +4517,7 @@ pub def generate_c(ast: ref ASTNode): string {
                         k2 = k2 + 1;
                     }
 
-                    if k2 + 1 < str_len(pv) and
+                    if k2 + 1 < pv_len and
                        get_char(pv, k2) == '-' and
                        get_char(pv, k2 + 1) == '>' {
                         idx_av = k2;
@@ -4471,9 +4526,12 @@ pub def generate_c(ast: ref ASTNode): string {
                 }
             }
 
-            fixed_var = concat_chr(fixed_var, chx);
+            StringBuilder.append_char(addr(sb_fixed_var), chx);
             idx_av = idx_av + 1;
         }
+
+        mut fixed_var: string = StringBuilder.to_string(addr(sb_fixed_var));
+        StringBuilder.destroy(addr(sb_fixed_var));
 
         mut out_lhs: string = fixed_var;
         mut out_rhs: string = processed_expr;
