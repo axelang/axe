@@ -450,8 +450,7 @@ static class RendererConfiguration
  */
 string generateC(ASTNode ast)
 {
-    string cCode;
-    string[string] __typeMapCache;
+    static string[string] __typeMapCache;
     string cachedMapAxeTypeToC(string t)
     {
         if (auto v = t in __typeMapCache)
@@ -460,6 +459,11 @@ string generateC(ASTNode ast)
         __typeMapCache[t] = r;
         return r;
     }
+    
+    import std.array : Appender;
+    
+    Appender!string cCode;
+    cCode.reserve(32 * 1024);
 
     string[string] variables;
     string currentFunction = "";
@@ -3023,9 +3027,7 @@ string generateC(ASTNode ast)
 
     import std.string : replace;
 
-    cCode = cCode.replace(" = {} = {0}", " = {0}");
-
-    return cCode;
+    return cCode.data.replace(" = {} = {0}", " = {0}");
 }
 
 /**
@@ -3448,11 +3450,72 @@ string processTypeForCast(string axeType)
  */
 string processExpression(string expr, string context = "")
 {
-    expr = expr.strip();
-
     import std.string : replace;
     import std.algorithm : canFind;
     import std.regex : replaceAll, regex, matchAll;
+    
+    expr = expr.strip();
+    
+    if (expr.length == 0)
+        return expr;
+    
+    if (expr.length > 0 && expr[0] >= '0' && expr[0] <= '9')
+    {
+        bool isSimpleNumber = true;
+        foreach (c; expr)
+        {
+            if (!((c >= '0' && c <= '9') || c == '.' || c == '-' || c == 'e' || c == 'E'))
+            {
+                isSimpleNumber = false;
+                break;
+            }
+        }
+        if (isSimpleNumber)
+            return expr;
+    }
+    
+    if (expr.length >= 2 && expr[0] == '"' && expr[$ - 1] == '"')
+    {
+        bool isSimple = true;
+        for (size_t i = 1; i < expr.length - 1; i++)
+        {
+            if (expr[i] == '"' && (i == 0 || expr[i - 1] != '\\'))
+            {
+                isSimple = false;
+                break;
+            }
+        }
+        if (isSimple)
+            return expr;
+    }
+    
+    if (expr.length > 0 && (expr[0] == '_' || (expr[0] >= 'a' && expr[0] <= 'z') || 
+        (expr[0] >= 'A' && expr[0] <= 'Z')))
+    {
+        bool isSimpleIdent = true;
+        foreach (c; expr)
+        {
+            if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || 
+                  (c >= '0' && c <= '9') || c == '_'))
+            {
+                isSimpleIdent = false;
+                break;
+            }
+        }
+        if (isSimpleIdent)
+        {
+            if (expr !in g_varType && expr in g_globalVarPrefixes)
+            {
+                return g_globalVarPrefixes[expr];
+            }
+            if (expr in g_enumValueToEnumName)
+            {
+                string enumName = g_enumValueToEnumName[expr];
+                return enumName ~ "_" ~ expr;
+            }
+            return expr;
+        }
+    }
 
     // Syntactic sugar: ::name always refers to a global variable, even if
     // there is a local with the same name. Rewrite ::name (with optional
@@ -4741,19 +4804,54 @@ string processExpression(string expr, string context = "")
 
 string applyFunctionPrefixes(string expr)
 {
-    import std.regex : regex, replaceAll;
-
+    import std.algorithm : canFind;
+    
+    if (!expr.canFind("("))
+        return expr;
+    
+    import std.regex : regex, replaceAll, Regex;
+    
+    static Regex!char[string] regexCache;
+    
     foreach (funcName, prefixedName; g_functionPrefixes)
     {
-        expr = expr.replaceAll(regex(r"\b" ~ funcName ~ r"\s*\("), prefixedName ~ "(");
+        if (!expr.canFind(funcName))
+            continue;
+            
+        Regex!char pattern;
+        if (auto p = funcName in regexCache)
+        {
+            pattern = *p;
+        }
+        else
+        {
+            pattern = regex(r"\b" ~ funcName ~ r"\s*\(");
+            regexCache[funcName] = pattern;
+        }
+        expr = expr.replaceAll(pattern, prefixedName ~ "(");
     }
 
     if (g_currentModuleName.length > 0)
     {
         foreach (funcName, _; g_localFunctions)
         {
+            if (!expr.canFind(funcName))
+                continue;
+                
             string prefixedName = g_currentModuleName ~ "__" ~ funcName;
-            expr = expr.replaceAll(regex(r"\b" ~ funcName ~ r"\s*\("), prefixedName ~ "(");
+            string cacheKey = g_currentModuleName ~ "__local__" ~ funcName;
+            
+            Regex!char pattern;
+            if (auto p = cacheKey in regexCache)
+            {
+                pattern = *p;
+            }
+            else
+            {
+                pattern = regex(r"\b" ~ funcName ~ r"\s*\(");
+                regexCache[cacheKey] = pattern;
+            }
+            expr = expr.replaceAll(pattern, prefixedName ~ "(");
         }
     }
     return expr;
