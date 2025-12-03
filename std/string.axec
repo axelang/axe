@@ -13,6 +13,128 @@ use std.arena (
 
 use std.io;
 
+/// StringBuilder for efficient string concatenation.
+/// Instead of O(n²) repeated allocations, uses amortized O(1) appends.
+pub model StringBuilder {
+    data: char*;
+    len: usize;
+    cap: usize;
+
+    /// Creates a new StringBuilder with the specified initial capacity.
+    pub def init(initial_capacity: usize): StringBuilder {
+        mut sb: StringBuilder;
+        unsafe {
+            sb.cap = initial_capacity;
+            if sb.cap < 64 {
+                sb.cap = 64;
+            }
+            sb.data = C.malloc(sb.cap);
+            sb.len = 0;
+            if sb.data != nil {
+                sb.data[0] = '\0';
+            }
+        }
+        return sb;
+    }
+
+    /// Ensures the StringBuilder has enough capacity for additional bytes.
+    pub def ensure_capacity(sb: ref StringBuilder, additional: usize): void {
+        val needed: usize = sb*.len + additional + 1;
+        if needed <= sb*.cap {
+            return;
+        }
+        // Double capacity until we have enough
+        mut new_cap: usize = sb*.cap;
+        loop {
+            if new_cap >= needed {
+                break;
+            }
+            new_cap = new_cap * 2;
+        }
+        unsafe {
+            val new_data: char* = C.realloc(sb*.data, new_cap);
+            if new_data != nil {
+                sb*.data = new_data;
+                sb*.cap = new_cap;
+            }
+        }
+    }
+
+    /// Appends a string to the StringBuilder.
+    pub def append(sb: ref StringBuilder, s: string): void {
+        if s.len == 0 {
+            return;
+        }
+        StringBuilder.ensure_capacity(sb, s.len);
+        unsafe {
+            C.memcpy(sb*.data + sb*.len, s.data, s.len);
+            sb*.len = sb*.len + s.len;
+            sb*.data[sb*.len] = '\0';
+        }
+    }
+
+    /// Appends a C string literal to the StringBuilder.
+    pub def append_c(sb: ref StringBuilder, s: ref char): void {
+        unsafe {
+            val s_len: usize = C.strlen(s);
+            if s_len == 0 {
+                return;
+            }
+            StringBuilder.ensure_capacity(sb, s_len);
+            C.memcpy(sb*.data + sb*.len, s, s_len);
+            sb*.len = sb*.len + s_len;
+            sb*.data[sb*.len] = '\0';
+        }
+    }
+
+    /// Appends a single character to the StringBuilder.
+    pub def append_char(sb: ref StringBuilder, c: char): void {
+        StringBuilder.ensure_capacity(sb, 1);
+        raw {
+            sb->data[sb->len] = c;
+            sb->len = sb->len + 1;
+            sb->data[sb->len] = '\0';
+        }
+    }
+
+    /// Converts the StringBuilder to a string.
+    /// The StringBuilder remains valid and can continue to be used.
+    pub def to_string(sb: ref StringBuilder): string {
+        mut result: string;
+        unsafe {
+            result.data = C.malloc(sb*.len + 1);
+            if result.data != nil {
+                C.memcpy(result.data, sb*.data, sb*.len + 1);
+                result.len = sb*.len;
+                result.cap = sb*.len + 1;
+            } else {
+                result.data = nil;
+                result.len = 0;
+                result.cap = 0;
+            }
+        }
+        return result;
+    }
+
+    /// Clears the StringBuilder without deallocating memory.
+    pub def clear(sb: ref StringBuilder): void {
+        sb*.len = 0;
+        if sb*.data != nil {
+            sb*.data[0] = '\0';
+        }
+    }
+
+    /// Destroys the StringBuilder and frees memory.
+    pub def destroy(sb: ref StringBuilder): void {
+        unsafe {
+            C.free(sb*.data);
+            sb*.data = nil;
+            sb*.len = 0;
+            sb*.cap = 0;
+        }
+    }
+}
+
 /// string model representing a dynamic string with length tracking.
 pub model string {
     data: char*;
@@ -902,6 +1024,24 @@ test {
     assert(find_substr(string.create("abc"), string.create("")) == 0, "find_substr of empty substring should return 0");
     assert(find_substr(string.create("aaaa"), string.create("aa")) == 0, "find_substr should find the first occurrence");
     assert(find_substr(string.create("abc"), string.create("x")) == -1, "find_substr should return -1 when not found");
+
+    // StringBuilder tests
+    mut sb: StringBuilder = StringBuilder.init(64);
+    StringBuilder.append_c(addr(sb), "Hello");
+    StringBuilder.append_c(addr(sb), ", ");
+    StringBuilder.append_c(addr(sb), "World!");
+    val sb_result: string = StringBuilder.to_string(addr(sb));
+    assert(compare(sb_result, string.create("Hello, World!")) == 0, "StringBuilder should concatenate strings");
+    
+    StringBuilder.clear(addr(sb));
+    assert(sb.len == 0, "StringBuilder clear should reset length to 0");
+    
+    StringBuilder.append(addr(sb), string.create("Test"));
+    StringBuilder.append_char(addr(sb), '!');
+    val sb_result2: string = StringBuilder.to_string(addr(sb));
+    assert(compare(sb_result2, string.create("Test!")) == 0, "StringBuilder append_char should work");
+    
+    StringBuilder.destroy(addr(sb));
 
     print_str(str($"This should be 10 dollars: $ {y}"));
 }
