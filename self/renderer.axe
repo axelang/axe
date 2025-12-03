@@ -3015,6 +3015,11 @@ pub def generate_c(ast: ref ASTNode): string {
                     val is_mutable: bool = child.data.declaration.is_mutable;
                     val initializer: string = child.data.declaration.initializer;
 
+                    if str_len(var_name) > 0 and str_len(type_name) > 0 {
+                        mut arena_decl: Arena = Arena.create(256);
+                        StringStringMap.set(addr(g_var_types), addr(arena_decl), var_name, type_name);
+                    }
+
                     mut mapped_type: string = map_axe_type_to_c(type_name);
                     mut line: string = str("");
                     mut array_suffix: string = str("");
