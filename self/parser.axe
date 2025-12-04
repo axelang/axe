@@ -49,7 +49,7 @@ def macros_add(name: string, defn: MacroDef) {
             g_macro_defs.data[i] = defn;
             return;
         }
-        i = i + 1;
+        i++;
     }
 
     append(g_macro_names, name);
@@ -65,7 +65,7 @@ def macros_contains(name: string): bool {
         if compare(g_macro_names.data[i], name) == 0 {
             return true;
         }
-        i = i + 1;
+        i++;
     }
     return false;
 }
@@ -79,7 +79,7 @@ def macros_get(name: string): MacroDef {
         if compare(g_macro_names.data[i], name) == 0 {
             return g_macro_defs.data[i];
         }
-        i = i + 1;
+        i++;
     }
 
     mut empty: MacroDef;
@@ -100,7 +100,7 @@ def is_all_digits(s: string): bool {
         if ch < '0' or ch > '9' {
             return false;
         }
-        i = i + 1;
+        i++;
     }
     return true;
 }
