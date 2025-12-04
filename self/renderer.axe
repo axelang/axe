@@ -968,22 +968,51 @@ def rewrite_ref_member_access(expr: string): string {
                     chain = concat(chain, field_name);
                     chain = concat(chain, array_suffix);
                     
+                    val had_array_access: bool = str_len(array_suffix) > 0;
+                    if had_array_access {
+                        is_pointer = false;
+                    }
+                    
                     if str_len(base_model_name) > 0 {
-                        if is_pointer_field(base_model_name, field_name) {
-                            is_pointer = true;
-                        } else {
-                            is_pointer = false;
-                        }
                         val field_type: string = lookup_field_type(base_model_name, field_name);
                         if str_len(field_type) > 0 {
+                            if is_pointer_type(field_type) {
+                                if not had_array_access {
+                                    is_pointer = true;
+                                }
+                            } else {
+                                is_pointer = false;
+                            }
                             base_model_name = extract_base_model_name(field_type);
+                        } elif is_pointer_field(base_model_name, field_name) {
+                            if not had_array_access {
+                                is_pointer = true;
+                            }
+                            base_model_name = str("");
                         } else {
+                            if not had_array_access {
+                                if equals_c(field_name, "keys") or equals_c(field_name, "values") or 
+                                   equals_c(field_name, "data") or equals_c(field_name, "items") or
+                                   equals_c(field_name, "elements") or equals_c(field_name, "children") or
+                                   equals_c(field_name, "params") or equals_c(field_name, "body") {
+                                    is_pointer = true;
+                                } else {
+                                    is_pointer = false;
+                                }
+                            }
                             base_model_name = str("");
                         }
                     } else {
-                        // We don't know the type, so we can't determine pointer status
-                        // Default to keeping the original operator
-                        is_pointer = false;
+                        if not had_array_access {
+                            if equals_c(field_name, "keys") or equals_c(field_name, "values") or 
+                               equals_c(field_name, "data") or equals_c(field_name, "items") or
+                               equals_c(field_name, "elements") or equals_c(field_name, "children") or
+                               equals_c(field_name, "params") or equals_c(field_name, "body") {
+                                is_pointer = true;
+                            } else {
+                                is_pointer = false;
+                            }
+                        }
                     }
                 }
                 
@@ -1664,7 +1693,13 @@ def process_parameter_type(param_type: string): string {
     //   'ref MyModel*'  -> 'struct ...* *'
 
     mut result: string = strip(param_type);
-    return map_axe_type_to_c(result);
+    val mapped: string = map_axe_type_to_c(result);
+    
+    if find_substr(mapped, str("__list_")) >= 0 and not has_suffix(mapped, str("*")) {
+        return concat(mapped, str("*"));
+    }
+    
+    return mapped;
 }
 
 def int_to_ascii(n: i32): string {
@@ -5329,18 +5364,24 @@ pub def generate_c(ast: ref ASTNode): string {
         StringBuilder.append(addr(sb_mem), trimmed_obj);
         StringBuilder.append(addr(sb_mem), access_op);
         StringBuilder.append(addr(sb_mem), member_name);
+        
+        val member_chain: string = StringBuilder.to_string(addr(sb_mem));
+        StringBuilder.destroy(addr(sb_mem));
+        val processed_chain: string = rewrite_ref_member_access(member_chain);
 
         mut trimmed_value: string = strip(value);
         if str_len(trimmed_value) > 0 {
             val processed_value: string = process_expression(trimmed_value);
             debug_print_raw "\n[DEBUG]   processed value:";
             debug_print_str processed_value;
-            StringBuilder.append_c(addr(sb_mem), " = ");
-            StringBuilder.append(addr(sb_mem), processed_value);
+            mut result_mem: string = processed_chain;
+            result_mem = concat(result_mem, str(" = "));
+            result_mem = concat(result_mem, processed_value);
+            result_mem = concat(result_mem, str(";\n"));
+            return result_mem;
         }
 
-        StringBuilder.append_c(addr(sb_mem), ";\n");
-        return StringBuilder.to_string(addr(sb_mem));
+        return concat(processed_chain, str(";\n"));
     }
     
     if equals_c(node_type, "ArrayAssign") {
