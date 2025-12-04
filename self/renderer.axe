@@ -977,7 +977,7 @@ def rewrite_ref_member_access(expr: string): string {
                         val field_type: string = lookup_field_type(base_model_name, field_name);
                         if str_len(field_type) > 0 {
                             if is_pointer_type(field_type) {
-                                if not had_array_access {
+                                if !had_array_access {
                                     is_pointer = true;
                                 }
                             } else {
@@ -985,12 +985,12 @@ def rewrite_ref_member_access(expr: string): string {
                             }
                             base_model_name = extract_base_model_name(field_type);
                         } elif is_pointer_field(base_model_name, field_name) {
-                            if not had_array_access {
+                            if !had_array_access {
                                 is_pointer = true;
                             }
                             base_model_name = str("");
                         } else {
-                            if not had_array_access {
+                            if !had_array_access {
                                 if equals_c(field_name, "keys") or equals_c(field_name, "values") or 
                                    equals_c(field_name, "data") or equals_c(field_name, "items") or
                                    equals_c(field_name, "elements") or equals_c(field_name, "children") or
@@ -1003,7 +1003,7 @@ def rewrite_ref_member_access(expr: string): string {
                             base_model_name = str("");
                         }
                     } else {
-                        if not had_array_access {
+                        if !had_array_access {
                             if equals_c(field_name, "keys") or equals_c(field_name, "values") or 
                                equals_c(field_name, "data") or equals_c(field_name, "items") or
                                equals_c(field_name, "elements") or equals_c(field_name, "children") or
@@ -1695,7 +1695,7 @@ def process_parameter_type(param_type: string): string {
     mut result: string = strip(param_type);
     val mapped: string = map_axe_type_to_c(result);
     
-    if find_substr(mapped, str("__list_")) >= 0 and not has_suffix(mapped, str("*")) {
+    if find_substr(mapped, str("__list_")) >= 0 and !has_suffix(mapped, str("*")) {
         return concat(mapped, str("*"));
     }
     
@@ -5987,7 +5987,7 @@ pub def generate_c(ast: ref ASTNode): string {
                                         mut nested_array_part: string = str("");
 
                                         if has_suffix(nested_type_raw, str("[999]")) {
-                                            if not has_suffix(mapped_nested_type, str("*")) {
+                                            if !has_suffix(mapped_nested_type, str("*")) {
                                                 mapped_nested_type = concat(mapped_nested_type, str("*"));
                                             }
                                         }
@@ -6030,7 +6030,7 @@ pub def generate_c(ast: ref ASTNode): string {
                                 mut member_array_part: string = str("");
 
                                 if has_suffix(member_type_raw, str("[999]")) {
-                                    if not has_suffix(mapped_member_type, str("*")) {
+                                    if !has_suffix(mapped_member_type, str("*")) {
                                         mapped_member_type = concat(mapped_member_type, str("*"));
                                     }
                                 }
@@ -6074,7 +6074,7 @@ pub def generate_c(ast: ref ASTNode): string {
                     mut array_part: string = str("");
 
                     if has_suffix(field_type, str("[999]")) {
-                        if not has_suffix(mapped_type, str("*")) {
+                        if !has_suffix(mapped_type, str("*")) {
                             mapped_type = concat(mapped_type, str("*"));
                         }
                     }
