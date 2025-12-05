@@ -1,5 +1,4 @@
-// Test for parallel for loops with reduction
-// This should generate OpenMP parallel for with reduction clause
+use std.io;
 
 def main() {
     println "Testing parallel for with reduction:";
