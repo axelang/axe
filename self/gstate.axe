@@ -7,6 +7,7 @@ pub mut keep_emitted_file: bool = false;
 pub mut run_after_compile: bool = false;
 pub mut print_tokens: bool = false;
 pub mut print_ast: bool = false;
+pub mut build_shared_lib: bool = false;
 pub mut include_paths: ref StringList = nil;
 
 /// Print a debug message
@@ -44,6 +45,11 @@ pub def set_print_tokens(v: bool) {
 /// Set print AST flag
 pub def set_print_ast(v: bool) {
     print_ast = v;
+}
+
+/// Set build shared library flag
+pub def set_build_shared_lib(v: bool) {
+    build_shared_lib = v;
 }
 
 /// Set include paths list

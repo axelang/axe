@@ -282,6 +282,17 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     mut compile_cmd: string = str("clang ");
     
     compile_cmd = concat(compile_cmd, c_filename);
+    
+    val is_shared: bool = ::build_shared_lib;
+    if is_shared {
+        platform windows {
+            compile_cmd = concat_c(compile_cmd, " -shared");
+        }
+        platform posix {
+            compile_cmd = concat_c(compile_cmd, " -shared -fPIC");
+        }
+    }
+    
     if needs_omp {
         compile_cmd = concat(compile_cmd, str(" -fopenmp"));
     }
@@ -365,16 +376,38 @@ def replace_extension(filename: string, new_ext: string): string {
 /// Get the output filename with platform-appropriate suffix
 def get_output_filename(specified_output: string, input_filename: string): string {
     mut result: string = str("");
+    val is_shared: bool = ::build_shared_lib;
     
     if str_len(specified_output) > 0 {
         result = specified_output;
     } else {
-        result = replace_extension(input_filename, str(".exe"));
+        if is_shared {
+            platform windows {
+                result = replace_extension(input_filename, str(".dll"));
+            }
+            platform posix {
+                result = replace_extension(input_filename, str(".so"));
+            }
+        } else {
+            result = replace_extension(input_filename, str(".exe"));
+        }
     }
     
     platform windows {
-        if !has_suffix(result, str(".exe")) {
-            result = concat(result, str(".exe"));
+        if is_shared {
+            if !has_suffix(result, str(".dll")) {
+                result = concat(result, str(".dll"));
+            }
+        } else {
+            if !has_suffix(result, str(".exe")) {
+                result = concat(result, str(".exe"));
+            }
+        }
+    }
+    
+    platform posix {
+        if is_shared and !has_suffix(result, str(".so")) {
+            result = concat(result, str(".so"));
         }
     }
     

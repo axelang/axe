@@ -89,6 +89,10 @@ def main() {
     if strlst_contains_c(deref(args), "-ast") {
         set_print_ast(true);
     }
+    
+    if strlst_contains_c(deref(args), "-dll") {
+        set_build_shared_lib(true);
+    }
 
     if !has_suffix(source_file, str(".axe")) and !has_suffix(source_file, str(".axec")) {
         source_file = concat(source_file, str(".axe"));
