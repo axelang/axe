@@ -183,7 +183,7 @@ def git_clone_and_get_hash(url: string, dest_dir: string): string {
     
     exec_from_string(clone_cmd3);
     
-    val hash_file: string = str("deps/.axpm_hash_temp");
+    val hash_file: string = str("deps/.saw_hash_temp");
     mut hash_cmd: string = str("cd ");
     hash_cmd = concat(hash_cmd, dest_dir);
     hash_cmd = concat(hash_cmd, str(" && git rev-parse HEAD > ../"));
@@ -227,7 +227,7 @@ def cmd_add(git_url: string, arena: ref Arena) {
     val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
-        println "No axe.mod file found. Run 'axpm init' first.";
+        println "No axe.mod file found. Run 'saw init' first.";
         return;
     }
     
@@ -277,7 +277,7 @@ def cmd_build() {
     val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
-        println "No axe.mod file found. Run 'axpm init' first.";
+        println "No axe.mod file found. Run 'saw init' first.";
         return;
     }
     
@@ -305,7 +305,7 @@ def cmd_run(arena: ref Arena) {
     val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
-        println "No axe.mod file found. Run 'axpm init' first.";
+        println "No axe.mod file found. Run 'saw init' first.";
         return;
     }
     
@@ -346,7 +346,7 @@ def cmd_test(arena: ref Arena) {
     val mod_path: string = str("axe.mod");
     
     if !file_exists(mod_path) {
-        println "No axe.mod file found. Run 'axpm init' first.";
+        println "No axe.mod file found. Run 'saw init' first.";
         return;
     }
     
@@ -400,15 +400,15 @@ def cmd_test(arena: ref Arena) {
 
 /// Shows help information
 def show_help() {
-    println "axpm - Axe Package Manager";
+    println "saw - Axe Build Tool";
     println "";
     println "Usage:";
-    println "  axpm init              Initialize a new axe.mod file";
-    println "  axpm add <git-url>     Add a dependency from a git repository";
-    println "  axpm build             Build the project (compile entry point)";
-    println "  axpm run               Build and run the project";
-    println "  axpm test              Run all tests in project";
-    println "  axpm help              Show this help message";
+    println "  saw init              Initialize a new axe.mod file";
+    println "  saw add <git-url>     Add a dependency from a git repository";
+    println "  saw build             Build the project (compile entry point)";
+    println "  saw run               Build and run the project";
+    println "  saw test              Run all tests in project";
+    println "  saw help              Show this help message";
 }
 
 def main() {
@@ -427,7 +427,7 @@ def main() {
     } elif compare(command, str("add")) == 0 {
         if args.len < 3 {
             println "Error: 'add' command requires a git URL";
-            println "Usage: axpm add <git-url>";
+            println "Usage: saw add <git-url>";
         } else {
             val git_url: string = StringList.get(args, 2);
             cmd_add(git_url, addr(arena));
