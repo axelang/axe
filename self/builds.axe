@@ -224,7 +224,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     write_file(c_filename, c_code);
     // println(concat(str("\nGenerated: "), c_filename));
     
-    println "\n12| Last compilation pass";
+    println "12| Last compilation pass";
 
     val exe_filename: string = get_output_filename(output_filename, filename);
     val needs_omp: bool = should_link_openmp(addr(ast), filename);
