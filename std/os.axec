@@ -54,6 +54,9 @@ extern def fgets(buf: char*, size: i32, stream: usize): char*;
 extern def realloc(ptr: usize, size: usize): usize;
 extern def strcpy(dest: char*, src: char*): char*;
 
+/// Execute a shell command and capture stdout/stderr output.
+///
+/// Returns exit status and output string.
 pub def exec_capture(cmd: string): ExecResult {
     mut result: ExecResult;
     result.exit_code = -1;
