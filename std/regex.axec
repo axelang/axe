@@ -10,7 +10,7 @@ pub model regex {
 
 /// Compile a pattern into a regex value.
 pub def compile(pattern: string): regex {
-    return new regex(pattern: pattern);
+    return regex{pattern: pattern};
 }
 
 /// Returns true if the given text contains the pattern as a substring.

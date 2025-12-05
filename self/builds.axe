@@ -23,7 +23,7 @@ use imports (
 use gstate;
 use renderer (has_external_header, initialize_renderer, set_source_file, generate_c);
 use std.io;
-use std.os (ExecResult, exec_capture, exec, delete_file);
+use std.os (ExecResult, exec_capture, exec, delete_file, get_executable_dir);
 use std.string;
 use std.lists (StringList);
 
@@ -363,20 +363,34 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         }
     }
     
+    val toolchain_root: string = get_executable_dir();
+    
     if has_external_header(str("pcre.h")) {
         compile_cmd = concat_c(compile_cmd, " -DPCRE_STATIC");
         platform windows {
-            compile_cmd = concat_c(compile_cmd, " -Iexternal/pcre/include external/x64-windows/pcre.lib");
+            compile_cmd = concat_c(compile_cmd, " -I");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/pcre/include ");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/x64-windows/pcre.lib");
         }
         platform posix {
-            compile_cmd = concat_c(compile_cmd, " -Iexternal/pcre/include -lpcre");
+            compile_cmd = concat_c(compile_cmd, " -I");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/pcre/include -lpcre");
         }
     }
     
     if has_imported_module(str("std/net")) or has_imported_module(str("net.axec")) or find_substr(filename, str("net.axec")) >= 0 {
-        compile_cmd = concat_c(compile_cmd, " -DCURL_STATICLIB -Iexternal/curl/include");
+        compile_cmd = concat_c(compile_cmd, " -DCURL_STATICLIB -I");
+        compile_cmd = concat(compile_cmd, toolchain_root);
+        compile_cmd = concat_c(compile_cmd, "/external/curl/include");
         platform windows {
-            compile_cmd = concat_c(compile_cmd, " external/x64-windows/libcurl.lib external/x64-windows/zlib.lib");
+            compile_cmd = concat_c(compile_cmd, " ");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/x64-windows/libcurl.lib ");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/x64-windows/zlib.lib");
             compile_cmd = concat_c(compile_cmd, " -lws2_32 -lwldap32 -ladvapi32 -lcrypt32");
             compile_cmd = concat_c(compile_cmd, " -lnormaliz -liphlpapi -lsecur32 -lbcrypt");
         }
@@ -386,9 +400,13 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     }
     
     if has_imported_module(str("std/json")) or has_imported_module(str("json.axec")) or find_substr(filename, str("json.axec")) >= 0 {
-        compile_cmd = concat_c(compile_cmd, " -Iexternal/yyjson/include");
+        compile_cmd = concat_c(compile_cmd, " -I");
+        compile_cmd = concat(compile_cmd, toolchain_root);
+        compile_cmd = concat_c(compile_cmd, "/external/yyjson/include");
         platform windows {
-            compile_cmd = concat_c(compile_cmd, " external/x64-windows/yyjson.lib");
+            compile_cmd = concat_c(compile_cmd, " ");
+            compile_cmd = concat(compile_cmd, toolchain_root);
+            compile_cmd = concat_c(compile_cmd, "/external/x64-windows/yyjson.lib");
         }
         platform posix {
             compile_cmd = concat_c(compile_cmd, " -lyyjson");
