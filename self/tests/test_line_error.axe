@@ -1,0 +1,9 @@
+import std.io;
+
+def main() {
+    val x: i32 = 10;
+    val y: i32 = 20;
+    val z: i32 = undefined_variable;
+    
+    println("Done");
+}
