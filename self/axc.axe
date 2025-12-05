@@ -50,14 +50,14 @@ def main() {
         val arg: string = StringList.get(args, i);
         if equals_c(arg, "-o") and i + 1 < args.len {
             output_filename = StringList.get(args, i + 1);
-            i = i + 2;
+            i += 2;
             continue;
         }
         if has_prefix(arg, str("-I")) and str_len(arg) > 2 {
             val inc_path: string = substring_se(arg, 2, str_len(arg));
             StringList.push(inc_paths, addr(arena), inc_path);
         }
-        i = i + 1;
+        i++;
     }
     
     if strlst_contains_c(deref(args), "-v") or strlst_contains_c(deref(args), "--version") {
