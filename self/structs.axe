@@ -30,6 +30,7 @@ pub model Scope {
 pub model ASTNode {
     node_type: string;
     children: ref list(ASTNode);
+    line: i32;  // Source line number for error reporting
 
     // Union of all possible node-specific data
     // This allows each node to store only the data relevant to its type

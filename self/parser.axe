@@ -201,6 +201,7 @@ pub def parse(tokens: ref list(Token), is_axec: bool, check_entry_point: bool, c
 
     mut ast: ASTNode;
     ast.node_type = str("Program");
+    ast.line = 1;
     
     StringStringMap.clear(addr(g_type_aliases));
     StringBoolMap.clear(addr(g_imported_modules));
@@ -1382,6 +1383,12 @@ def peek(ctx: ref ParserContext): Token {
     return empty;
 }
 
+/// Get the current line number from the parser context
+def current_line(ctx: ref ParserContext): i32 {
+    val token: Token = peek(ctx);
+    return token.line;
+}
+
 /// Consume current token and advance
 def consume(ctx: ref ParserContext): Token {
     val token: Token = peek(ctx);
@@ -1526,6 +1533,7 @@ def parse_ref_depth(ctx: ref ParserContext): i32 {
 def parse_function(ctx: ref ParserContext): ASTNode {
     mut func: ASTNode;
     func.node_type = str("Function");
+    func.line = current_line(ctx);
     
     skip_whitespace(ctx);
     if ctx.pos >= len(ctx.tokens) or ctx.tokens.data[ctx.pos].token_type != TokenType.IDENTIFIER {
@@ -1761,6 +1769,7 @@ def parse_function(ctx: ref ParserContext): ASTNode {
 def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
     mut node: ASTNode;
     node.node_type = str("Empty");
+    node.line = current_line(ctx);
     
     if ctx.pos >= len(ctx.tokens) {
         return node;
@@ -1786,6 +1795,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx);
         
         node.node_type = str("Break");
+        node.line = token.line;
         return node;
     }
     
@@ -1801,11 +1811,13 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx);
         
         node.node_type = str("Continue");
+        node.line = token.line;
         return node;
     }
     
     // Handle ASSERT
     if token_type == TokenType.ASSERT {
+        val assert_line: i32 = token.line;
         consume(ctx);
         skip_whitespace(ctx);
         
@@ -1885,6 +1897,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx);
         
         node.node_type = str("Assert");
+        node.line = assert_line;
         node.data.assert_node.condition = condition;
         node.data.assert_node.message = message;
         debug_print_raw "\n[DEBUG] ASSERT condition:";
@@ -1896,6 +1909,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
     
     // Handle RETURN
     if token_type == TokenType.RETURN {
+        val return_line: i32 = token.line;
         consume(ctx);
         skip_whitespace(ctx);
         
@@ -1941,6 +1955,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         consume(ctx);
         
         node.node_type = str("Return");
+        node.line = return_line;
         debug_print_raw "\n[DEBUG] RETURN expr:";
         debug_print_str expr;
         node.data.return_node.expression = expr;
@@ -1949,6 +1964,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
     
     // Handle LOOP
     if token_type == TokenType.LOOP {
+        val loop_line: i32 = token.line;
         consume(ctx);
         skip_whitespace(ctx);
 
@@ -1960,6 +1976,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
 
         mut lnode: ASTNode;
         lnode.node_type = str("Loop");
+        lnode.line = loop_line;
 
         mut body: list(ASTNode);
         loop {
@@ -2046,6 +2063,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
     
     // Handle IF
     if token_type == TokenType.IF {
+        val if_line: i32 = token.line;
         consume(ctx);
         skip_whitespace(ctx);
 
@@ -2378,6 +2396,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         // Build If AST node with children list containing then-body and
         // (optionally) else-body nodes in order.
         node.node_type = str("If");
+        node.line = if_line;
         node.data.if_node.condition = condition;
 
         unsafe {
@@ -2688,6 +2707,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
 
     // Handle VAL and MUT VAL (variable declarations)
     if token_type == TokenType.VAL {
+        val decl_line: i32 = token.line;
         consume(ctx);
         skip_whitespace(ctx);
         
@@ -2815,6 +2835,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
 
         node.node_type = str("Declaration");
+        node.line = decl_line;
         node.data.declaration.name = var_name.value;
         node.data.declaration.is_mutable = false;
         node.data.declaration.initializer = initializer;
@@ -2834,6 +2855,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
     }
     
     if token_type == TokenType.MUT {
+        val mut_line: i32 = token.line;
         consume(ctx); // Skip 'mut'
         skip_whitespace(ctx);
         
@@ -2981,6 +3003,7 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
 
         node.node_type = str("Declaration");
+        node.line = mut_line;
         node.data.declaration.name = var_name.value;
         node.data.declaration.is_mutable = true;
         node.data.declaration.initializer = initializer;

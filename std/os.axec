@@ -33,6 +33,119 @@ pub def exec(cmd: char*): i32 {
     return result;
 }
 
+/// Execute a shell command and capture stdout/stderr output.
+/// Returns exit status and output string.
+pub model ExecResult {
+    pub exit_code: i32;
+    pub output: string;
+}
+
+platform windows {
+    extern def _popen(command: char*, mode: char*): usize;
+    extern def _pclose(stream: usize): i32;
+}
+
+platform posix {
+    extern def popen(command: char*, mode: char*): usize;
+    extern def pclose(stream: usize): i32;
+}
+
+extern def fgets(buf: char*, size: i32, stream: usize): char*;
+extern def realloc(ptr: usize, size: usize): usize;
+extern def strcpy(dest: char*, src: char*): char*;
+
+pub def exec_capture(cmd: string): ExecResult {
+    mut result: ExecResult;
+    result.exit_code = -1;
+    result.output = str("");
+    
+    mut full_cmd: char[4096];
+    unsafe {
+        C.snprintf(full_cmd, 4096, "%s 2>&1", cmd.data);
+    }
+    
+    mut pipe: usize = 0;
+    platform windows {
+        pipe = _popen(full_cmd, "r");
+    }
+    platform posix {
+        pipe = popen(full_cmd, "r");
+    }
+    
+    if pipe == 0 {
+        return result;
+    }
+    
+    mut capacity: usize = 4096;
+    mut output_buf: usize = malloc(capacity);
+    if output_buf == 0 {
+        platform windows {
+            _pclose(pipe);
+        }
+        platform posix {
+            pclose(pipe);
+        }
+        return result;
+    }
+    
+    unsafe {
+        mut buf_ptr: char* = output_buf;
+        buf_ptr[0] = '\0';
+    }
+    
+    mut total_len: usize = 0;
+    mut buffer: char[1024];
+    
+    loop {
+        val read_result: char* = fgets(buffer, 1024, pipe);
+        if read_result == nil {
+            break;
+        }
+        
+        val len: usize = strlen(buffer);
+        
+        if total_len + len + 1 > capacity {
+            capacity = capacity * 2;
+            val new_buf: usize = realloc(output_buf, capacity);
+            if new_buf == 0 {
+                free(output_buf);
+                platform windows {
+                    _pclose(pipe);
+                }
+                platform posix {
+                    pclose(pipe);
+                }
+                return result;
+            }
+            output_buf = new_buf;
+        }
+        
+        unsafe {
+            val dest: char* = output_buf + total_len;
+            C.strcpy(dest, buffer);
+        }
+        total_len = total_len + len;
+    }
+    
+    platform windows {
+        result.exit_code = _pclose(pipe);
+    }
+
+    platform posix {
+        val status: i32 = pclose(pipe);
+        unsafe {
+            result.exit_code = C.WEXITSTATUS(status);
+        }
+    }
+    
+    unsafe {
+        result.output.data = output_buf;
+        result.output.len = total_len;
+    }
+    
+    return result;
+}
+
 /// Quit with some code.
 pub def quit(code: i32) {
     unsafe {

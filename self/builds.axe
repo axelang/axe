@@ -261,6 +261,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     prefix_root_enums(addr(ast), module_prefix);
       
     initialize_renderer();
+    set_source_file(filename);
 
     println "11| GEN";
 

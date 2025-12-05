@@ -91,10 +91,24 @@ pub model Token {
     pub column: i32;
 }
 
+/// Current line number during lexing
+mut g_lexer_current_line: i32;
+
 def create_token(token_type: i32, value: ref char): Token {
     mut t: Token;
     t.token_type = token_type;
     t.value = str(value);
+    t.line = g_lexer_current_line;
+    t.column = 0;
+    return t;
+}
+
+def create_token_with_line(token_type: i32, value: ref char, line: i32): Token {
+    mut t: Token;
+    t.token_type = token_type;
+    t.value = str(value);
+    t.line = line;
+    t.column = 0;
     return t;
 }
 
@@ -145,6 +159,7 @@ pub def lex(source: string): list(Token) {
     mut tokens: list(Token);
     mut pos: i32 = 0;
     mut source_len: i32 = source.len;
+    g_lexer_current_line = 1;
     
     loop {
         if pos >= source_len {
@@ -166,6 +181,7 @@ pub def lex(source: string): list(Token) {
         } elif ch == '\n' {
             append(tokens, create_token(TokenType.NEWLINE, "\n"));
             pos = pos + 1;
+            g_lexer_current_line = g_lexer_current_line + 1;
         } elif ch == '{' {
             append(tokens, create_token(TokenType.LBRACE, "{"));
             pos = pos + 1;

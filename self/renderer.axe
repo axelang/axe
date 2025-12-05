@@ -71,6 +71,33 @@ mut g_emitted_globals: StringBoolMap;
 /// Global variable prefixes mapping (logical name -> C symbol like gvar__name)
 mut g_global_var_prefixes: StringStringMap;
 
+/// Current source file name for #line directives
+mut g_current_source_file: string;
+
+/// Whether to emit #line directives
+mut g_emit_line_directives: bool;
+
+/// Set the current source file for #line directives
+pub def set_source_file(filename: string) {
+    g_current_source_file = filename;
+}
+
+/// Emit a #line directive for error mapping
+def emit_line_directive(line: i32): string {
+    if !g_emit_line_directives or line <= 0 {
+        return str("");
+    }
+    mut result: string = str("#line ");
+    result = concat(result, i32_to_string(line));
+    if str_len(g_current_source_file) > 0 {
+        result = concat_c(result, " \"");
+        result = concat(result, g_current_source_file);
+        result = concat_c(result, "\"");
+    }
+    result = concat_c(result, "\n");
+    return result;
+}
+
 /// Initialize renderer globals.
 ///
 /// This must be called before using the renderer at all.
@@ -3877,6 +3904,9 @@ pub def generate_c(ast: ref ASTNode): string {
     }
     
     if equals_c(node_type, "Program") {
+        // Note: g_current_source_file should be set before calling generate_c
+        g_emit_line_directives = true;
+        
         mut ext_arena: Arena = Arena.create(4096);
         StringList.clear(g_global_external_headers);
         StringList.clear(g_windows_external_headers);
@@ -5210,6 +5240,8 @@ pub def generate_c(ast: ref ASTNode): string {
         
         // Use StringBuilder for function generation
         mut sb_func: StringBuilder = StringBuilder.init(4096);
+        
+        StringBuilder.append(addr(sb_func), emit_line_directive(ast.line));
         StringBuilder.append(addr(sb_func), mapped_return_type);
         StringBuilder.append_char(addr(sb_func), ' ');
         StringBuilder.append(addr(sb_func), func_name);
@@ -5399,6 +5431,8 @@ pub def generate_c(ast: ref ASTNode): string {
     }
     
     if equals_c(node_type, "Declaration") {
+        result = concat(result, emit_line_directive(ast.line));
+        
         val var_name: string = ast.data.declaration.name;
         mut type_name: string = ast.data.declaration.type_name;
         val is_mutable: bool = ast.data.declaration.is_mutable;
