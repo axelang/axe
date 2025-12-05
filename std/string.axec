@@ -758,6 +758,25 @@ pub def find_char_from(s: string, c: char, start: usize): i32 {
     return -1;
 }
 
+/// Returns the index of the last occurrence of character `c` in `s`.
+/// Returns -1 if the character is not found.
+pub def find_last_char(s: string, c: char): i32 {
+    if s.len == 0 {
+        return -1;
+    }
+    mut i: usize = s.len - 1;
+    loop {
+        if s.data[i] == c {
+            return cast[i32](i);
+        }
+        if i == 0 {
+            break;
+        }
+        i--;
+    }
+    return -1;
+}
+
 /// Returns the index of the first occurrence of `substr` inside `s`, or -1 if not found.
 pub def find_substr(s: string, substr: string): i32 {
     if substr.len == 0 {
