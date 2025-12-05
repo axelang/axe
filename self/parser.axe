@@ -4414,29 +4414,39 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
         consume(ctx);
         
-        mut depth: i32 = 1;
+        mut body: list(ASTNode);
         loop {
             if ctx.pos >= len(ctx.tokens) {
                 break;
             }
-            val t: Token = peek(ctx);
-            if t.token_type == TokenType.LBRACE {
-                depth = depth + 1;
-            } elif t.token_type == TokenType.RBRACE {
-                depth = depth - 1;
-                if depth == 0 {
-                    consume(ctx);
-                    break;
-                }
+            skip_whitespace(ctx);
+            if ctx.pos >= len(ctx.tokens) {
+                break;
             }
-            consume(ctx);
+            if ctx.tokens.data[ctx.pos].token_type == TokenType.RBRACE {
+                consume(ctx);
+                break;
+            }
+            mut stmt: ASTNode = parse_statement_helper(ctx, addr(ctx.current_scope));
+            if str_len(stmt.node_type) > 0 {
+                append(body, stmt);
+            }
         }
         
         node.node_type = str("Parallel");
+        
+        unsafe {
+            val list_size: usize = C.sizeof(list(ASTNode));
+            val heap_list: ref list(ASTNode) = cast[ref list(ASTNode)](C.malloc(list_size));
+            if heap_list != nil {
+                C.memcpy(heap_list, addr(body), list_size);
+                node.children = heap_list;
+            }
+        }
+        
         return node;
     }
     
-    // Handle SINGLE
     if token_type == TokenType.SINGLE {
         consume(ctx);
         skip_whitespace(ctx);
@@ -4447,25 +4457,36 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         }
         consume(ctx);
         
-        mut depth: i32 = 1;
+        mut body: list(ASTNode);
         loop {
             if ctx.pos >= len(ctx.tokens) {
                 break;
             }
-            val t: Token = peek(ctx);
-            if t.token_type == TokenType.LBRACE {
-                depth = depth + 1;
-            } elif t.token_type == TokenType.RBRACE {
-                depth = depth - 1;
-                if depth == 0 {
-                    consume(ctx);
-                    break;
-                }
+            skip_whitespace(ctx);
+            if ctx.pos >= len(ctx.tokens) {
+                break;
             }
-            consume(ctx);
+            if ctx.tokens.data[ctx.pos].token_type == TokenType.RBRACE {
+                consume(ctx);
+                break;
+            }
+            mut stmt: ASTNode = parse_statement_helper(ctx, addr(ctx.current_scope));
+            if str_len(stmt.node_type) > 0 {
+                append(body, stmt);
+            }
         }
         
         node.node_type = str("Single");
+        
+        unsafe {
+            val list_size: usize = C.sizeof(list(ASTNode));
+            val heap_list: ref list(ASTNode) = cast[ref list(ASTNode)](C.malloc(list_size));
+            if heap_list != nil {
+                C.memcpy(heap_list, addr(body), list_size);
+                node.children = heap_list;
+            }
+        }
+        
         return node;
     }
     

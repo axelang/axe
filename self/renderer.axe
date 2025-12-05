@@ -6385,6 +6385,27 @@ pub def generate_c(ast: ref ASTNode): string {
         return StringBuilder.to_string(addr(sb_par));
     }
     
+    if equals_c(node_type, "Single") {
+        mut sb_single: StringBuilder = StringBuilder.init(512);
+        StringBuilder.append_c(addr(sb_single), "#pragma omp single\n{\n");
+        
+        if ast.children != nil {
+            val children: ref list(ASTNode) = ast.children;
+            mut i_single: i32 = 0;
+            loop {
+                if i_single >= len(deref(children)) {
+                    break;
+                }
+                val child_code: string = generate_c(addr(children.data[i_single]));
+                StringBuilder.append(addr(sb_single), child_code);
+                i_single = i_single + 1;
+            }
+        }
+        
+        StringBuilder.append_c(addr(sb_single), "}\n");
+        return StringBuilder.to_string(addr(sb_single));
+    }
+    
     if equals_c(node_type, "ParallelLocal") {
         mut sb_ploc: StringBuilder = StringBuilder.init(512);
         
