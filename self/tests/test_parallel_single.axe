@@ -1,0 +1,18 @@
+use std.io;
+
+def some_task() {
+    println "hello";
+}
+
+def some_other_task() {
+    println "world";
+}
+
+def main() {
+    parallel {
+        single {
+            some_task();
+            some_other_task();
+        }
+    }
+}
