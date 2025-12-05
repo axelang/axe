@@ -1,4 +1,4 @@
-import std.io;
+use std.io;
 
 def main() {
     val x: i32 = 10;
