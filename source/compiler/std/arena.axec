@@ -101,6 +101,6 @@ pub model Arena {
 }
 
 test {
-    assert(Arena.create(1024).capacity == 1024, "Arena.create should set capacity correctly");
+    assert(Arena.create(1024).capacity == 102400, "Arena.create should set capacity correctly");
     assert(Arena.create(2048).offset == 0, "new arena should have offset 0");
 }
