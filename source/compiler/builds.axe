@@ -270,7 +270,6 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     println "10| PFCCG V";
 
     prefix_root_enums(addr(ast), module_prefix);
-      
     initialize_renderer();
     set_source_file(filename);
 
