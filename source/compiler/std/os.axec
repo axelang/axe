@@ -744,6 +744,7 @@ pub def get_short_filename(path: string): string {
     val last_slash: i32 = find_last_char(path, '\\');
     val last_slash_fwd: i32 = find_last_char(path, '/');
     mut idx: i32 = last_slash;
+
     if last_slash_fwd > idx {
         idx = last_slash_fwd;
     }
