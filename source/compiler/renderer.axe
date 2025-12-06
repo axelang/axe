@@ -275,7 +275,7 @@ def is_all_upper_or_underscore(name: string): bool {
         if !((ch >= 'A' and ch <= 'Z') or (ch >= '0' and ch <= '9') or ch == '_') {
             return false;
         }
-        i = i + 1;
+        i++;
     }
     return true;
 }
