@@ -1,7 +1,7 @@
 /// Obtain random seed.
 pub def randomize(): void {
-    raw {
-        srand(time(NULL));
+    unsafe {
+        C.srand(C.time(nil));
     }
 }
 
@@ -26,4 +26,6 @@ test {
     assert(random(1, 10) <= 10, "Random number should be between 1 and 10");
     assert(random_float(1.0, 10.0) >= 1.0, "Random float should be between 1.0 and 10.0");
     assert(random_float(1.0, 10.0) <= 10.0, "Random float should be between 1.0 and 10.0");
+
+    print_f32(random_float(1.0, 10.0));
 }
