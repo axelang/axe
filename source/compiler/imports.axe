@@ -639,6 +639,9 @@ def merge_imported_module(program: ref ASTNode, imported: ref ASTNode, use_modul
             val enum_name: string = child.data.enum_node.name;
             register_imported_symbol(enum_name);
             prefix_enum_node(addr(child), module_prefix);
+        } elif equals_c(child.node_type, "Declaration") {
+            val var_name: string = child.data.declaration.name;
+            register_imported_symbol(var_name);
         } elif equals_c(child.node_type, "Overload") {
             prefix_types_in_node(addr(child), module_prefix, addr(exported));
         }

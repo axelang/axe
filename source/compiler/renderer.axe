@@ -251,6 +251,52 @@ def is_language_keyword(name: string): bool {
     return false;
 }
 
+/// Check if a string is all uppercase letters or underscores (constant naming convention)
+def is_all_upper_or_underscore(name: string): bool {
+    if str_len(name) == 0 {
+        return false;
+    }
+    
+    mut i: i32 = 0;
+    val n: i32 = str_len(name);
+    loop {
+        if i >= n {
+            break;
+        }
+        val ch: char = get_char(name, i);
+        if !((ch >= 'A' and ch <= 'Z') or (ch >= '0' and ch <= '9') or ch == '_') {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Check if a name is a C standard constant
+def is_c_constant(name: string): bool {
+    return equals_c(name, "NULL") or equals_c(name, "TRUE") or equals_c(name, "FALSE")
+        or equals_c(name, "EOF") or equals_c(name, "SEEK_SET") or equals_c(name, "SEEK_CUR") or equals_c(name, "SEEK_END")
+        or has_prefix(name, str("STDIN")) or has_prefix(name, str("STDOUT")) or has_prefix(name, str("STDERR"))
+        or has_prefix(name, str("INT_")) or has_prefix(name, str("UINT_")) or has_prefix(name, str("SIZE_"))
+        or has_prefix(name, str("PATH_")) or has_prefix(name, str("NAME_"))
+        or has_prefix(name, str("S_IS")) or has_prefix(name, str("_S_IF")) or has_prefix(name, str("_A_"))
+        or has_prefix(name, str("WEXITSTATUS"));
+}
+
+/// Check if a function name is a built-in function or C stdlib function
+def is_builtin_function(name: string): bool {
+    return equals_c(name, "append") or equals_c(name, "len")
+        or equals_c(name, "println") or equals_c(name, "print")
+        or equals_c(name, "assert") or equals_c(name, "cast")
+        or equals_c(name, "deref") or equals_c(name, "addr")
+        or equals_c(name, "sizeof") or equals_c(name, "malloc") or equals_c(name, "free")
+        or equals_c(name, "memcpy") or equals_c(name, "memset") or equals_c(name, "memmove")
+        or equals_c(name, "strlen") or equals_c(name, "strcmp") or equals_c(name, "strcpy")
+        or equals_c(name, "printf") or equals_c(name, "sprintf") or equals_c(name, "fprintf")
+        or equals_c(name, "fopen") or equals_c(name, "fclose") or equals_c(name, "fread") or equals_c(name, "fwrite")
+        or has_prefix(name, str("C."));
+}
+
 /// Check if a symbol is valid (either builtin, imported, or a known model/enum)
 def is_valid_symbol(symbol_name: string): bool {
     if str_len(symbol_name) == 0 {
@@ -3217,6 +3263,23 @@ def rewrite_global_var_refs(expr: string): string {
                 i = j;
                 continue;
             }
+            
+            if j < expr_len {
+                val next_ch: char = get_char(expr, j);
+                if next_ch != '(' and next_ch != '.' {
+                    val is_upper_case_const: bool = is_all_upper_or_underscore(ident);
+                    if is_upper_case_const and !is_builtin_type(ident) and !is_language_keyword(ident) and !is_c_constant(ident) {
+                        if !is_symbol_imported(ident) {
+                            print "error: undefined symbol: ";
+                            print ident;
+                            println ", perhaps missing 'use' statement?";
+                            unsafe {
+                                C.exit(1);
+                            }
+                        }
+                    }
+                }
+            }
 
             StringBuilder.append(addr(sb), ident);
             i = j;
@@ -3452,7 +3515,8 @@ def process_expression(expr: string): string {
         val len_fixed_no_sugar: string = rewrite_len_calls(calls_fixed_no_sugar);
         val enum_fixed_no_sugar: string = rewrite_enum_member_refs(len_fixed_no_sugar);
         val prefixes_fixed_no_sugar: string = rewrite_function_prefixes(enum_fixed_no_sugar);
-        val mod_fixed_no_sugar: string = replace_keyword_outside_strings(prefixes_fixed_no_sugar, str("mod"), str("%"));
+        val global_vars_fixed: string = rewrite_global_var_refs(prefixes_fixed_no_sugar);
+        val mod_fixed_no_sugar: string = replace_keyword_outside_strings(global_vars_fixed, str("mod"), str("%"));
         val and_fixed_no_sugar: string = replace_keyword_outside_strings(mod_fixed_no_sugar, str("and"), str("&&"));
         val or_fixed_no_sugar: string = replace_keyword_outside_strings(and_fixed_no_sugar, str("or"), str("||"));
         
@@ -3846,6 +3910,9 @@ def generate_global_decl(ast: ref ASTNode): string {
     mut type_name: string = ast.data.declaration.type_name;
     val is_mutable: bool = ast.data.declaration.is_mutable;
     val initializer: string = ast.data.declaration.initializer;
+    
+    validate_type_imported(type_name);
+    
     mut mapped_type: string = map_axe_type_to_c(type_name);
 
     if str_len(type_name) == 0 {
@@ -6234,6 +6301,23 @@ pub def generate_c(ast: ref ASTNode): string {
 
         debug_print_raw "\n[DBG-FUNCCALL] Looking up function:";
         debug_print_str func_name;
+        
+        val has_module_sep: bool = str_contains_c(func_name, "__");
+        val is_method_call: bool = find_char_from(func_name, '.', 0) >= 0;
+        
+        if !has_module_sep and !is_method_call and !is_builtin_function(func_name) {
+            if !StringStringMap.contains(addr(g_function_prefixes), func_name) {
+                val base_func: string = func_name;
+                if !is_symbol_imported(base_func) {
+                    print "error: undefined symbol: ";
+                    print base_func;
+                    println ", perhaps missing 'use' statement?";
+                    unsafe {
+                        C.exit(1);
+                    }
+                }
+            }
+        }
 
         if equals_c(func_name, "append") {
             val args: ref list(string) = ast.data.func_call.args;
