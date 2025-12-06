@@ -4850,7 +4850,18 @@ def parse_statement_helper(ctx: ref ParserContext, scope: ref Scope): ASTNode {
         
         node.node_type = str("Extern");
         node.data.extern_node.function_name = func_name;
-        node.data.extern_node.params = addr(extern_params);
+        
+        if len(extern_params) > 0 {
+            unsafe {
+                val params_size: usize = C.sizeof(list(string));
+                val heap_params: ref list(string) = cast[ref list(string)](C.malloc(params_size));
+                if heap_params != nil {
+                    C.memcpy(heap_params, addr(extern_params), params_size);
+                    node.data.extern_node.params = heap_params;
+                }
+            }
+        }
+        
         node.data.extern_node.return_type = extern_return_type;
         return node;
     }

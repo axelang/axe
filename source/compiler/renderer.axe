@@ -82,6 +82,9 @@ mut g_function_param_types: StringStringMap;
 /// Function return types (function_name -> "type")
 mut g_function_return_types: StringStringMap;
 
+/// Extern functions
+mut g_extern_functions: StringBoolMap;
+
 /// Current source file name for #line directives
 mut g_current_source_file: string;
 
@@ -154,6 +157,7 @@ pub def initialize_renderer() {
     g_emitted_globals = deref(StringBoolMap.create(addr(arena), 128));
     g_global_var_prefixes = deref(StringStringMap.create(addr(arena), 128));
     g_function_param_types = deref(StringStringMap.create(addr(arena), 256));
+    g_extern_functions = deref(StringBoolMap.create(addr(arena), 128));
     
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("i8"), str("int8_t"));
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("u8"), str("uint8_t"));
@@ -365,13 +369,21 @@ def register_function_signature(func_name: string, params: ref list(string), ret
             break;
         }
         val param: string = params.data[i];
-        val colon_pos: i32 = find_char_from(param, ':', 0);
-        if colon_pos >= 0 {
-            val param_type: string = strip(substr(param, colon_pos + 1, str_len(param) - colon_pos - 1));
+        
+        if equals_c(param, "...") {
             if i > 0 {
                 types_str = concat_c(types_str, ",");
             }
-            types_str = concat(types_str, param_type);
+            types_str = concat(types_str, str("..."));
+        } else {
+            val colon_pos: i32 = find_char_from(param, ':', 0);
+            if colon_pos >= 0 {
+                val param_type: string = strip(substr(param, colon_pos + 1, str_len(param) - colon_pos - 1));
+                if i > 0 {
+                    types_str = concat_c(types_str, ",");
+                }
+                types_str = concat(types_str, param_type);
+            }
         }
         i = i + 1;
     }
@@ -579,14 +591,38 @@ def validate_function_call(func_name: string, args_str: string, depth: i32) {
         append(expected_types, strip(final_type));
     }
     
-    if len(arg_list) != len(expected_types) {
+    mut is_variadic: bool = false;
+    if len(expected_types) > 0 {
+        val last_type: string = expected_types.data[len(expected_types) - 1];
+        if equals_c(last_type, "...") {
+            is_variadic = true;
+        }
+    }
+    
+    mut arg_count_ok: bool = false;
+    if is_variadic {
+        if len(arg_list) >= len(expected_types) - 1 {
+            arg_count_ok = true;
+        }
+    } else {
+        if len(arg_list) == len(expected_types) {
+            arg_count_ok = true;
+        }
+    }
+    
+    if !arg_count_ok {
         print(get_short_filename(g_current_source_file));
         print ":";
         print(i32_to_string(g_current_line));
         print ": error: function '";
         print func_name;
-        print "' expects ";
-        print(i32_to_string(len(expected_types)));
+        if is_variadic {
+            print "' expects at least ";
+            print(i32_to_string(len(expected_types) - 1));
+        } else {
+            print "' expects ";
+            print(i32_to_string(len(expected_types)));
+        }
         print " argument(s), but ";
         print(i32_to_string(len(arg_list)));
         println " were provided";
@@ -601,28 +637,41 @@ def validate_function_call(func_name: string, args_str: string, depth: i32) {
         if arg_idx >= len(arg_list) {
             break;
         }
+        
+        if is_variadic and arg_idx >= len(expected_types) - 1 {
+            arg_idx = arg_idx + 1;
+            continue;
+        }
 
         val arg_expr: string = arg_list.data[arg_idx];
         val inferred_type: string = infer_expression_type(arg_expr);
         val expected_type: string = expected_types.data[arg_idx];
+        
+        if equals_c(expected_type, "...") {
+            arg_idx = arg_idx + 1;
+            continue;
+        }
+        
         val mapped_inferred: string = map_axe_type_to_c(inferred_type);
         val mapped_expected: string = map_axe_type_to_c(expected_type);
         
-        if str_len(inferred_type) > 0 and compare(mapped_inferred, mapped_expected) != 0 {
-            print(get_short_filename(g_current_source_file));
-            print ":";
-            print(i32_to_string(g_current_line));
-            print ": error: type mismatch in call to '";
-            print func_name;
-            print "': argument ";
-            print(i32_to_string(arg_idx + 1));
-            print " expects type '";
-            print expected_type;
-            print "' but got '";
-            print inferred_type;
-            println "'";
-            unsafe {
-                C.exit(1);
+        if !StringBoolMap.contains(addr(g_extern_functions), func_name) {
+            if str_len(inferred_type) > 0 and !equals_c(inferred_type, "auto") and compare(mapped_inferred, mapped_expected) != 0 {
+                print(get_short_filename(g_current_source_file));
+                print ":";
+                print(i32_to_string(g_current_line));
+                print ": error: type mismatch in call to '";
+                print func_name;
+                print "': argument ";
+                print(i32_to_string(arg_idx + 1));
+                print " expects type '";
+                print expected_type;
+                print "' but got '";
+                print inferred_type;
+                println "'";
+                unsafe {
+                    C.exit(1);
+                }
             }
         }
         arg_idx = arg_idx + 1;
@@ -640,6 +689,14 @@ def collect_function_signatures(node: ref ASTNode, arena: ref Arena) {
         val params: ref list(string) = node.data.function.params;
         val ret_type: string = node.data.function.return_type;
         register_function_signature(func_name, params, ret_type, arena);
+    }
+    
+    if equals_c(node.node_type, "Extern") {
+        val func_name: string = node.data.extern_node.function_name;
+        val params: ref list(string) = node.data.extern_node.params;
+        val ret_type: string = node.data.extern_node.return_type;
+        register_function_signature(func_name, params, ret_type, arena);
+        StringBoolMap.set(addr(g_extern_functions), arena, func_name, true);
     }
     
     if node.children != nil {
@@ -4412,6 +4469,7 @@ pub def generate_c(ast: ref ASTNode): string {
         g_current_line = ast.line;
     }
 
+    mut arena: Arena = Arena.create(1024);
     mut sb_top_level: StringBuilder = StringBuilder.init(1024 * 128);
     mut result: string = str("");
 
@@ -4497,6 +4555,7 @@ pub def generate_c(ast: ref ASTNode): string {
         StringList.clear(g_windows_external_headers);
         StringList.clear(g_posix_external_headers);
         collect_external_imports(ast, str(""), addr(ext_arena));
+        build_function_signatures(ast);
         
         // Use StringBuilder for efficient string building
         mut sb: StringBuilder = StringBuilder.init(1024 * 64);
@@ -7204,6 +7263,8 @@ pub def generate_c(ast: ref ASTNode): string {
         StringBuilder.append_c(addr(sb_forin), "data[");
         StringBuilder.append(addr(sb_forin), index_var);
         StringBuilder.append_c(addr(sb_forin), "];\n");
+        
+        StringStringMap.set(addr(g_var_types), addr(arena), var_name, str("auto"));
         
         if ast.children != nil {
             val children: ref list(ASTNode) = ast.children;
