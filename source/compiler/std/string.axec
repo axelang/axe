@@ -735,7 +735,7 @@ pub def double_to_str(value: f64, buffer: char*): char* {
 }
 
 /// Returns the character at position `pos` in string `s`.
-pub def get_char(s: string, pos: usize): char {
+pub def get_char(s: string, pos: i32): char {
     return s.data[pos];
 }
 

@@ -75,6 +75,9 @@ mut g_emitted_globals: StringBoolMap;
 /// Global variable prefixes mapping (logical name -> C symbol like gvar__name)
 mut g_global_var_prefixes: StringStringMap;
 
+/// Function parameter types (function_name -> "type1,type2,type3")
+mut g_function_param_types: StringStringMap;
+
 /// Current source file name for #line directives
 mut g_current_source_file: string;
 
@@ -142,6 +145,7 @@ pub def initialize_renderer() {
     g_posix_external_headers = StringList.create(addr(arena), 32);
     g_emitted_globals = deref(StringBoolMap.create(addr(arena), 128));
     g_global_var_prefixes = deref(StringStringMap.create(addr(arena), 128));
+    g_function_param_types = deref(StringStringMap.create(addr(arena), 256));
     
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("i8"), str("int8_t"));
     StringStringMap.set(addr(g_type_mappings), addr(arena), str("u8"), str("uint8_t"));
@@ -286,7 +290,6 @@ def is_c_constant(name: string): bool {
 /// Check if a function name is a built-in function or C stdlib function
 def is_builtin_function(name: string): bool {
     return equals_c(name, "append") or equals_c(name, "len")
-        or equals_c(name, "println") or equals_c(name, "print")
         or equals_c(name, "assert") or equals_c(name, "cast")
         or equals_c(name, "deref") or equals_c(name, "addr")
         or equals_c(name, "sizeof") or equals_c(name, "malloc") or equals_c(name, "free")
@@ -350,6 +353,271 @@ def validate_type_imported(type_name: string) {
             C.exit(1);
         }
     }
+}
+
+/// Register a function's parameter types for later validation
+def register_function_signature(func_name: string, params: ref list(string), arena: ref Arena) {
+    if params == nil {
+        StringStringMap.set(addr(g_function_param_types), arena, func_name, str(""));
+        return;
+    }
+    
+    mut types_str: string = str("");
+    mut i: i32 = 0;
+    loop {
+        if i >= len(deref(params)) {
+            break;
+        }
+        val param: string = params.data[i];
+        val colon_pos: i32 = find_char_from(param, ':', 0);
+        if colon_pos >= 0 {
+            val param_type: string = strip(substr(param, colon_pos + 1, str_len(param) - colon_pos - 1));
+            if i > 0 {
+                types_str = concat_c(types_str, ",");
+            }
+            types_str = concat(types_str, param_type);
+        }
+        i = i + 1;
+    }
+    StringStringMap.set(addr(g_function_param_types), arena, func_name, types_str);
+}
+
+/// Infer the type of an expression (simplified type inference, non-recursive)
+def infer_expression_type(expr: string): string {
+    val trimmed: string = strip(expr);
+    
+    if str_len(trimmed) == 0 {
+        return str("void");
+    }
+    
+    // String literal
+    if has_prefix(trimmed, str("\"")) and has_suffix(trimmed, str("\"")) {
+        return str("ref char");
+    }
+    
+    // Character literal
+    if has_prefix(trimmed, str("'")) and has_suffix(trimmed, str("'")) {
+        return str("char");
+    }
+    
+    // Numeric literal - check for decimal point for float
+    val first_char: char = get_char(trimmed, 0);
+    if (first_char >= '0' and first_char <= '9') or first_char == '-' {
+        if find_char_from(trimmed, '.', 0) >= 0 {
+            return str("f64");
+        }
+        return str("i32");
+    }
+    
+    // Boolean literals
+    if equals_c(trimmed, "true") or equals_c(trimmed, "false") {
+        return str("bool");
+    }
+    
+    // nil literal
+    if equals_c(trimmed, "nil") {
+        return str("ref void");
+    }
+    
+    // Variable reference - look up in g_var_types
+    if StringStringMap.contains(addr(g_var_types), trimmed) {
+        return StringStringMap.get(addr(g_var_types), trimmed);
+    }
+    
+    // Unknown (including function calls) - return empty to skip validation
+    return str("");
+}
+
+/// Validate a function call's arguments against its signature
+def validate_function_call(func_name: string, args_str: string, depth: i32) {
+    // Prevent infinite recursion
+    if depth > 10 {
+        return;
+    }
+    
+    // Parse arguments into list using StringBuilder
+    mut arg_list: list(string);
+    mut sb_arg: StringBuilder = StringBuilder.init(256);
+    mut paren_depth: i32 = 0;
+    mut in_string: bool = false;
+    mut i: usize = 0;
+    loop {
+        if i >= str_len(args_str) {
+            break;
+        }
+        val ch: char = get_char(args_str, i);
+        if ch == '\"' {
+            in_string = !in_string;
+            StringBuilder.append_char(addr(sb_arg), ch);
+        } elif !in_string {
+            if ch == '(' {
+                paren_depth = paren_depth + 1;
+                StringBuilder.append_char(addr(sb_arg), ch);
+            } elif ch == ')' {
+                paren_depth = paren_depth - 1;
+                StringBuilder.append_char(addr(sb_arg), ch);
+            } elif ch == ',' and paren_depth == 0 {
+                val built_arg: string = StringBuilder.to_string(addr(sb_arg));
+                append(arg_list, strip(built_arg));
+                sb_arg = StringBuilder.init(256);
+            } else {
+                StringBuilder.append_char(addr(sb_arg), ch);
+            }
+        } else {
+            StringBuilder.append_char(addr(sb_arg), ch);
+        }
+        i = i + 1;
+    }
+    val final_arg: string = StringBuilder.to_string(addr(sb_arg));
+    if str_len(strip(final_arg)) > 0 {
+        append(arg_list, strip(final_arg));
+    }
+
+    // Check nested calls for ALL arguments
+    mut arg_idx_nested: i32 = 0;
+    loop {
+        if arg_idx_nested >= len(arg_list) {
+            break;
+        }
+        val arg_expr: string = arg_list.data[arg_idx_nested];
+        
+        // First check if this argument itself is a function call
+        val arg_paren: i32 = find_char_from(arg_expr, '(', 0);
+        if arg_paren > 0 {
+            val nested_func: string = strip(substring_se(arg_expr, 0, arg_paren));
+            val nested_args_start: i32 = arg_paren + 1;
+            val nested_args_end: i32 = str_len(arg_expr) - 1;
+            if nested_args_end > nested_args_start {
+                val nested_args: string = strip(substring_se(arg_expr, nested_args_start, nested_args_end));
+                validate_function_call(nested_func, nested_args, depth + 1);
+            }
+        }
+        arg_idx_nested = arg_idx_nested + 1;
+    }
+
+    // Get the prefixed name if it exists
+    mut lookup_name: string = func_name;
+    if StringStringMap.contains(addr(g_function_prefixes), func_name) {
+        lookup_name = StringStringMap.get(addr(g_function_prefixes), func_name);
+    }
+    
+    // Check if this function has a signature
+    if !StringStringMap.contains(addr(g_function_param_types), lookup_name) {
+        return;
+    }
+    
+    val expected_types_str: string = StringStringMap.get(addr(g_function_param_types), lookup_name);
+    if str_len(expected_types_str) == 0 {
+        if len(arg_list) > 0 {
+             print "error: function '";
+             print func_name;
+             print "' expects 0 argument(s), but ";
+             print(i32_to_string(len(arg_list)));
+             println " were provided";
+             unsafe {
+                 C.exit(1);
+             }
+        }
+        return;
+    }
+    
+    // Parse expected types using StringBuilder
+    mut expected_types: list(string);
+    mut sb_type: StringBuilder = StringBuilder.init(128);
+    mut j: usize = 0;
+    loop {
+        if j >= str_len(expected_types_str) {
+            break;
+        }
+        val ch2: char = get_char(expected_types_str, j);
+        if ch2 == ',' {
+            val built_type: string = StringBuilder.to_string(addr(sb_type));
+            if str_len(strip(built_type)) > 0 {
+                append(expected_types, strip(built_type));
+            }
+            sb_type = StringBuilder.init(128);
+        } else {
+            StringBuilder.append_char(addr(sb_type), ch2);
+        }
+        j = j + 1;
+    }
+    val final_type: string = StringBuilder.to_string(addr(sb_type));
+    if str_len(strip(final_type)) > 0 {
+        append(expected_types, strip(final_type));
+    }
+    
+    // Check argument count
+    if len(arg_list) != len(expected_types) {
+        print "error: function '";
+        print func_name;
+        print "' expects ";
+        print(i32_to_string(len(expected_types)));
+        print " argument(s), but ";
+        print(i32_to_string(len(arg_list)));
+        println " were provided";
+        unsafe {
+            C.exit(1);
+        }
+    }
+    
+    // Check each argument type
+    mut arg_idx: i32 = 0;
+    loop {
+        if arg_idx >= len(arg_list) {
+            break;
+        }
+        val arg_expr: string = arg_list.data[arg_idx];
+        
+        val inferred_type: string = infer_expression_type(arg_expr);
+        val expected_type: string = expected_types.data[arg_idx];
+        
+        if str_len(inferred_type) > 0 and compare(inferred_type, expected_type) != 0 {
+            print "error: type mismatch in call to '";
+            print func_name;
+            print "': argument ";
+            print(i32_to_string(arg_idx + 1));
+            print " expects type '";
+            print expected_type;
+            print "' but got '";
+            print inferred_type;
+            println "'";
+            unsafe {
+                C.exit(1);
+            }
+        }
+        arg_idx = arg_idx + 1;
+    }
+}
+
+/// Recursively collect function signatures from AST
+def collect_function_signatures(node: ref ASTNode, arena: ref Arena) {
+    if node == nil {
+        return;
+    }
+    
+    if equals_c(node.node_type, "Function") {
+        val func_name: string = node.data.function.name;
+        val params: ref list(string) = node.data.function.params;
+        register_function_signature(func_name, params, arena);
+    }
+    
+    if node.children != nil {
+        val children: ref list(ASTNode) = node.children;
+        mut i: i32 = 0;
+        loop {
+            if i >= len(deref(children)) {
+                break;
+            }
+            collect_function_signatures(addr(children.data[i]), arena);
+            i = i + 1;
+        }
+    }
+}
+
+/// Build the g_function_param_types map from the AST
+def build_function_signatures(ast: ref ASTNode) {
+    mut arena: Arena = Arena.create(1024 * 1024);
+    collect_function_signatures(ast, addr(arena));
 }
 
 /// Collect external imports from AST recursively.
@@ -4211,6 +4479,7 @@ pub def generate_c(ast: ref ASTNode): string {
         StringBuilder.destroy(addr(sb));
         
         build_function_prefixes(ast);
+        build_function_signatures(ast);
 
         if ast.children != nil {
             mut use_arena: Arena = Arena.create(4096);
@@ -6317,6 +6586,13 @@ pub def generate_c(ast: ref ASTNode): string {
                     }
                 }
             }
+        }
+        
+        // Type check function call arguments (including nested calls)
+        val call_args: ref list(string) = ast.data.func_call.args;
+        if call_args != nil and len(deref(call_args)) > 0 {
+            val args_str: string = strip(call_args.data[0]);
+            validate_function_call(func_name, args_str, 0);
         }
 
         if equals_c(func_name, "append") {
