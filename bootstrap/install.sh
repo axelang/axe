@@ -26,10 +26,10 @@ echo "Detected package manager: $PKG_MANAGER"
 # Install clang
 PACKAGE="clang"
 case $PKG_MANAGER in
-  pacman) sudo pacman -Sy --noconfirm $PACKAGE ;;
-  dnf) sudo dnf install -y $PACKAGE ;;
-  apt) sudo apt update && sudo apt install -y $PACKAGE ;;
-  brew) brew install $PACKAGE ;;
+  pacman) sudo pacman -Sy --noconfirm base-devel $PACKAGE openmp ;;
+  dnf) sudo dnf install -y $PACKAGE libomp-devel ;;
+  apt) sudo apt update && sudo apt install -y build-essential $PACKAGE libomp-dev ;;
+  brew) brew install $PACKAGE libomp ;;
 esac
 
 # Build axe binary
