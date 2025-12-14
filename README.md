@@ -1,6 +1,6 @@
 # Axe
 
-Axe is a compiled programming language with a focus on type safety, ease of concurrency, and performance. 
+Axe is a compiled programming language with a focus on type safety, ease of concurrency, and performance.
 
 It provides a clean syntax for systems programming with modern and parallel language features.
 
@@ -54,18 +54,23 @@ def main() {
 
 ### Building from Source
 
-There are two ways to build from source without already having an `axe` binary, one involves cloning tag v0.0.0, and building with `dub build`, though you can also clone https://github.com/axelang/axe-bootstrap.git to get axe latest on POSIX systems.
+There are two ways to build from source without already having an `axe` binary, one involves cloning tag v0.0.0, and building with `dub build`, though you can also clone <https://github.com/axelang/axe-bootstrap.git> to get axe latest on POSIX systems.
 
-Bootstrapping process:
+#### Bootstrapping process
+
+Use the install script to get axe running on your POSIX system.
+
+The install script will:
+
+- download and install clang
+- download the axe bootstrap repo
+- generate axe binary from bootstrap repo
+- copy the axe binary and its dependencies to /urs/local/bin
+- clean up and delete the downloaded bootstrap repo
 
 ```bash
-git clone https://github.com/axelang/axe-bootstrap.git 
-cd axe-bootstrap
-./build_exp.sh
-cd ..
-git clone https://github.com/axelang/axe.git
-cp axe/source/compiler/std axe-bootstrap/std
-./axe-bootstrap/axe axe/source/compiler/axc.axe
+chmod +x ./bootstrap/install.sh
+./bootstrap/install.sh
 ```
 
 If you already have an axe binary (recommended - download from release v0.0.5), the build process is simply:
