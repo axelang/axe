@@ -9868,14 +9868,54 @@ pub def generate_c(ast: ref ASTNode): string {
             
             if ast.children != nil {
                 val children: ref list(ASTNode) = ast.children;
+                
+                mut regular_children: list(ref ASTNode);
+                mut defer_children: list(ref ASTNode);
+
                 mut i: i32 = 0;
                 loop {
                     if i >= len(deref(children)) {
                         break;
                     }
-                    val child_code: string = generate_c(addr(children.data[i]));
-                    StringBuilder.append(addr(sb_main), child_code);
+                    val child: ref ASTNode = addr(children.data[i]);
+                    if equals_c(child.node_type, "Defer") {
+                        append(defer_children, child);
+                    } else {
+                        append(regular_children, child);
+                    }
                     i++;
+                }
+
+                mut reg_idx: i32 = 0;
+                loop {
+                    if reg_idx >= len(regular_children) {
+                        break;
+                    }
+                    val child: ref ASTNode = regular_children.data[reg_idx];
+                    val child_code: string = generate_c(child);
+                    StringBuilder.append(addr(sb_main), child_code);
+                    reg_idx++;
+                }
+
+                mut defer_idx: i32 = 0;
+                loop {
+                    if defer_idx >= len(defer_children) {
+                        break;
+                    }
+                    val defer_node: ref ASTNode = defer_children.data[defer_idx];
+                    val body: ref list(ASTNode) = defer_node.data.defer_node.body;
+                    if body != nil {
+                        mut i_defer: i32 = 0;
+                        loop {
+                            if i_defer >= len(deref(body)) {
+                                break;
+                            }
+                            val defer_child_code: string = generate_c(addr(body.data[i_defer]));
+                            StringBuilder.append(addr(sb_main), defer_child_code);
+                            i_defer++;
+                        }
+                    }
+                    defer_idx++;
                 }
             }
             
@@ -9953,14 +9993,54 @@ pub def generate_c(ast: ref ASTNode): string {
         
         if ast.children != nil {
             val children: ref list(ASTNode) = ast.children;
+            
+            mut regular_children: list(ref ASTNode);
+            mut defer_children: list(ref ASTNode);
+
             mut i: i32 = 0;
             loop {
                 if i >= len(deref(children)) {
                     break;
                 }
-                val child_code: string = generate_c(addr(children.data[i]));
-                StringBuilder.append(addr(sb_func), child_code);
+                val child: ref ASTNode = addr(children.data[i]);
+                if equals_c(child.node_type, "Defer") {
+                    append(defer_children, child);
+                } else {
+                    append(regular_children, child);
+                }
                 i++;
+            }
+
+            mut reg_idx: i32 = 0;
+            loop {
+                if reg_idx >= len(regular_children) {
+                    break;
+                }
+                val child: ref ASTNode = regular_children.data[reg_idx];
+                val child_code: string = generate_c(child);
+                StringBuilder.append(addr(sb_func), child_code);
+                reg_idx++;
+            }
+
+            mut defer_idx: i32 = 0;
+            loop {
+                if defer_idx >= len(defer_children) {
+                    break;
+                }
+                val defer_node: ref ASTNode = defer_children.data[defer_idx];
+                val body: ref list(ASTNode) = defer_node.data.defer_node.body;
+                if body != nil {
+                    mut i_defer: i32 = 0;
+                    loop {
+                        if i_defer >= len(deref(body)) {
+                            break;
+                        }
+                        val defer_child_code: string = generate_c(addr(body.data[i_defer]));
+                        StringBuilder.append(addr(sb_func), defer_child_code);
+                        i_defer++;
+                    }
+                }
+                defer_idx++;
             }
         }
         
