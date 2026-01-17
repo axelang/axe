@@ -99,7 +99,7 @@ def main() {
     }
     
     if strlst_contains_c(deref(args), "-v") or strlst_contains_c(deref(args), "--version") {
-        println("Axe v0.0.16");
+        println("Axe v0.0.17");
         println("Specification and compiler by Navid Momtahen ((C) GPL-3.0, 2025 - 2026)\n");
         quit(0);
     }
