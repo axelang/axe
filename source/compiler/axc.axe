@@ -181,7 +181,7 @@ def print_help_and_exit() {
     println("  -dll              Build shared instead of standalone executable");
     println("  --release         Build in release mode");
     println("  --backend <name>  Build with C, LLVM, or QBE backend");
-    println("  -cflags <flags>   Pass custom flags to the C compiler");
+    println("  --cflags <flags>   Pass custom flags to the C compiler");
     println("  --showcc          Show the C compiler command line");
     println("  --bootstrap       Emit without line directives");
     println("  -l, --loud        Loud debug output");
