@@ -3554,6 +3554,7 @@ def rewrite_generic_calls(expr: string): string {
                         mut in_sbp_str: bool = false;
                         mut in_sbp_char: bool = false;
                         mut pi2: i32 = 0;
+
                         loop {
                             if pi2 >= str_len(raw_args) { break; }
                             val cc: char = get_char(raw_args, pi2);
