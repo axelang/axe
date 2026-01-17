@@ -128,15 +128,15 @@ def main() {
         print_help_and_exit();
     }
 
-    if strlst_contains_c(deref(args), "-tokens") {
+    if strlst_contains_c(deref(args), "--tokens") {
         set_print_tokens(true);
     }
     
-    if strlst_contains_c(deref(args), "-ast") {
+    if strlst_contains_c(deref(args), "--ast") {
         set_print_ast(true);
     }
     
-    if strlst_contains_c(deref(args), "-dll") {
+    if strlst_contains_c(deref(args), "--dll") {
         set_build_shared_lib(true);
     }
     
@@ -176,12 +176,12 @@ def print_help_and_exit() {
     println("  -c                Compile only; produce object file (.obj or .o)");
     println("  -e                Keep the emitted file");
     println("  -r                Run the built executable after compilation");
-    println("  -tokens           Print lexer tokens and exit");
-    println("  -ast              Print the parsed AST and exit");
-    println("  -dll              Build shared instead of standalone executable");
+    println("  --tokens          Print lexer tokens and exit");
+    println("  --ast             Print the parsed AST and exit");
+    println("  --dll             Build shared instead of standalone executable");
     println("  --release         Build in release mode");
     println("  --backend <name>  Build with C, LLVM, or QBE backend");
-    println("  --cflags <flags>   Pass custom flags to the C compiler");
+    println("  --cflags <flags>  Pass custom flags to the C compiler");
     println("  --showcc          Show the C compiler command line");
     println("  --bootstrap       Emit without line directives");
     println("  -l, --loud        Loud debug output");
