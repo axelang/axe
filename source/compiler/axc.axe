@@ -72,6 +72,17 @@ def main() {
             i += 2;
             continue;
         }
+        if has_prefix(arg, str("--cflags=")) {
+            val flags: string = substring_se(arg, 9, cast[i32](str_len(arg)));
+            set_custom_c_flags(flags);
+            i++;
+            continue;
+        }
+        if equals_c(arg, "--showcc") {
+            set_show_cc_command(true);
+            i++;
+            continue;
+        }
         if has_prefix(arg, str("-I")) and str_len(arg) > 2 {
             val inc_path: string = substring_se(arg, 2, cast[i32](str_len(arg)));
             StringList.push(inc_paths, addr(arena), inc_path);
@@ -170,6 +181,8 @@ def print_help_and_exit() {
     println("  -dll              Build shared instead of standalone executable");
     println("  --release         Build in release mode");
     println("  --backend <name>  Build with C, LLVM, or QBE backend");
+    println("  -cflags <flags>   Pass custom flags to the C compiler");
+    println("  --showcc          Show the C compiler command line");
     println("  --bootstrap       Emit without line directives");
     println("  -l, --loud        Loud debug output");
     println("  -q, --quiet       Suppress all output");

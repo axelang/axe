@@ -24,6 +24,8 @@ pub mut library_paths: ref StringList = nil;
 pub mut link_libraries: ref StringList = nil;
 pub mut no_windows_header: bool = false;
 pub mut backend_type: string;
+pub mut custom_c_flags: string;
+pub mut show_cc_command: bool = false;
 
 /// Print a debug message
 pub overload debug_print(x: generic) {
@@ -158,6 +160,26 @@ pub def set_link_libraries(libs: ref StringList) {
 /// Get libraries to link list
 pub def get_link_libraries(): ref StringList {
     return link_libraries;
+}
+
+/// Set custom C flags
+pub def set_custom_c_flags(flags: string) {
+    custom_c_flags = flags;
+}
+
+/// Get custom C flags
+pub def get_custom_c_flags(): string {
+    return custom_c_flags;
+}
+
+/// Set show cc command flag
+pub def set_show_cc_command(v: bool) {
+    show_cc_command = v;
+}
+
+/// Get show cc command flag
+pub def get_show_cc_command(): bool {
+    return show_cc_command;
 }
 
 /// Ditto.

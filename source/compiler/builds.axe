@@ -4,7 +4,9 @@
 /// Handles build process orchestration.
 
 use gstate (
-    get_backend_type
+    get_backend_type,
+    get_custom_c_flags,
+    get_show_cc_command
 );
 use structs (
     ASTNode
@@ -720,6 +722,12 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         }
     }
     
+    val custom_flags: string = get_custom_c_flags();
+    if str_len(custom_flags) > 0 {
+        compile_cmd = concat_c(compile_cmd, " ");
+        compile_cmd = concat(compile_cmd, custom_flags);
+    }
+    
     val toolchain_root: string = get_executable_dir();
     
     if equals_c(backend, "c") and has_external_header(str("pcre.h")) {
@@ -822,6 +830,10 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         compile_cmd = concat(compile_cmd, str(" -Wno-everything -O0 -o "));
     }
     compile_cmd = concat(compile_cmd, exe_filename);
+    
+    if get_show_cc_command() {
+        println(compile_cmd);
+    }
     
     val result: ExecResult = exec_capture(compile_cmd);
     val exit_code: i32 = result.exit_code;
