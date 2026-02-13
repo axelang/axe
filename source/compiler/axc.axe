@@ -257,9 +257,9 @@ def print_help_and_exit() {
     println("  --syntax-check    Check syntax only (no code generation)");
     println("  --target <triple> Cross-compile for target (e.g. x86_64-w64-mingw32)");
     println("  --sysroot <path>  Specify sysroot for cross-compilation");
+    println("  --doctor          Show system information and perform basic checks");
     println("  --version, -v     Show axe version and exit");
     println("  --help, -h        Show this help message and exit");
-    println("  --doctor          Show system information and perform basic checks");
     println("");
     println("Note: Cross-compiling requires the target platform's SDK and sysroot.\n");
     quit(0);
