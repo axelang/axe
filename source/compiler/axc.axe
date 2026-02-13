@@ -202,7 +202,9 @@ def doctor() {
 
     println("\nToolchain Checks:");
     println("----------------");
+
     val cc_ok: bool = command_exists(str("clang")) or command_exists(str("gcc")) or command_exists(str("cc"));
+
     if cc_ok {
         println("C Compiler: Found");
     } else {
