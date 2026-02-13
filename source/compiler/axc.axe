@@ -174,7 +174,6 @@ def main() {
 
 /// Show system diagnostics.
 def doctor() {
-    println("Compiler Version: Axe v0.0.17");
     println("\nSystem Information:");
     println("------------------");
 
