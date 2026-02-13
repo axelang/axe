@@ -172,65 +172,6 @@ def main() {
     quit(0);
 }
 
-/// Show system diagnostics.
-def doctor() {
-    println("\nSystem Information:");
-    println("------------------");
-
-    platform linux {
-        exec("uname -a");
-        exec("lsb_release -a 2>/dev/null || cat /etc/*release");
-        exec("grep -m 1 'model name' /proc/cpuinfo || true");
-        exec("grep -c '^processor' /proc/cpuinfo || true");
-        exec("free -h");
-    }
-
-    platform macos {
-        exec("sw_vers");
-        println("");
-        exec("system_profiler SPHardwareDataType | grep -E 'Model|Processor|Memory'");
-        println("");
-    }
-
-    platform windows {
-        exec("systeminfo | findstr /B /C:\"OS Name\" /C:\"OS Version\" /C:\"System Type\"");
-        println("");
-        exec("wmic cpu get name");
-        exec("wmic memorychip get capacity");
-        println("");
-    }
-
-    println("\nToolchain Checks:");
-    println("----------------");
-
-    val cc_ok: bool = command_exists(str("clang")) or command_exists(str("gcc")) or command_exists(str("cc"));
-
-    if cc_ok {
-        println("C Compiler: Found");
-    } else {
-        println("C Compiler: Not found");
-    }
-
-    if equals_c(get_backend_type(), "llvm") {
-        val llvm_ok: bool = command_exists(str("clang"));
-        if llvm_ok {
-            println("LLVM Compiler: Found");
-        } else {
-            println("LLVM Compiler: Not found");
-        }
-    }
-
-    if equals_c(get_backend_type(), "qbe") {
-        val qbe_ok: bool = command_exists(str("qbe"));
-        if qbe_ok {
-            println("QBE Compiler: Found");
-        } else {
-            println("QBE Compiler: Not found");
-        }
-    }
-    println("\nNote: For detailed compiler diagnostics, run with -v flag");
-}
-
 /// Show help message and exit.
 def print_help_and_exit() {
     println("Usage: axe <input.axe> [options]");

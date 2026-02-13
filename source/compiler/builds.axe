@@ -1,6 +1,6 @@
 /// Author: Navid Momtahen (C) 2026
 /// License: GPL-3.0
-/// 
+///
 /// Handles build process orchestration.
 
 use gstate (
@@ -25,9 +25,9 @@ use imports (
     has_imported_module
 );
 use backends.c.renderer (
-    has_external_header, 
-    initialize_renderer, 
-    set_source_file, 
+    has_external_header,
+    initialize_renderer,
+    set_source_file,
     set_emit_line_directives,
     generate_c,
     renderer_add_prefix
@@ -42,10 +42,10 @@ use backends.qbe.renderer (
     generate_qbe
 );
 use std.os (
-    ExecResult, 
-    exec_capture, 
-    exec, 
-    delete_file, 
+    ExecResult,
+    exec_capture,
+    exec,
+    delete_file,
     get_executable_dir,
     file_exists
 );
@@ -66,7 +66,7 @@ def command_exists(cmd: string): bool {
     platform posix {
         check_cmd = concat(str("command -v "), cmd);
         check_cmd = concat_c(check_cmd, " >/dev/null 2>&1");
-    } 
+    }
     val result: ExecResult = exec_capture(check_cmd);
     return result.exit_code == 0;
 }
@@ -77,6 +77,65 @@ def filter_and_print_errors(output: string) {
         return;
     }
     println output;
+}
+
+/// Show system diagnostics.
+def doctor() {
+    println("\nSystem Information:");
+    println("------------------");
+
+    platform linux {
+        exec("uname -a");
+        exec("lsb_release -a 2>/dev/null || cat /etc/*release");
+        exec("grep -m 1 'model name' /proc/cpuinfo || true");
+        exec("grep -c '^processor' /proc/cpuinfo || true");
+        exec("free -h");
+    }
+
+    platform macos {
+        exec("sw_vers");
+        println("");
+        exec("system_profiler SPHardwareDataType | grep -E 'Model|Processor|Memory'");
+        println("");
+    }
+
+    platform windows {
+        exec("systeminfo | findstr /B /C:\"OS Name\" /C:\"OS Version\" /C:\"System Type\"");
+        println("");
+        exec("wmic cpu get name");
+        exec("wmic memorychip get capacity");
+        println("");
+    }
+
+    println("\nToolchain Checks:");
+    println("----------------");
+
+    val cc_ok: bool = command_exists(str("clang")) or command_exists(str("gcc")) or command_exists(str("cc"));
+
+    if cc_ok {
+        println("C Compiler: Found");
+    } else {
+        println("C Compiler: Not found");
+    }
+
+    if equals_c(get_backend_type(), "llvm") {
+        val llvm_ok: bool = command_exists(str("clang"));
+        if llvm_ok {
+            println("LLVM Compiler: Found");
+        } else {
+            println("LLVM Compiler: Not found");
+        }
+    }
+
+    if equals_c(get_backend_type(), "qbe") {
+        val qbe_ok: bool = command_exists(str("qbe"));
+        if qbe_ok {
+            println("QBE Compiler: Found");
+        } else {
+            println("QBE Compiler: Not found");
+        }
+    }
+    println("\nNote: For detailed compiler diagnostics, run with -v flag");
 }
 
 /// Detect if a name already has a module-style "__" prefix.
@@ -145,9 +204,9 @@ def prefix_root_functions(node: ref ASTNode, mprefix: string) {
                 mut new_name: string = to_c_identifier(mprefix);
                 new_name = concat(new_name, str("__"));
                 new_name = concat(new_name, fname);
-                
+
                 node.data.function.name = new_name;
-                
+
                 val backend: string = get_backend_type();
                 if equals_c(backend, "c") {
                     renderer_add_prefix(fname, new_name);
@@ -176,7 +235,7 @@ def prefix_root_functions(node: ref ASTNode, mprefix: string) {
 def to_c_identifier(identifier: string): string {
     val len: i32 = cast[i32](str_len(identifier));
     mut sb: StringBuilder = StringBuilder.init(len + 1);
-    
+
     if is_digit(cast[i32](get_char(identifier, 0))) {
         StringBuilder.append_char(addr(sb), '_');
     }
@@ -207,7 +266,7 @@ def print_ast_node(node: ref ASTNode, prefix: string, is_last: bool) {
     }
 
     mut line: string = str("");
-    
+
     if is_last {
         line = concat(prefix, str("└─ "));
     } else {
@@ -259,11 +318,11 @@ def count_entry_points(
     if node == nil { return; }
 
     val nt: string = node.node_type;
-    
+
     if equals_c(nt, "Test") {
         deref(test_count) = deref(test_count) + 1;
     }
-    
+
     if equals_c(nt, "Function") {
         val fname: string = node.data.function.name;
         if equals_c(fname, "main") {
@@ -272,7 +331,7 @@ def count_entry_points(
              deref(custom_entry_count) = deref(custom_entry_count) + 1;
         }
     }
-    
+
     if node.children != nil {
         val children: ref list(ASTNode) = node.children;
         mut i: i32 = 0;
@@ -294,34 +353,34 @@ def validate_entry_points(node: ref ASTNode, filename: string): bool {
     mut main_count: i32 = 0;
     mut custom_entry_count: i32 = 0;
     mut test_count: i32 = 0;
-    
+
     count_entry_points(node, addr(main_count), addr(custom_entry_count), addr(test_count));
-    
+
     val total_entries: i32 = main_count + custom_entry_count;
-    
+
     if total_entries > 1 {
         println(concat(str("error: multiple entry points defined in compilation unit '"), filename));
         println "Only one function can be the entry point (either 'main' or marked with '[entry]').";
         return false;
     }
-    
+
     if total_entries == 0 and test_count == 0 {
         println(concat(str("error: no entry point in compilation unit '"), filename));
         println ". add either 'test { }' or 'def main() { }' (or use [entry] tag) to the file.";
         return false;
     }
-    
+
     if custom_entry_count > 0 {
         val is_shared: bool = ::build_shared_lib;
         val compile_only: bool = get_compile_only();
-        
+
         if !is_shared and !compile_only {
             println(concat(str("error: custom entry point in '"), filename));
             println " requires compiling with -dll (shared library) or -c (compile only) flag.";
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -337,7 +396,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         println "Error: Could not read source file";
         return false;
     }
-    
+
     if !::quiet_mode {
         println "2 | Lex";
     }
@@ -347,7 +406,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         println "Error: No tokens generated";
         return false;
     }
-    
+
     if ::print_tokens {
         mut ti: i32 = 0;
         loop {
@@ -364,7 +423,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         }
         quit(0);
     }
-    
+
     if !::quiet_mode {
         println "3 | Parse";
     }
@@ -374,11 +433,11 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         println "Error: Failed to parse";
         return false;
     }
-    
+
     if !::quiet_mode {
         println "4 | Imports";
     }
-    
+
     reset_processed_modules();
 
     mut base_dir: string = str(".");
@@ -403,12 +462,12 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     if !validate_entry_points(addr(ast), filename) {
         return false;
     }
-    
+
     val syntax_only: bool = ::syntax_check_only;
     if syntax_only {
         return true;
     }
-    
+
     if ::print_ast {
         print_ast_node(addr(ast), str(""), true);
         quit(0);
@@ -514,7 +573,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     }
 
     prefix_root_enums(addr(ast), module_prefix);
-    
+
     val backend: string = get_backend_type();
     if equals_c(backend, "llvm") {
         initialize_llvm_renderer();
@@ -523,7 +582,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     } else {
         initialize_renderer();
     }
-    
+
     prefix_root_functions(addr(ast), module_prefix);
     set_source_file(filename);
 
@@ -537,7 +596,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
 
     mut generated_code: string;
     mut code_file: string;
-    
+
     if equals_c(backend, "llvm") {
         generated_code = generate_llvm(addr(ast));
         code_file = replace_extension(filename, str(".ll"));
@@ -562,7 +621,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     }
 
     write_file(code_file, generated_code);
-    
+
     if !::quiet_mode {
         println "12| Last compilation pass";
     }
@@ -588,7 +647,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
                     println "\ncc: Linking.";
                 }
             }
-            
+
             if str_len(compiler) == 0 {
                 println "\nYou do not have the LLVM C toolchain installed.";
                 println "Install clang from https://releases.llvm.org/ or via your package manager.";
@@ -600,32 +659,32 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             }
         }
     }
-    
+
     mut compile_cmd: string;
-    
+
     if equals_c(backend, "qbe") {
         val base_name: string = substring_se(filename, 0, cast[i32](str_len(filename)) - 4);
         val asm_filename: string = concat(base_name, str(".s"));
-        
+
         mut qbe_cmd: string = str("qbe -o ");
         qbe_cmd = concat(qbe_cmd, asm_filename);
         qbe_cmd = concat(qbe_cmd, str(" "));
         qbe_cmd = concat(qbe_cmd, code_file);
-        
+
         val qbe_result: ExecResult = exec_capture(qbe_cmd);
-        
+
         if qbe_result.exit_code != 0 {
             println "Error: QBE compilation failed";
             println qbe_result.output;
             return false;
         }
-        
+
         val qbe_exe_filename: string = get_output_filename(output_filename, filename);
         mut link_cmd: string;
-        
+
         val clang_available: bool = command_exists(str("clang"));
         val gcc_available: bool = command_exists(str("gcc"));
-        
+
         if clang_available {
             link_cmd = str("clang ");
         } elif gcc_available {
@@ -634,11 +693,11 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             println "Error: No C toolchain found in PATH, cannot link.";
             return false;
         }
-        
+
         link_cmd = concat(link_cmd, asm_filename);
         link_cmd = concat(link_cmd, str(" -g -Wno-everything -O0 -o "));
         link_cmd = concat(link_cmd, qbe_exe_filename);
-        
+
         val link_result: ExecResult = exec_capture(link_cmd);
         val exit_code: i32 = link_result.exit_code;
 
@@ -646,9 +705,9 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             filter_and_print_errors(link_result.output);
             return false;
         }
-        
+
         if ::keep_emitted_file {
-            println "Keeping emitted ASM and QBE IR.";    
+            println "Keeping emitted ASM and QBE IR.";
         } else {
             delete_file(asm_filename);
             delete_file(code_file);
@@ -658,7 +717,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     } else {
         compile_cmd = concat(compiler, str(" "));
     }
-    
+
     val target_triple: string = get_target_triple();
     if str_len(target_triple) > 0 {
         if !::quiet_mode {
@@ -672,16 +731,16 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         compile_cmd = concat(compile_cmd, target_triple);
         compile_cmd = concat_c(compile_cmd, " ");
     }
-    
+
     val sysroot_path: string = get_sysroot_path();
     if str_len(sysroot_path) > 0 {
         compile_cmd = concat_c(compile_cmd, "--sysroot=");
         compile_cmd = concat(compile_cmd, sysroot_path);
         compile_cmd = concat_c(compile_cmd, " ");
     }
-    
+
     compile_cmd = concat(compile_cmd, code_file);
-    
+
     val is_shared: bool = ::build_shared_lib;
     if is_shared {
         platform windows {
@@ -691,11 +750,11 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             compile_cmd = concat_c(compile_cmd, " -shared -fPIC");
         }
     }
-    
+
     if needs_omp {
         compile_cmd = concat(compile_cmd, str(" -fopenmp"));
     }
-    
+
     val inc_paths: ref StringList = get_include_paths();
     if inc_paths != nil {
         mut ip_idx: i32 = 0;
@@ -708,7 +767,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             ip_idx++;
         }
     }
-    
+
     val lib_paths: ref StringList = get_library_paths();
     if lib_paths != nil {
         mut lp_idx: i32 = 0;
@@ -721,15 +780,15 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             lp_idx++;
         }
     }
-    
+
     val custom_flags: string = get_custom_c_flags();
     if str_len(custom_flags) > 0 {
         compile_cmd = concat_c(compile_cmd, " ");
         compile_cmd = concat(compile_cmd, custom_flags);
     }
-    
+
     val toolchain_root: string = get_executable_dir();
-    
+
     if equals_c(backend, "c") and has_external_header(str("pcre.h")) {
         compile_cmd = concat_c(compile_cmd, " -DPCRE_STATIC");
         platform windows {
@@ -754,7 +813,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             compile_cmd = concat_c(compile_cmd, "/external/lib-macos/libpcre.a");
         }
     }
-    
+
     if has_imported_module(str("std/net"))
         or has_imported_module(str("net.axe"))
         or find_substr(filename, str("net.axe")) >= 0 {
@@ -774,7 +833,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             compile_cmd = concat_c(compile_cmd, " -lcurl -lz");
         }
     }
-    
+
     if has_imported_module(str("std/json"))
         or has_imported_module(str("json.axe"))
         or find_substr(filename, str("json.axe")) >= 0 {
@@ -797,7 +856,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             compile_cmd = concat_c(compile_cmd, "/external/lib-macos/libyyjson.a");
         }
     }
-    
+
     val link_libs: ref StringList = get_link_libraries();
     if link_libs != nil {
         mut ll_idx: i32 = 0;
@@ -810,7 +869,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             ll_idx++;
         }
     }
-    
+
     if !::is_release_build {
         platform windows {
             compile_cmd = concat_c(
@@ -822,7 +881,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             compile_cmd = concat_c(compile_cmd, " -g");
         }
     }
-    
+
     val compile_only: bool = get_compile_only();
     if compile_only {
         compile_cmd = concat(compile_cmd, str(" -Wno-everything -O0 -c -o "));
@@ -830,17 +889,17 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         compile_cmd = concat(compile_cmd, str(" -Wno-everything -O0 -o "));
     }
     compile_cmd = concat(compile_cmd, exe_filename);
-    
+
     if get_show_cc_command() {
         println(compile_cmd);
     }
-    
+
     val result: ExecResult = exec_capture(compile_cmd);
     val exit_code: i32 = result.exit_code;
 
     if exit_code != 0 {
         filter_and_print_errors(result.output);
-        
+
         if needs_omp and str_contains_c(result.output, "omp") {
             platform linux {
                 println "\nNote: If you're seeing OpenMP-related linker errors, install libomp:";
@@ -849,7 +908,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
                 println "  Arch Linux:    sudo pacman -S libomp";
             }
         }
-        
+
         return false;
     }
 
@@ -868,11 +927,11 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     } else {
         delete_file(code_file);
     }
-    
+
     if !::quiet_mode {
         println "Compiled.";
     }
-    
+
     val do_run: bool = ::run_after_compile;
     if do_run {
         mut run_cmd: string = exe_filename;
@@ -890,7 +949,7 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
             println(concat(str("Exit code: "), i32_to_string(run_code)));
         }
     }
-    
+
     return true;
 }
 
@@ -898,21 +957,21 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
 def replace_extension(filename: string, new_ext: string): string {
     val len: i32 = cast[i32](str_len(filename));
     mut i: i32 = len - 1;
-    
+
     loop {
         if i < 0 {
             break;
         }
-        
+
         val ch: char = get_char(filename, i);
         if ch == '.' {
             val base: string = substring_se(filename, 0, i);
             return concat(base, new_ext);
         }
-        
+
         i--;
     }
-    
+
     return concat(filename, new_ext);
 }
 
@@ -921,7 +980,7 @@ def get_output_filename(specified_output: string, input_filename: string): strin
     mut result: string = str("");
     val is_shared: bool = ::build_shared_lib;
     val compile_only: bool = get_compile_only();
-    
+
     if str_len(specified_output) > 0 {
         result = specified_output;
     } else {
@@ -948,7 +1007,7 @@ def get_output_filename(specified_output: string, input_filename: string): strin
             }
         }
     }
-    
+
     platform windows {
         if compile_only {
             if !has_suffix(result, str(".obj")) {
@@ -964,7 +1023,7 @@ def get_output_filename(specified_output: string, input_filename: string): strin
             }
         }
     }
-    
+
     platform posix {
         if compile_only {
             if !has_suffix(result, str(".o")) {
@@ -974,7 +1033,7 @@ def get_output_filename(specified_output: string, input_filename: string): strin
             result = concat(result, str(".so"));
         }
     }
-    
+
     platform windows {
         result = replace_all(result, str("/"), str("\\"));
     }
@@ -1030,35 +1089,35 @@ def has_parallel_blocks(ast: ref ASTNode): bool {
     if ast == nil {
         return false;
     }
-    
+
     val node_type: string = ast.node_type;
-    
+
     if equals_c(node_type, "ParallelFor") {
         return true;
     }
-    
+
     if equals_c(node_type, "Parallel") {
         return true;
     }
-    
+
     if equals_c(node_type, "ParallelLocal") {
         return true;
     }
-    
+
     if ast.children != nil {
         val children: ref list(ASTNode) = ast.children;
         mut i: i32 = 0;
         loop {
             if i >= len(deref(children)) {
                 break;
-            } 
+            }
             if has_parallel_blocks(addr(children.data[i])) {
                 return true;
-            }       
+            }
             i++;
         }
     }
-    
+
     return false;
 }
 
@@ -1067,9 +1126,9 @@ def collect_model_names(ast: ref ASTNode) {
     if ast == nil {
         return;
     }
-    
+
     val node_type: string = ast.node_type;
-    
+
     if ast.children != nil {
         val children: ref list(ASTNode) = ast.children;
         mut i: i32 = 0;
@@ -1077,7 +1136,7 @@ def collect_model_names(ast: ref ASTNode) {
             if i >= len(deref(children)) {
                 break;
             }
-            
+
             collect_model_names(addr(children.data[i]));
             i++;
         }
@@ -1089,9 +1148,9 @@ def collect_declared_functions(ast: ref ASTNode) {
     if ast == nil {
         return;
     }
-    
+
     val node_type: string = ast.node_type;
-    
+
     if ast.children != nil {
         val children: ref list(ASTNode) = ast.children;
         mut i: i32 = 0;
@@ -1099,7 +1158,7 @@ def collect_declared_functions(ast: ref ASTNode) {
             if i >= len(deref(children)) {
                 break;
             }
-            
+
             collect_declared_functions(addr(children.data[i]));
             i++;
         }
@@ -1108,18 +1167,18 @@ def collect_declared_functions(ast: ref ASTNode) {
 
 test {
     println "\nTest 1: Replace extension";
-    
+
     assert equals_c(replace_extension(str("test.axe"), str(".c")), "test.c"), "Expected test.c";
     assert equals_c(replace_extension(str("file.txt"), str(".exe")), "file.exe"), "Expected file.exe";
     assert equals_c(replace_extension(str("noext"), str(".c")), "noext.c"), "Expected noext.c";
-    
+
     println "\nTest 2: Has parallel blocks (negative)";
     mut simple_ast: ASTNode;
     simple_ast.node_type = str("Program");
     simple_ast.children = nil;
 
     assert !has_parallel_blocks(addr(simple_ast)), "Expected no parallel blocks";
-    
+
     println "\nTest 3: Collect model names";
     mut model_ast: ASTNode;
     model_ast.node_type = str("Model");
