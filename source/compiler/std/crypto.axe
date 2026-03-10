@@ -5,7 +5,7 @@ use std.errors;
 /// SHA256 digest size in bytes
 val SHA256_DIGEST_SIZE: i32 = 32;
 
-/// SHA1 digest size in bytes  
+/// SHA1 digest size in bytes
 val SHA1_DIGEST_SIZE: i32 = 20;
 
 /// MD5 digest size in bytes
@@ -109,7 +109,7 @@ pub def bytes_to_u32(b0: i32, b1: i32, b2: i32, b3: i32): i32 {
 pub def u32_byte(value: i32, pos: i32): i32 {
     if pos < 0 { panic(error.create("u32_byte: position cannot be negative")); }
     if pos > 3 { panic(error.create("u32_byte: position must be 0-3")); }
-    
+
     if pos == 0 { return (value >> 24) & 0xff; }
     elif pos == 1 { return (value >> 16) & 0xff; }
     elif pos == 2 { return (value >> 8) & 0xff; }
@@ -119,28 +119,28 @@ pub def u32_byte(value: i32, pos: i32): i32 {
 /// Create an empty SHA256Digest with all bytes initialized to zero
 pub def sha256_digest_empty(): SHA256Digest {
     mut digest: SHA256Digest;
-    
+
     for mut i = 0; i < SHA256_DIGEST_SIZE; i++ {
         digest.bytes[i] = 0;
     }
     digest.is_valid = false;
-    
+
     return digest;
 }
 
 /// Process a single 512-bit block of data
 pub def sha256_process_block(block: ref i32, h: ref i32) {
     mut w: i32[64];
-    
+
     for mut i = 0; i < 16; i++ {
         w[i] = block[i];
     }
-    
+
     for mut i = 16; i < 64; i++ {
-        w[i] = add_wrap(add_wrap(add_wrap(sigma_lower1(w[i - 2]), w[i - 7]), 
+        w[i] = add_wrap(add_wrap(add_wrap(sigma_lower1(w[i - 2]), w[i - 7]),
                        sigma_lower0(w[i - 15])), w[i - 16]);
     }
-    
+
     mut a: i32 = h[0];
     mut b: i32 = h[1];
     mut c: i32 = h[2];
@@ -149,11 +149,11 @@ pub def sha256_process_block(block: ref i32, h: ref i32) {
     mut f: i32 = h[5];
     mut g: i32 = h[6];
     mut h_var: i32 = h[7];
-    
+
     for mut i = 0; i < 64; i++ {
         val t1: i32 = add_wrap(add_wrap(add_wrap(add_wrap(h_var, sigma1(e)), ch(e, f, g)), K[i]), w[i]);
         val t2: i32 = add_wrap(sigma0(a), maj(a, b, c));
-        
+
         h_var = g;
         g = f;
         f = e;
@@ -163,7 +163,7 @@ pub def sha256_process_block(block: ref i32, h: ref i32) {
         b = a;
         a = add_wrap(t1, t2);
     }
-    
+
     h[0] = add_wrap(h[0], a);
     h[1] = add_wrap(h[1], b);
     h[2] = add_wrap(h[2], c);
@@ -179,18 +179,18 @@ pub def sha256(data: ref char, len: i32): SHA256Digest {
     if len < 0 {
         panic(error.create("sha256: length cannot be negative"));
     }
-    
+
     mut digest: SHA256Digest = sha256_digest_empty();
     mut h: i32[8];
-    
+
     for mut i = 0; i < 8; i++ {
         h[i] = H0_INIT[i];
     }
-    
+
     val bit_len: i32 = len * 8;
     val pad_len: i32 = (len + 8) / 64 * 64 + 64;
     mut padded: i32[16];
-    
+
     for mut block_idx = 0; block_idx < (len + 72) / 64; block_idx++ {
         for mut i = 0; i < 16; i++ {
             mut word: i32 = 0;
@@ -212,17 +212,17 @@ pub def sha256(data: ref char, len: i32): SHA256Digest {
             }
             padded[i] = word;
         }
-        
+
         sha256_process_block(addr(padded), addr(h));
     }
-    
+
     for mut i = 0; i < 8; i++ {
         digest.bytes[i * 4 + 0] = (h[i] >> 24) & 0xff;
         digest.bytes[i * 4 + 1] = (h[i] >> 16) & 0xff;
         digest.bytes[i * 4 + 2] = (h[i] >> 8) & 0xff;
         digest.bytes[i * 4 + 3] = h[i] & 0xff;
     }
-    
+
     digest.is_valid = true;
     return digest;
 }
@@ -232,25 +232,25 @@ pub def simple_hash(data: ref char, len: i32): SHA256Digest {
     if len < 0 {
         panic(error.create("simple_hash: length cannot be negative"));
     }
-    
+
     mut digest: SHA256Digest = sha256_digest_empty();
-    
+
     if len == 0 {
         digest.is_valid = true;
         return digest;
     }
-    
+
     mut hash_val: i32 = 0;
     for mut i = 0; i < len; i++ {
         hash_val = add_wrap(hash_val, data[i]);
     }
-    
+
     digest.bytes[0] = hash_val & 0xff;
     digest.bytes[1] = (hash_val >> 8) & 0xff;
     digest.bytes[2] = (hash_val >> 16) & 0xff;
     digest.bytes[3] = (hash_val >> 24) & 0xff;
     digest.is_valid = true;
-    
+
     return digest;
 }
 
@@ -258,18 +258,18 @@ pub def simple_hash(data: ref char, len: i32): SHA256Digest {
 pub def byte_to_hex(byte_val: i32, arena: ref Arena): string {
     if byte_val < 0 { panic(error.create("byte_to_hex: byte value cannot be negative")); }
     if byte_val > 255 { panic(error.create("byte_to_hex: byte value must be 0-255")); }
-    
+
     val hex_chars: ref char = "0123456789abcdef";
     mut result: string = string.create_with_capacity(arena, 2);
-    
+
     val high: i32 = (byte_val >> 4) & 0xf;
     val low: i32 = byte_val & 0xf;
-    
+
     result.data[0] = hex_chars[high];
     result.data[1] = hex_chars[low];
     result.data[2] = '\0';
     result.len = 2;
-    
+
     return result;
 }
 
@@ -278,10 +278,10 @@ pub def sha256_to_hex(digest: SHA256Digest, arena: ref Arena): string {
     if digest.is_valid == false {
         panic(error.create("sha256_to_hex: digest is not valid"));
     }
-    
+
     mut result: string = string.create_with_capacity(arena, 64);
     val hex_chars: ref char = "0123456789abcdef";
-    
+
     mut pos: i32 = 0;
     for mut i = 0; i < SHA256_DIGEST_SIZE; i++ {
         val byte_val: i32    = digest.bytes[i] & 0xff;
@@ -291,10 +291,10 @@ pub def sha256_to_hex(digest: SHA256Digest, arena: ref Arena): string {
         result.data[pos + 1] = hex_chars[low];
         pos += 2;
     }
-    
+
     result.data[64] = '\0';
     result.len = 64;
-    
+
     return result;
 }
 
@@ -304,17 +304,17 @@ pub def constant_time_compare(buf1: i32*, buf2: i32*, len: i32): bool {
     if len < 0 {
         panic(error.create("constant_time_compare: length cannot be negative"));
     }
-    
+
     if len == 0 {
         return true;
     }
-    
+
     mut diff: i32 = 0;
-    
+
     for mut i = 0; i < len; i++ {
         diff = or_op(diff, xor_op(buf1[i], buf2[i]));
     }
-    
+
     return diff == 0;
 }
 
@@ -326,7 +326,7 @@ pub def sha256_equals(digest1: SHA256Digest, digest2: SHA256Digest): bool {
     if digest2.is_valid == false {
         panic(error.create("sha256_equals: second digest is not valid"));
     }
-    
+
     return constant_time_compare(digest1.bytes, digest2.bytes, SHA256_DIGEST_SIZE);
 }
 
@@ -366,11 +366,11 @@ pub def base64_encode(data: ref char, len: i32, arena: ref Arena): string {
 
     loop {
         if i >= len { break; }
-        
+
         val b0: i32 = data[i] & 0xff;
         mut b1: i32 = 0;
         mut b2: i32 = 0;
-        
+
         if i + 1 < len { b1 = data[i + 1] & 0xff; }
         if i + 2 < len { b2 = data[i + 2] & 0xff; }
 
@@ -508,34 +508,34 @@ pub def base64_decode(data: ref char, len: i32, arena: ref Arena): string {
 
 test {
     println "Running crypto module tests...";
-    
+
     mut digest1: SHA256Digest = sha256("abc", 3);
     assert digest1.is_valid == true, "Digest should be marked as valid";
     assert sha256_validate(digest1) == true, "Digest should pass validation";
-    
+
     mut digest2: SHA256Digest = sha256("abc", 3);
     assert sha256_equals(digest1, digest2) == true, "Same input should produce same digest";
-    
+
     mut digest3: SHA256Digest = sha256("abcd", 4);
     assert sha256_equals(digest1, digest3) == false, "Different input should produce different digest";
-    
+
     mut empty_digest: SHA256Digest = sha256("", 0);
     assert empty_digest.is_valid == true, "Empty input should produce valid digest";
-    
+
     println "Testing simple_hash consistency...";
     mut simple1: SHA256Digest = simple_hash("test", 4);
     mut simple2: SHA256Digest = simple_hash("test", 4);
     assert sha256_equals(simple1, simple2) == true, "Simple hash should be consistent";
-    
+
     sha256_zero(addr(digest1));
     assert digest1.is_valid == false, "Zeroed digest should be marked invalid";
 
     mut arena: Arena = Arena.create(90000);
     mut encoded: string = base64_encode("abc", 3, addr(arena));
     assert compare(encoded, str("YWJj")) == 0, "Base64 encoding should be consistent";
-    
+
     mut decoded: string = base64_decode(encoded.data, encoded.len, addr(arena));
     assert compare(decoded, str("abc")) == 0, "Base64 decoding should be consistent";
-    
+
     Arena.destroy(addr(arena));
 }
