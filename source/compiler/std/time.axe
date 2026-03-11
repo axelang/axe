@@ -98,7 +98,7 @@ pub def epoch_to_datetime(epoch_ms: i64): DateTime {
         unsafe {
             val epoch_sec: time_t = cast[time_t](epoch_ms / 1000);
             val ms_remainder: i32 = cast[i32](epoch_ms % 1000);
-            
+
             mut local_tm: ref $(tm) = C.localtime(addr(epoch_sec));
 
             mut dt: DateTime;
@@ -121,11 +121,11 @@ pub def epoch_to_datetime(epoch_ms: i64): DateTime {
             // Convert Unix epoch (ms) to Windows FILETIME (100ns intervals since 1601-01-01)
             val unix_time_100ns: i64 = epoch_ms * 10000;
             val win_time_100ns: i64 = unix_time_100ns + 116444736000000000;
-            
+
             mut ft: FILETIME;
             ft.dwLowDateTime = cast[u32](win_time_100ns & 0xFFFFFFFF);
             ft.dwHighDateTime = cast[u32](win_time_100ns >> 32);
-            
+
             mut st: SYSTEMTIME;
             C.FileTimeToSystemTime(addr(ft), addr(st));
 
@@ -178,7 +178,7 @@ test {
     print_time(now(), true);
     println "Difference: ";
     print_i64(difference(start, now()));
-    
+
     println "\nTesting epoch_to_datetime:";
     val test_epoch: i64 = 1609459200000;
     val dt_from_epoch: DateTime = epoch_to_datetime(test_epoch);
@@ -186,7 +186,7 @@ test {
     print_i64(test_epoch);
     print " converts to: ";
     print_time(dt_from_epoch, true);
-    
+
     val current: DateTime = now();
     val reconstructed: DateTime = epoch_to_datetime(current.epoch_ms);
     print "Original time:      ";
