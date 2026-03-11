@@ -150,7 +150,7 @@ def main() {
         set_quiet_mode(true);
     }
 
-    if !has_suffix(source_file, str(".axe")) and !has_suffix(source_file, str(".axe")) {
+    if !has_suffix(source_file, str(".axe")) {
         source_file = concat(source_file, str(".axe"));
     }
 
