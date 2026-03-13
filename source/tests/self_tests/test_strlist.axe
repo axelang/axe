@@ -1,0 +1,10 @@
+use std.io;
+use std.string;
+
+def main() {
+    mut some_list: ref list(string);
+    some_list = [string]{str("hello"), str("world")};
+    for l in some_list {
+        println(l);
+    }
+}
