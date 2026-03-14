@@ -118,24 +118,23 @@ def doctor() {
         println("C Compiler: Not found");
     }
 
-    if equals_c(get_backend_type(), "llvm") {
-        val llvm_ok: bool = command_exists(str("clang"));
-        if llvm_ok {
-            println("LLVM Compiler: Found");
-        } else {
-            println("LLVM Compiler: Not found");
-        }
+    val llvm_ok: bool = command_exists(str("clang"));
+
+    if llvm_ok {
+        println("LLVM Compiler: Found");
+    } else {
+        println("LLVM Compiler: Not found");
     }
 
-    if equals_c(get_backend_type(), "qbe") {
-        val qbe_ok: bool = command_exists(str("qbe"));
-        if qbe_ok {
-            println("QBE Compiler: Found");
-        } else {
-            println("QBE Compiler: Not found");
-        }
+    val qbe_ok: bool = command_exists(str("qbe"));
+
+    if qbe_ok {
+        println("QBE Compiler: Found");
+    } else {
+        println("QBE Compiler: Not found");
     }
-    println("\nNote: For detailed compiler diagnostics, run with -v flag");
+
+    println("\nNote: For detailed compiler diagnostics, run with -l flag");
 }
 
 /// Detect if a name already has a module-style "__" prefix.
