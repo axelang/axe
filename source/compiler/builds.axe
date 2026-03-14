@@ -102,9 +102,6 @@ def doctor() {
     platform windows {
         exec("systeminfo | findstr /B /C:\"OS Name\" /C:\"OS Version\" /C:\"System Type\"");
         println("");
-        exec("wmic cpu get name");
-        exec("wmic memorychip get capacity");
-        println("");
     }
 
     println("\nToolchain Checks:");
