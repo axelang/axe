@@ -931,8 +931,10 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     val do_run: bool = ::run_after_compile;
     if do_run {
         mut run_cmd: string = exe_filename;
-        if !str_contains_c(exe_filename, "/") and !has_prefix(exe_filename, str("./")) {
-            run_cmd = concat(str("./"), exe_filename);
+        platform posix {
+            if !str_contains_c(exe_filename, "/") and !has_prefix(exe_filename, str("./")) {
+                run_cmd = concat(str("./"), exe_filename);
+            }
         }
 
         if !::quiet_mode {
