@@ -1,0 +1,614 @@
+use std.io;
+use std.lists;
+use std.string;
+
+
+/// Read entire file into a string
+def read_file(path: string): string {
+    unsafe {
+        val mode: string = str("rb");
+        val file: ref void = C.fopen(path.data, mode.data);
+        if file == nil {
+            return str("");
+        }
+        C.fseek(file, 0, 2);
+        val size: i32 = cast[i32](C.ftell(file));
+        C.fseek(file, 0, 0);
+        mut buffer: ref char = cast[ref char](C.malloc(cast[u64](size + 1)));
+        C.fread(buffer, 1, cast[u64](size), file);
+        buffer[size] = '\0';
+        C.fclose(file);
+        val result: string = str(buffer);
+        C.free(buffer);
+        return result;
+    }
+}
+
+/// Write string to file
+def write_file(path: string, content: string): bool {
+    unsafe {
+        val mode: string = str("wb");
+        val file: ref void = C.fopen(path.data, mode.data);
+        if file == nil {
+            return false;
+        }
+
+        C.fwrite(content.data, 1, cast[u64](content.len), file);
+        C.fclose(file);
+        return true;
+    }
+}
+
+/// Strip trailing whitespace from a line
+def strip_trailing_whitespace(line: string): string {
+    mut end: i32 = line.len;
+    loop {
+        if end <= 0 {
+            break;
+        }
+        val ch: char = get_char(line, end - 1);
+        if ch != ' ' and ch != '\t' and ch != '\r' {
+            break;
+        }
+        end = end - 1;
+    }
+    return substring_se(line, 0, end);
+}
+
+/// Split string into lines
+def split_lines(content: string): list(string) {
+    mut lines: list(string);
+    mut start: i32 = 0;
+    mut i: i32 = 0;
+
+    loop {
+        if i >= content.len {
+            break;
+        }
+        val ch: char = get_char(content, i);
+        if ch == '\n' {
+            append(lines, substring_se(content, start, i));
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+
+    if start < content.len {
+        append(lines, substring_se(content, start, content.len));
+    }
+
+    return lines;
+}
+
+/// Join lines with newline separator
+def join_lines(lines: ref list(string)): string {
+    mut result: string = str("");
+    mut i: i32 = 0;
+    loop {
+        if i >= lines.len {
+            break;
+        }
+        result = concat(result, lines.data[i]);
+        if i < lines.len - 1 {
+            result = concat_c(result, "\n");
+        }
+        i = i + 1;
+    }
+    return result;
+}
+
+/// Check if a line exceeds maximum length
+def line_too_long(line: string, max_len: i32): bool {
+    return line.len > max_len;
+}
+
+/// Try to break a long line at appropriate positions
+def break_long_line(line: string, max_len: i32, indent_level: i32): list(string) {
+    if line.len <= max_len {
+        mut result: list(string);
+        append(result, line);
+        return result;
+    }
+
+    mut leading_spaces: i32 = 0;
+    loop {
+        if leading_spaces >= line.len {
+            break;
+        }
+        val ch: char = get_char(line, leading_spaces);
+        if ch != ' ' and ch != '\t' {
+            break;
+        }
+        leading_spaces = leading_spaces + 1;
+    }
+
+    val indent: string = substring_se(line, 0, leading_spaces);
+    val continuation_indent: string = concat_c(indent, "    ");
+
+    mut raw_segments: list(string);
+    mut segment_start: i32 = 0;
+    mut last_break_pos: i32 = -1;
+    mut in_string: bool = false;
+    mut escaped: bool = false;
+    mut i: i32 = 0;
+
+    loop {
+        if i >= line.len {
+            break;
+        }
+        val ch: char = get_char(line, i);
+
+        if escaped {
+            escaped = false;
+        } elif ch == '\\' and in_string {
+            escaped = true;
+        } elif ch == '"' {
+            in_string = !in_string;
+        } elif !in_string {
+            if ch == ',' or ch == '(' or ch == '[' or ch == '{' or ch == ' ' {
+                last_break_pos = i;
+            }
+        }
+
+        if i - segment_start >= max_len and last_break_pos != -1 {
+            val segment: string = substring_se(line, segment_start, last_break_pos + 1);
+            append(raw_segments, strip_trailing_whitespace(segment));
+            segment_start = last_break_pos + 1;
+            last_break_pos = -1;
+        }
+        i = i + 1;
+    }
+
+    val final_segment: string = substring_se(line, segment_start, line.len);
+    if final_segment.len > 0 {
+        append(raw_segments, strip_trailing_whitespace(final_segment));
+    }
+
+    mut result: list(string);
+    if raw_segments.len > 0 {
+        append(result, raw_segments.data[0]);
+        mut j: i32 = 1;
+        loop {
+            if j >= raw_segments.len {
+                break;
+            }
+            append(result, concat(continuation_indent, raw_segments.data[j]));
+            j = j + 1;
+        }
+    } else {
+        append(result, line);
+    }
+
+    return result;
+}
+
+/// Returns true if the string starts with the prefix
+def starts_with(s: string, prefix: string): bool {
+    if s.len < prefix.len {
+        return false;
+    }
+    mut i: i32 = 0;
+    loop {
+        if i >= prefix.len {
+            break;
+        }
+        if get_char(s, i) != get_char(prefix, i) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Returns true if the string is empty or contains only whitespace
+def is_whitespace(s: string): bool {
+    mut i: i32 = 0;
+    loop {
+        if i >= s.len {
+            break;
+        }
+        val ch: char = get_char(s, i);
+        if ch != ' ' and ch != '\t' and ch != '\r' and ch != '\n' {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Trim leading and trailing whitespace
+def trim(s: string): string {
+    mut start: i32 = 0;
+    loop {
+        if start >= s.len {
+            break;
+        }
+        val ch: char = get_char(s, start);
+        if ch != ' ' and ch != '\t' and ch != '\r' and ch != '\n' {
+            break;
+        }
+        start = start + 1;
+    }
+    mut end: i32 = s.len;
+    loop {
+        if end <= start {
+            break;
+        }
+        val ch: char = get_char(s, end - 1);
+        if ch != ' ' and ch != '\t' and ch != '\r' and ch != '\n' {
+            break;
+        }
+        end = end - 1;
+    }
+    return substring_se(s, start, end);
+}
+
+/// Simple bubble sort for string list (alphabetical)
+def sort_string_list(l: ref list(string)) {
+    mut n: i32 = l.len;
+    loop {
+        if n <= 1 {
+            break;
+        }
+        mut i: i32 = 0;
+        mut swapped: bool = false;
+        loop {
+            if i >= n - 1 {
+                break;
+            }
+            if compare(l.data[i], l.data[i + 1]) > 0 {
+                val temp: string = l.data[i];
+                l.data[i] = l.data[i + 1];
+                l.data[i + 1] = temp;
+                swapped = true;
+            }
+            i = i + 1;
+        }
+        if !swapped {
+            break;
+        }
+        n = n - 1;
+    }
+}
+
+/// Normalizes spaces in a line of code (simplistic pass)
+def normalize_spacing(line: string): string {
+    mut result: string = str("");
+    mut i: i32 = 0;
+    mut in_string: bool = false;
+    mut last_was_space: bool = false;
+
+    loop {
+        if i >= line.len {
+            break;
+        }
+        val ch: char = get_char(line, i);
+        if ch == '"' {
+            in_string = !in_string;
+            result = concat_chr(result, ch);
+            last_was_space = false;
+        } elif in_string {
+            result = concat_chr(result, ch);
+        } else {
+            if ch == ' ' or ch == '\t' {
+                if !last_was_space and result.len > 0 {
+                    result = concat_chr(result, ' ');
+                    last_was_space = true;
+                }
+            } elif ch == '(' or ch == ')' or ch == ':' or ch == ',' or ch == '{' {
+                if ch == ':' {
+                    if last_was_space and result.len > 0 {
+                        // For simplicity, we'll do a second pass or smarter loop
+                    }
+                }
+                result = concat_chr(result, ch);
+                last_was_space = false;
+            } else {
+                result = concat_chr(result, ch);
+                last_was_space = false;
+            }
+        }
+        i = i + 1;
+    }
+    return trim(result);
+}
+
+/// Improved normalize_spacing focused on signatures, string-aware and comment-aware
+def format_signature(line: string): string {
+    mut res: string = str("");
+    mut in_string: bool = false;
+    mut escaped: bool = false;
+    mut i: i32 = 0;
+    loop {
+        if i >= line.len {
+            break;
+        }
+        val ch: char = get_char(line, i);
+        if escaped {
+            res = concat_chr(res, ch);
+            escaped = false;
+        } elif ch == '\\' and in_string {
+            res = concat_chr(res, ch);
+            escaped = true;
+        } elif ch == '"' {
+            in_string = !in_string;
+            res = concat_chr(res, ch);
+        } elif in_string {
+            res = concat_chr(res, ch);
+        } else {
+            // Check for comment start
+            if ch == '/' and i + 1 < line.len {
+                if get_char(line, i + 1) == '/' {
+                    // Rest of the line is a comment, keep it as is
+                    res = concat(res, substring_se(line, i, line.len));
+                    break;
+                }
+            }
+
+            if ch == ' ' and i + 1 < line.len {
+                val next: char = get_char(line, i + 1);
+                if next == ')' or next == ':' or next == ',' or next == '(' {
+                    // skip space before these tokens
+                } else {
+                    res = concat_chr(res, ch);
+                }
+            } elif ch == '(' and i + 1 < line.len {
+                val next: char = get_char(line, i + 1);
+                if next == ' ' {
+                    res = concat_chr(res, '(');
+                    i = i + 1; // skip space after (
+                } else {
+                    res = concat_chr(res, ch);
+                }
+            } else {
+                res = concat_chr(res, ch);
+            }
+        }
+        i = i + 1;
+    }
+    return res;
+}
+def format_content(content: string, max_line_length: i32): string {
+    val lines: list(string) = split_lines(content);
+    mut use_statements: list(string);
+    mut other_lines: list(string);
+    mut i: i32 = 0;
+
+    loop {
+        if i >= lines.len {
+            break;
+        }
+        val line: string = trim(lines.data[i]);
+        if starts_with(line, str("use ")) {
+            append(use_statements, line);
+        } elif line.len > 0 {
+            append(other_lines, lines.data[i]);
+        } else {
+            append(other_lines, line);
+        }
+        i = i + 1;
+    }
+
+    sort_string_list(addr(use_statements));
+
+    mut formatted_lines: list(string);
+
+    mut j: i32 = 0;
+    loop {
+        if j >= use_statements.len {
+            break;
+        }
+        append(formatted_lines, use_statements.data[j]);
+        j = j + 1;
+    }
+    if use_statements.len > 0 {
+        append(formatted_lines, str(""));
+    }
+
+    // Pass 2: Process other lines (Braces, Spacing, Function separation)
+    mut k: i32 = 0;
+    mut last_was_empty: bool = false;
+    loop {
+        if k >= other_lines.len {
+            break;
+        }
+        mut line: string = other_lines.data[k];
+        val trimmed: string = trim(line);
+
+        if trimmed.len == 0 {
+            if !last_was_empty {
+                append(formatted_lines, str(""));
+                last_was_empty = true;
+            }
+            k = k + 1;
+            continue;
+        }
+
+        // Ensure newline before top-level declarations or docstrings
+        val lo: string = str("def ");
+        val is_decl: bool = starts_with(trimmed, lo)
+            or starts_with(trimmed, str("model "))
+            or starts_with(trimmed, str("pub "));
+        val is_comment: bool = starts_with(trimmed, str("///")) or starts_with(trimmed, str("//"));
+
+        if (is_decl or is_comment) and formatted_lines.len > 0 {
+            if !last_was_empty {
+                mut prev_is_comment: bool = false;
+                val prev_line_raw: string = formatted_lines.data[formatted_lines.len - 1];
+                val prev_line: string = trim(prev_line_raw);
+                if starts_with(prev_line, str("//")) or starts_with(prev_line, str("///")) {
+                    prev_is_comment = true;
+                }
+
+                if !prev_is_comment {
+                    append(formatted_lines, str(""));
+                }
+            }
+        }
+        last_was_empty = false;
+
+        if compare(trimmed, str("}")) == 0 and k + 1 < other_lines.len {
+            val next_trimmed: string = trim(other_lines.data[k + 1]);
+            if starts_with(next_trimmed, str("else")) or starts_with(next_trimmed, str("elif")) or
+                starts_with(next_trimmed, str("{")) {
+                line = concat_c(line, " ");
+                line = concat(line, next_trimmed);
+                k = k + 1;
+            }
+        }
+
+        line = format_signature(line);
+
+        if line.len > max_line_length {
+            val broken: list(string) = break_long_line(line, max_line_length, 0);
+            mut b: i32 = 0;
+            loop {
+                if b >= broken.len {
+                    break;
+                }
+                append(formatted_lines, broken.data[b]);
+                b = b + 1;
+            }
+        } else {
+            append(formatted_lines, line);
+        }
+
+        k = k + 1;
+    }
+
+    mut result: string = join_lines(addr(formatted_lines));
+    if result.len > 0 {
+        val last_char: char = get_char(result, result.len - 1);
+        if last_char != '\n' {
+            result = concat_c(result, "\n");
+        }
+    }
+    return result;
+}
+
+/// Check if a string ends with a suffix
+def ends_with(s: string, suffix: string): bool {
+    if s.len < suffix.len {
+        return false;
+    }
+    val start: i32 = cast[i32](s.len - suffix.len);
+    mut i: i32 = 0;
+    loop {
+        if i >= suffix.len {
+            break;
+        }
+        if get_char(s, start + i) != get_char(suffix, i) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+/// Format a single file
+def format_file(path: string, max_line_length: i32): bool {
+    println $"Formatting: {path}";
+
+    val content: string = read_file(path);
+    if content.len == 0 {
+        return write_file(path, str("\n"));
+    }
+
+    val final_content: string = format_content(content, max_line_length);
+
+    val success: bool = write_file(path, final_content);
+    if success {
+        println $"Successfully formatted: {path}";
+    } else {
+        println $"Error: Could not write to file {path}";
+    }
+
+    return success;
+}
+
+def read_stdin(): string {
+    unsafe {
+        mut buffer: ref char = cast[ref char](C.malloc(1024));
+        mut capacity: i32 = 1024;
+        mut size: i32 = 0;
+        loop {
+            val ch: i32 = C.getchar();
+            if ch == -1 {
+                break;
+            }
+            if size + 1 >= capacity {
+                capacity = capacity * 2;
+                buffer = cast[ref char](C.realloc(buffer, cast[u64](capacity)));
+            }
+            buffer[size] = cast[char](ch);
+            size = size + 1;
+        }
+        buffer[size] = '\0';
+        val result: string = str(buffer);
+        C.free(buffer);
+        return result;
+    }
+}
+
+def main() {
+    unsafe {
+        val argcf: i32 = C.argc;
+        val argvf: ref ref char = C.argv;
+
+        if argcf < 2 {
+            println("Usage: axefmt [--stdio] <file1.axe> [file2.axe] ...");
+            return;
+        }
+
+        mut use_stdio: bool = false;
+        mut start_index: i32 = 1;
+
+        if argcf >= 2 {
+            val first_arg: string = str(argvf[1]);
+            if compare(first_arg, str("--stdio")) == 0 {
+                use_stdio = true;
+                start_index = 2;
+            }
+        }
+
+        val max_line_length: i32 = 100;
+
+        if use_stdio {
+            val content: string = read_stdin();
+            val formatted: string = format_content(content, max_line_length);
+            print(formatted);
+            return;
+        }
+
+        mut i: i32 = start_index;
+        mut success_count: i32 = 0;
+        mut fail_count: i32 = 0;
+
+        loop {
+            if i >= argcf {
+                break;
+            }
+
+            val file_path: string = str(argvf[i]);
+
+            if !ends_with(file_path, str(".axe")) {
+                println $"Skipping non-Axe file: {file_path}";
+                i++;
+            } else {
+                val success: bool = format_file(file_path, max_line_length);
+                if success {
+                    success_count++;
+                } else {
+                    fail_count++;
+                }
+                i++;
+            }
+        }
+
+        println "";
+        println $"Formatted {success_count} file(s) successfully.";
+        if fail_count > 0 {
+            println $"Failed to format {fail_count} file(s).";
+        }
+    }
+}
