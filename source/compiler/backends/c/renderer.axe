@@ -974,87 +974,119 @@ def infer_expression_type(expr: string): string {
     // Function call
     val paren_idx: i32 = find_char_from(trimmed, '(', cast[usize](0));
     if paren_idx > 0 and has_suffix(trimmed, str(")")) {
-        mut func_name: string = strip(substring_se(trimmed, 0, paren_idx));
-        val args_start: i32 = paren_idx + 1;
-        val args_end: i32 = str_len(trimmed) - 1;
-        if args_end > args_start {
-            val args_str: string = strip(substring_se(trimmed, args_start, args_end));
-            validate_function_call(func_name, args_str, 0);
-        } else {
-            validate_function_call(func_name, str(""), 0);
-        }
+        mut is_single_call: bool = false;
+        mut pi2: i32 = paren_idx;
+        mut depth_call: i32 = 0;
+        mut in_str_call: bool = false;
+        mut in_char_call: bool = false;
+        loop {
+            if pi2 >= str_len(trimmed) { break; }
+            val cpc: char = get_char(trimmed, pi2);
 
-        mut lookup_name: string = func_name;
-        val br_sq: i32 = find_char_from(func_name, '[', cast[usize](0));
-        if br_sq > 0 {
-            val br_sq_end: i32 = find_char_from(func_name, ']', cast[usize](br_sq));
-            if br_sq_end > br_sq {
-                val base_fn: string = strip(substring_se(func_name, 0, br_sq));
-                val type_arg_raw: string = strip(substring_se(func_name, br_sq + 1, br_sq_end));
-                mut mangled: string = base_fn;
-                mut parts: list(string);
-                mut sbt: StringBuilder = StringBuilder.init(64);
-                mut pi: i32 = 0;
-                loop {
-                    if pi >= str_len(type_arg_raw) { break; }
-                    val chp: char = get_char(type_arg_raw, pi);
-                    if chp == ',' {
-                        append(parts, strip(StringBuilder.to_string(addr(sbt))));
-                        sbt = StringBuilder.init(64);
-                    } else {
-                        StringBuilder.append_char(addr(sbt), chp);
-                    }
-                    pi++;
-                }
-                val lastp: string = StringBuilder.to_string(addr(sbt));
-                if str_len(strip(lastp)) > 0 { append(parts, strip(lastp)); }
-                StringBuilder.destroy(addr(sbt));
-
-                if len(parts) == 1 {
-                    mangled = concat(mangled, str("__T_"));
-                    mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[0])));
-                } elif len(parts) == 2 {
-                    mangled = concat(mangled, str("__T2_"));
-                    mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[1])));
-                    mangled = concat(mangled, str("__T_"));
-                    mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[0])));
-                } else {
-                    mut first: bool = true;
-                    mut idxp: i32 = 0;
-                    loop {
-                        if idxp >= len(parts) { break; }
-                        if !first { mangled = concat(mangled, str("__")); }
-                        mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[idxp])));
-                        first = false;
-                        idxp++;
+            if cpc == '"' and !in_char_call and !is_escaped_quote(trimmed, pi2) {
+                in_str_call = !in_str_call;
+            } elif cpc == '\'' and !in_str_call and !is_escaped_quote(trimmed, pi2) {
+                in_char_call = !in_char_call;
+            } elif !in_str_call and !in_char_call {
+                if cpc == '(' {
+                    depth_call++;
+                } elif cpc == ')' {
+                    depth_call--;
+                    if depth_call == 0 {
+                        if pi2 == str_len(trimmed) - 1 {
+                            is_single_call = true;
+                        }
+                        break;
                     }
                 }
-
-                lookup_name = mangled;
             }
+            pi2++;
         }
 
-        if StringStringMap.contains(addr(g_function_prefixes), lookup_name) {
-            lookup_name = StringStringMap.get(addr(g_function_prefixes), lookup_name);
-        } elif StringStringMap.contains(addr(g_function_prefixes), func_name) {
-            lookup_name = StringStringMap.get(addr(g_function_prefixes), func_name);
-        }
+        if is_single_call {
+            mut func_name: string = strip(substring_se(trimmed, 0, paren_idx));
+            val args_start: i32 = paren_idx + 1;
+            val args_end: i32 = str_len(trimmed) - 1;
+            if args_end > args_start {
+                val args_str: string = strip(substring_se(trimmed, args_start, args_end));
+                validate_function_call(func_name, args_str, 0);
+            } else {
+                validate_function_call(func_name, str(""), 0);
+            }
+        
 
-        if equals_c(func_name, "cast") {
+            mut lookup_name: string = func_name;
+            val br_sq: i32 = find_char_from(func_name, '[', cast[usize](0));
             if br_sq > 0 {
-                if StringStringMap.contains(addr(g_function_return_types), lookup_name) {
-                    return StringStringMap.get(addr(g_function_return_types), lookup_name);
+                val br_sq_end: i32 = find_char_from(func_name, ']', cast[usize](br_sq));
+                if br_sq_end > br_sq {
+                    val base_fn: string = strip(substring_se(func_name, 0, br_sq));
+                    val type_arg_raw: string = strip(substring_se(func_name, br_sq + 1, br_sq_end));
+                    mut mangled: string = base_fn;
+                    mut parts: list(string);
+                    mut sbt: StringBuilder = StringBuilder.init(64);
+                    mut pi: i32 = 0;
+                    loop {
+                        if pi >= str_len(type_arg_raw) { break; }
+                        val chp: char = get_char(type_arg_raw, pi);
+                        if chp == ',' {
+                            append(parts, strip(StringBuilder.to_string(addr(sbt))));
+                            sbt = StringBuilder.init(64);
+                        } else {
+                            StringBuilder.append_char(addr(sbt), chp);
+                        }
+                        pi++;
+                    }
+                    val lastp: string = StringBuilder.to_string(addr(sbt));
+                    if str_len(strip(lastp)) > 0 { append(parts, strip(lastp)); }
+                    StringBuilder.destroy(addr(sbt));
+
+                    if len(parts) == 1 {
+                        mangled = concat(mangled, str("__T_"));
+                        mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[0])));
+                    } elif len(parts) == 2 {
+                        mangled = concat(mangled, str("__T2_"));
+                        mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[1])));
+                        mangled = concat(mangled, str("__T_"));
+                        mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[0])));
+                    } else {
+                        mut first: bool = true;
+                        mut idxp: i32 = 0;
+                        loop {
+                            if idxp >= len(parts) { break; }
+                            if !first { mangled = concat(mangled, str("__")); }
+                            mangled = concat(mangled, sanitize_c_identifier(map_axe_type_to_c(parts.data[idxp])));
+                            first = false;
+                            idxp++;
+                        }
+                    }
+
+                    lookup_name = mangled;
                 }
             }
-            return str("cast_inferred_type");
-        }
 
-        if StringStringMap.contains(addr(g_function_return_types), lookup_name) {
-            return StringStringMap.get(addr(g_function_return_types), lookup_name);
-        }
+            if StringStringMap.contains(addr(g_function_prefixes), lookup_name) {
+                lookup_name = StringStringMap.get(addr(g_function_prefixes), lookup_name);
+            } elif StringStringMap.contains(addr(g_function_prefixes), func_name) {
+                lookup_name = StringStringMap.get(addr(g_function_prefixes), func_name);
+            }
 
-        if equals_c(func_name, "len") { return str("i32"); }
-        if equals_c(func_name, "sizeof") { return str("usize"); }
+            if equals_c(func_name, "cast") {
+                if br_sq > 0 {
+                    if StringStringMap.contains(addr(g_function_return_types), lookup_name) {
+                        return StringStringMap.get(addr(g_function_return_types), lookup_name);
+                    }
+                }
+                return str("cast_inferred_type");
+            }
+
+            if StringStringMap.contains(addr(g_function_return_types), lookup_name) {
+                return StringStringMap.get(addr(g_function_return_types), lookup_name);
+            }
+
+            if equals_c(func_name, "len") { return str("i32"); }
+            if equals_c(func_name, "sizeof") { return str("usize"); }
+        }
     }
 
     return str("");
