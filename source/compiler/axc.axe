@@ -179,7 +179,7 @@ def print_help_and_exit() {
     println("Options:");
     println("  -o <name>         Specify output binary name");
     println("  -c                Compile only; produce object file (.obj or .o)");
-    println("  -e                Keep the emitted file");
+    println("  -e                Keep the emitted intermediate file");
     println("  -r                Run the built executable after compilation");
     println("  -l, --loud        Loud debug output");
     println("  -q, --quiet       Suppress all output");
