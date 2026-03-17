@@ -851,7 +851,12 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         platform macos {
             compile_cmd = concat_c(compile_cmd, " \"");
             compile_cmd = concat(compile_cmd, toolchain_root);
-            compile_cmd = concat_c(compile_cmd, "/external/lib-macos/libyyjson.a\"");
+            val arch_result: ExecResult = exec_capture(str("uname -m"));
+            if str_contains_c(arch_result.output, "x86_64") {
+                compile_cmd = concat_c(compile_cmd, "/external/x64-lib-macos/libyyjson.a\"");
+            } else {
+                compile_cmd = concat_c(compile_cmd, "/external/lib-macos/libyyjson.a\"");
+            }
         }
     }
 
