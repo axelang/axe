@@ -400,5 +400,7 @@ test {
     val key: i32 = read_key();
     println_i32(key);
 
+    val smth: i32 = read_i32();
+    println(smth);
     eprintln("Something to stderr.");
 }
