@@ -1015,6 +1015,36 @@ pub def strip(s: string): string {
     return substr(s, cast[i32](start), end - start);
 }
 
+/// Reverses a string.
+pub def reverse(s: string): string {
+    mut result: string;
+    unsafe {
+        result.data = nil;
+        result.len = 0;
+        result.cap = 0;
+
+        if s.len == 0 {
+            return result;
+        }
+
+        result.data = C.malloc(s.len + 1);
+        if result.data != nil {
+            mut i: usize = 0;
+            loop {
+                if i >= s.len {
+                    break;
+                }
+                result.data[i] = s.data[s.len - 1 - i];
+                i++;
+            }
+            result.data[s.len] = '\0';
+            result.len = s.len;
+            result.cap = s.len + 1;
+        }
+    }
+    return result;
+}
+
 /// Convenience function to convert a char* to a string.
 pub def str(data: ref char): string {
     return string.create(data);
@@ -1096,6 +1126,11 @@ test {
     assert equals_c(string.create("test"), "test"), "equals_c should return 0 for equal strings";
     assert !equals_c(string.create("test"), "TEST"), "equals_c should return non-zero for different strings";
     assert concat_chr(string.create("Price: "), '$').data != nil, "concat_chr should append character to string";
+
+    assert compare(reverse(string.create("hello")), string.create("olleh")) == 0, "reverse should reverse the string";
+    assert compare(reverse(string.create("a")), string.create("a")) == 0, "reverse of single char should be itself";
+    assert compare(reverse(string.create("")), string.create("")) == 0, "reverse of empty string should be empty";
+    assert compare(reverse(string.create("racecar")), string.create("racecar")) == 0, "reverse of palindrome should be itself";
 
     assert str_to_int(string.create("12345")) == 12345, "str_to_int should convert string to integer";
 
