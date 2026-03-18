@@ -691,7 +691,11 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
         }
 
         link_cmd = concat(link_cmd, asm_filename);
-        link_cmd = concat(link_cmd, str(" -g -Wno-everything -O0 -o "));
+        if ::is_release_build {
+            link_cmd = concat(link_cmd, str(" -Wno-everything -O3 -o "));
+        } else {
+            link_cmd = concat(link_cmd, str(" -g -Wno-everything -O0 -o "));
+        }
         link_cmd = concat(link_cmd, qbe_exe_filename);
 
         val link_result: ExecResult = exec_capture(link_cmd);
@@ -886,10 +890,21 @@ def compile_file(filename: string, is_axec: bool, output_filename: string): bool
     }
 
     val compile_only: bool = get_compile_only();
-    if compile_only {
-        compile_cmd = concat(compile_cmd, str(" -Wno-everything -O0 -c -o "));
+    mut opt_flag: string;
+    
+    if ::is_release_build {
+        opt_flag = str("-O3");
     } else {
-        compile_cmd = concat(compile_cmd, str(" -Wno-everything -O0 -o "));
+        opt_flag = str("-O0");
+    }
+    if compile_only {
+        compile_cmd = concat(compile_cmd, str(" -Wno-everything "));
+        compile_cmd = concat(compile_cmd, opt_flag);
+        compile_cmd = concat_c(compile_cmd, " -c -o ");
+    } else {
+        compile_cmd = concat(compile_cmd, str(" -Wno-everything "));
+        compile_cmd = concat(compile_cmd, opt_flag);
+        compile_cmd = concat_c(compile_cmd, " -o ");
     }
     compile_cmd = concat(compile_cmd, str("\""));
     compile_cmd = concat(compile_cmd, exe_filename);
