@@ -151,18 +151,24 @@ pub def println_bool(value: bool) {
 /// Read an integer from stdin
 pub def read_i32(): i32 {
     mut value: i32 = 0;
+    mut res: i32 = 0;
     unsafe {
-        C.scanf("%d", addr(value));
+        res = C.scanf("%d", addr(value));
     }
+    val was_failure = res == 1;
+    enforce(was_failure, "bad i32 input");
     return value;
 }
 
 /// Read a float from stdin
 pub def read_f32(): f32 {
     mut value: f32 = 0.0;
+    mut res: i32 = 0;
     unsafe {
-        C.scanf("%f", addr(value));
+        res = C.scanf("%f", addr(value));
     }
+    val was_failure = res == 1;
+    enforce(was_failure, "bad f32 input");
     return value;
 }
 
@@ -177,7 +183,7 @@ pub def read_str(arena: Arena): string {
     }
 
     val was_failure = res == 1;
-    enforce(was_failure, "invalid string input");
+    enforce(was_failure, "bad string input");
 
     return str(buffer);
 }
