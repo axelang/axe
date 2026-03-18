@@ -170,9 +170,15 @@ pub def read_f32(): f32 {
 pub def read_str(arena: Arena): string {
     val buffer_size: usize = 1024;
     mut buffer: ref char = Arena.alloc_array(addr(arena), C.sizeof(char), buffer_size);
+    mut res: i32 = 0;
+
     unsafe {
-        C.scanf("%1023s", buffer);
+        res = C.scanf("%1023s", buffer);
     }
+
+    val was_failure = res == 1;
+    enforce(was_failure, "invalid string input");
+
     return str(buffer);
 }
 
