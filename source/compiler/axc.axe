@@ -194,9 +194,11 @@ def print_help_and_exit() {
     println("  --cflags <flags>  Pass custom flags to the C compiler");
     println("  --showcc          Show the C compiler command line");
     println("  --bootstrap       Emit without line directives");
+
     platform windows {
         println("  --nowin           Do not include windows.h automatically");
     }
+
     println("  --syntax-check    Check syntax only (no code generation)");
     println("  --target <triple> Cross-compile for target (e.g. x86_64-w64-mingw32)");
     println("  --sysroot <path>  Specify sysroot for cross-compilation");
